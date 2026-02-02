@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@kusinakonek/common": ["../../packages/common/src"],
+      "@kusinakonek/database": ["../../packages/database/src"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@kusinakonek/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android"
+  },
+  "dependencies": {
+    "expo": "^51.0.0",
+    "expo-location": "^17.0.1",
+    "expo-image-picker": "^15.0.7",
+    "react": "18.2.0",
+    "react-native": "0.74.3",
+    "react-native-maps": "1.15.6"
+  }
+}

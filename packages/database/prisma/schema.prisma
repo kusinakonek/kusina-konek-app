@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DONOR
+  RECIPIENT
+  VOLUNTEER
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  displayName String
+  role        Role
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  donations   FoodItem[]
+}
+
+model FoodItem {
+  id         String   @id @default(uuid())
+  title      String
+  quantity   Int
+  expiresAt  DateTime
+  photoUrl   String?
+  latitude   Float
+  longitude  Float
+  donorId    String
+  donor      User     @relation(fields: [donorId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
