@@ -42,5 +42,15 @@ export const authService = {
       session: data.session,
       user: data.user
     };
+  },
+
+  async getProfile(userId?: string) {
+    if (!userId) {
+      throw new Error("Missing user id");
+    }
+
+    return prisma.user.findUnique({
+      where: { id: userId }
+    });
   }
 };
