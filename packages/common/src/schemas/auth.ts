@@ -4,7 +4,7 @@ export const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   displayName: z.string().min(2),
-  role: z.enum(["DONOR", "RECIPIENT", "VOLUNTEER"])
+  role: z.enum(["DONOR", "RECIPIENT"])
 });
 
 export const signInSchema = z.object({
