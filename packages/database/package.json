@@ -9,10 +9,20 @@
     "@supabase/supabase-js": "^2.45.4"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "prisma": "^5.20.0",
+    "ts-node-dev": "^2.0.0",
     "typescript": "^5.6.2"
   },
   "scripts": {
-    "generate": "prisma generate --schema=prisma/schema.prisma"
+    "generate": "prisma generate --schema=prisma/schema.prisma",
+    "postinstall": "npm run generate",
+    "migrate": "npx dotenv -e ../../.env -- prisma migrate dev --schema=prisma/schema.prisma",
+    "push": "npx dotenv -e ../../.env -- prisma db push --schema=prisma/schema.prisma",
+    "studio": "npx dotenv -e ../../.env -- prisma studio --schema=prisma/schema.prisma",
+    "seed": "npx dotenv -e ../../.env -- prisma db seed --schema=prisma/schema.prisma"
+  },
+  "prisma": {
+    "seed": "ts-node-dev --transpile-only prisma/seed.ts"
   }
 }
