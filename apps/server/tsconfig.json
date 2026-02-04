@@ -1,13 +1,24 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "baseUrl": ".",
+    "declaration": true,
+    "declarationMap": true,
     "paths": {
-      "@kusinakonek/common": ["../../packages/common/src"],
-      "@kusinakonek/database": ["../../packages/database/src"]
+      "@kusinakonek/common": [
+        "../../packages/common/src"
+      ],
+      "@kusinakonek/database": [
+        "../../packages/database/src"
+      ]
     }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

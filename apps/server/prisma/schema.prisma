@@ -36,29 +36,22 @@ model User {
   DateAdded   DateTime @default(now())
 
   // Relations
-  foods           Food[]
-  userAddress     Address?
+  foods            Food[]
+  userAddress      Address?
   dropOffLocations DropOffLocation[]
   
   // Distribution relations
-  donations       Distribution[] @relation("DonorDistributions")
-  received        Distribution[] @relation("RecipientDistributions")
+  donations        Distribution[] @relation("DonorDistributions")
+  received         Distribution[] @relation("RecipientDistributions")
   
   // Feedback relations
-  givenFeedback   Feedback[] @relation("DonorFeedbacks")
+  givenFeedback    Feedback[] @relation("DonorFeedbacks")
   receivedFeedback Feedback[] @relation("RecipientFeedbacks")
-}
-
-model Location {
-  // Implicitly derived or shared? The diagram has 'Drop-off location' and 'Address'.
-  // 'Address' seems to be User's address. 'Drop-off location' seems linked to Food/User.
-  // We will map them separately as per diagram.
-  id Int @id // Placeholder if needed, but we used separate tables below.
 }
 
 model Address {
   addID         String   @id @default(uuid())
-  UserID        String   @unique // One address per user?
+  UserID        String   @unique
   user          User     @relation(fields: [UserID], references: [userID])
   latitude      Float
   longitude     Float
@@ -84,7 +77,7 @@ model Food {
 
 model DropOffLocation {
   locID         String   @id @default(uuid())
-  foodID        String?  // Optional in case location manages multiple or none initially? Diagram says it has it.
+  foodID        String?
   food          Food?    @relation(fields: [foodID], references: [foodID])
   userID        String
   user          User     @relation(fields: [userID], references: [userID])
