@@ -1,6 +1,7 @@
 import { SignInInput, SignUpInput } from "@kusinakonek/common";
-import { prisma, supabaseAdmin } from "@kusinakonek/database";
+import { supabaseAdmin } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
+import { userRepository } from "../repositories";
 
 export interface PasswordResetInput {
   email: string;
@@ -12,15 +13,15 @@ export interface UpdatePasswordInput {
 
 export const authService = {
   /**
-   * Register a new user with Supabase Auth and create a profile in the database
+  * Register a new user with Supabase Auth.
+  * Note: DB profile creation is handled separately once required profile fields are collected.
    */
   async signUp(input: SignUpInput) {
     const { email, password, displayName, role } = input;
 
     // Check if user already exists in our database
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+    // Note: email is not marked @unique in Prisma schema, so we use findFirst.
+    const existingUser = await userRepository.getFirstByEmail(email);
 
     if (existingUser) {
       throw new HttpError(409, "An account with this email already exists");
@@ -47,23 +48,13 @@ export const authService = {
       throw new HttpError(500, "Failed to create user account");
     }
 
-    // Create user profile in our database
-    const profile = await prisma.user.create({
-      data: {
+    return {
+      message: "Account created successfully. Please check your email to verify your account.",
+      user: {
         id: data.user.id,
         email,
         displayName,
         role
-      }
-    });
-
-    return {
-      message: "Account created successfully. Please check your email to verify your account.",
-      user: {
-        id: profile.id,
-        email: profile.email,
-        displayName: profile.displayName,
-        role: profile.role
       },
       session: data.session
     };
@@ -92,10 +83,8 @@ export const authService = {
       throw new HttpError(400, error.message);
     }
 
-    // Fetch user profile from our database
-    const profile = await prisma.user.findUnique({
-      where: { id: data.user.id }
-    });
+    // Fetch user profile from our database (optional; may not exist yet)
+    const profile = await userRepository.getByUserId(data.user.id);
 
     return {
       message: "Signed in successfully",
@@ -104,12 +93,20 @@ export const authService = {
         refreshToken: data.session?.refresh_token,
         expiresAt: data.session?.expires_at
       },
-      user: profile ?? {
-        id: data.user.id,
-        email: data.user.email,
-        displayName: data.user.user_metadata?.display_name,
-        role: data.user.user_metadata?.role
-      }
+      user:
+        profile
+          ? {
+              id: profile.userID,
+              email: profile.email,
+              displayName: userRepository.toDisplayName(profile),
+              role: profile.role.roleName
+            }
+          : {
+              id: data.user.id,
+              email: data.user.email,
+              displayName: data.user.user_metadata?.display_name,
+              role: data.user.user_metadata?.role
+            }
     };
   },
 
@@ -132,23 +129,31 @@ export const authService = {
   /**
    * Get current user profile
    */
-  async getProfile(userId: string) {
-    const profile = await prisma.user.findUnique({
-      where: { id: userId }
-    });
+  async getProfile(params: { userId: string; email?: string; role?: string }) {
+    const profile = await userRepository.getByUserId(params.userId);
 
     if (!profile) {
-      throw new HttpError(404, "User profile not found");
+      return {
+        user: {
+          id: params.userId,
+          email: params.email,
+          displayName: undefined,
+          role: params.role,
+          createdAt: undefined
+        },
+        profileCompleted: false
+      };
     }
 
     return {
       user: {
-        id: profile.id,
+        id: profile.userID,
         email: profile.email,
-        displayName: profile.displayName,
-        role: profile.role,
-        createdAt: profile.createdAt
-      }
+        displayName: userRepository.toDisplayName(profile),
+        role: profile.role.roleName,
+        createdAt: profile.DateAdded
+      },
+      profileCompleted: true
     };
   },
 
