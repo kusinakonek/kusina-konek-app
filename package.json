@@ -10,6 +10,10 @@
     "dev:server": "npm --workspace apps/server run dev",
     "dev:mobile": "npm --workspace apps/mobile run start",
     "typecheck": "npm --workspace apps/server run typecheck",
-    "db:generate": "npm --workspace packages/database run generate"
+    "db:generate": "npm --workspace packages/database run generate",
+    "db:migrate": "npm --workspace packages/database run migrate",
+    "db:push": "npm --workspace packages/database run push",
+    "db:studio": "npm --workspace packages/database run studio",
+    "db:seed": "npm --workspace packages/database run seed"
   }
 }

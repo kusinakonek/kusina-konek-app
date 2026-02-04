@@ -10,10 +10,11 @@ export const requireRole = (roles: Role[]) =>
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: req.authUser.id }
+      where: { userID: req.authUser.id },
+      include: { role: true }
     });
 
-    if (!user || !roles.includes(user.role as Role)) {
+    if (!user || !roles.includes(user.role.roleName as Role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
