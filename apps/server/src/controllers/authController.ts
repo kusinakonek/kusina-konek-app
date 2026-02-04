@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { authService, PasswordResetInput, UpdatePasswordInput } from "../services/authService";
 import { SignInInput, SignUpInput } from "@kusinakonek/common";
+import { AuthenticatedRequest } from "../middlewares/requireAuth";
 
 export const authController = {
   /**

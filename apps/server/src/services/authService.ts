@@ -228,6 +228,16 @@ export const authService = {
     return {
       message: "If an account with this email exists and is unverified, a verification email has been sent"
     };
+  },
+
+  async getProfile(userId?: string) {
+    if (!userId) {
+      throw new Error("Missing user id");
+    }
+
+    return prisma.user.findUnique({
+      where: { id: userId }
+    });
   }
 };
 
