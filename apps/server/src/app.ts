@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { env } from "./config/env";
+import { prisma } from "@kusinakonek/database";
 import { errorHandler } from "./middlewares/errorHandler";
 import { apiRouter } from "./routes";
 
@@ -13,14 +14,18 @@ app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
 
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/health", async (_req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: "ok", db: "connected" });
+    } catch (error: any) {
+        res.status(503).json({ status: "ok", db: "disconnected", message: error?.message ?? "DB connection failed" });
+    }
+});
 
 // Database connection check endpoint
 app.get("/db-check", async (_req, res) => {
     try {
-        const { PrismaClient } = await import('@prisma/client');
-        const prisma = new PrismaClient();
-
         // Test basic connection
         const result = await prisma.$queryRaw`SELECT NOW() as current_time, current_database() as db_name`;
 
@@ -40,8 +45,6 @@ app.get("/db-check", async (_req, res) => {
             name: table,
             exists: tableNames.includes(table)
         }));
-
-        await prisma.$disconnect();
 
         res.json({
             status: "connected",
