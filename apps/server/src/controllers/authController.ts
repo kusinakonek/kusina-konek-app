@@ -62,7 +62,11 @@ export const authController = {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const result = await authService.getProfile(req.user.id);
+      const result = await authService.getProfile({
+        userId: req.user.id,
+        email: req.user.email,
+        role: req.user.role
+      });
       return res.status(200).json(result);
     } catch (error) {
       next(error);
