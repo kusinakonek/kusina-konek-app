@@ -16,9 +16,18 @@ export const createFoodSchema = z.object({
       }),
     )
     .optional(),
+  scheduledTime: z.string().datetime(),
+  photoProof: z.string().url().optional(),
+});
+
+export const requestDonationSchema = z.object({
+  foodID: z.string().uuid(),
+  scheduledTime: z.string().datetime(),
+  photoProof: z.string().url().optional(),
 });
 
 export const updateFoodSchema = createFoodSchema.partial();
 
 export type CreateFoodInput = z.infer<typeof createFoodSchema>;
 export type UpdateFoodInput = z.infer<typeof updateFoodSchema>;
+export type RequestDonationInput = z.infer<typeof requestDonationSchema>;

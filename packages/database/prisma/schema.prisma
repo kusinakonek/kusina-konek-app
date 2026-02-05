@@ -103,8 +103,8 @@ model Distribution {
   disID         String   @id @default(uuid())
   donorID       String
   donor         User     @relation("DonorDistributions", fields: [donorID], references: [userID])
-  recipientID   String
-  recipient     User     @relation("RecipientDistributions", fields: [recipientID], references: [userID])
+  recipientID   String?
+  recipient     User?    @relation("RecipientDistributions", fields: [recipientID], references: [userID])
   locID         String
   location      DropOffLocation @relation(fields: [locID], references: [locID])
   foodID        String

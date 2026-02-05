@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { createFoodSchema, updateFoodSchema } from "@kusinakonek/common";
+import {
+  createFoodSchema,
+  updateFoodSchema,
+  requestDonationSchema,
+} from "@kusinakonek/common";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { requireUserRole } from "../middlewares/requireUserRole";
 import { validateRequest } from "../middlewares/validateRequest";
@@ -19,6 +23,15 @@ foodRouter.post(
 
 foodRouter.get("/donations", authMiddleware, foodController.getAllDonations);
 
+// Recipient requests/claims a donation (creates distribution)
+foodRouter.post(
+  "/donations/request",
+  authMiddleware,
+  requireUserRole(["RECIPIENT"]),
+  validateRequest(requestDonationSchema),
+  foodController.requestDonation,
+);
+
 foodRouter.get(
   "/donations/user/:userID",
   authMiddleware,
@@ -34,7 +47,7 @@ foodRouter.get(
 foodRouter.put(
   "/donations/:foodID",
   authMiddleware,
-  // requireUserRole(["DONOR"]),
+  requireUserRole(["DONOR"]),
   validateRequest(updateFoodSchema),
   foodController.updateDonation,
 );
@@ -42,7 +55,7 @@ foodRouter.put(
 foodRouter.patch(
   "/donations/:foodID",
   authMiddleware,
-  // requireUserRole(["DONOR"]),
+  requireUserRole(["DONOR"]),
   validateRequest(updateFoodSchema),
   foodController.updateDonation,
 );
@@ -50,7 +63,7 @@ foodRouter.patch(
 foodRouter.delete(
   "/donations/:foodID",
   authMiddleware,
-  // requireUserRole(["DONOR"]),
+  requireUserRole(["DONOR"]),
   foodController.deleteDonation,
 );
 

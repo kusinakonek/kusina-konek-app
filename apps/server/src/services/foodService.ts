@@ -1,6 +1,14 @@
-import { CreateFoodInput, UpdateFoodInput } from "@kusinakonek/common";
+import {
+  CreateFoodInput,
+  UpdateFoodInput,
+  RequestDonationInput,
+} from "@kusinakonek/common";
 import { HttpError } from "../middlewares/errorHandler";
-import { foodRepository, userRepository } from "../repositories";
+import {
+  foodRepository,
+  userRepository,
+  distributionRepository,
+} from "../repositories";
 import { encrypt, decrypt } from "../utils/encryption";
 import { locationService } from "./locationService";
 
@@ -133,9 +141,10 @@ export const foodService = {
     );
 
     // Create locations using existing locationService if provided
+    let dropOffLocationID: string | undefined;
     if (params.input.locations && params.input.locations.length > 0) {
       for (const loc of params.input.locations) {
-        await locationService.createLocation({
+        const location = await locationService.createLocation({
           userID: params.userID,
           input: {
             foodID: created.foodID,
@@ -145,8 +154,27 @@ export const foodService = {
             barangay: loc.barangay,
           },
         });
+        if (!dropOffLocationID) {
+          dropOffLocationID = location.location.locID;
+        }
       }
     }
+
+    if (!dropOffLocationID) {
+      throw new HttpError(400, "At least one drop-off location is required");
+    }
+
+    const distribution = await distributionRepository.create({
+      donor: { connect: { userID: params.userID } },
+      location: { connect: { locID: dropOffLocationID } },
+      food: { connect: { foodID: created.foodID } },
+      quantity: params.input.quantity,
+      scheduledTime: new Date(params.input.scheduledTime),
+      photoProof: params.input.photoProof,
+      status: "PENDING",
+    });
+
+    return { food: created, distribution };
   },
 
   async getAllDonations(userID: string) {
@@ -314,5 +342,32 @@ export const foodService = {
     return {
       message: "Donation and associated locations deleted successfully",
     };
+  },
+
+  async requestDonation(params: {
+    recipientID: string;
+    input: RequestDonationInput;
+  }) {
+    await ensureProfile(params.recipientID);
+
+    const existing = await distributionRepository.getByFoodId(
+      params.input.foodID,
+    );
+    if (!existing) throw new HttpError(404, "Distribution not found");
+    if (existing.recipientID) {
+      throw new HttpError(409, "Donation already claimed");
+    }
+    if (existing.status !== "PENDING") {
+      throw new HttpError(409, "Donation not available for claiming");
+    }
+
+    const distribution = await distributionRepository.update(existing.disID, {
+      recipient: { connect: { userID: params.recipientID } },
+      scheduledTime: new Date(params.input.scheduledTime),
+      photoProof: params.input.photoProof,
+      status: "CLAIMED",
+    });
+
+    return { distribution };
   },
 };
