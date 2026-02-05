@@ -1,3 +1,4 @@
+export * from "./dashboardRepository";
 export * from "./distributionRepository";
 export * from "./feedbackRepository";
 export * from "./foodRepository";
