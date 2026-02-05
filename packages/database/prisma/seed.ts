@@ -154,8 +154,11 @@ async function main() {
 
     // 7. Distribution
     console.log('Creating Distribution...');
-    const distribution = await prisma.distribution.create({
-        data: {
+    const distribution = await prisma.distribution.upsert({
+        where: { disID: "11111111-1111-1111-1111-111111111111" },
+        update: {},
+        create: {
+            disID: "11111111-1111-1111-1111-111111111111",
             donorID: donorIndiv.userID,
             recipientID: recipient.userID,
             locID: location.locID,

@@ -131,4 +131,5 @@ model Feedback {
   ratingScore   Int
   comments      String?
   timestamp     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
