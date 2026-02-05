@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authRouter } from "./authRoutes";
+import { dashboardRouter } from "./dashboardRoutes";
 import { distributionRouter } from "./distributionRoutes";
 import { feedbackRouter } from "./feedbackRoutes";
 import { foodRouter } from "./foodRoutes";
@@ -9,6 +10,7 @@ import { usersRouter } from "./userRoutes";
 export const apiRouter = Router();
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/foods", foodRouter);
 apiRouter.use("/locations", locationRouter);
 apiRouter.use("/distributions", distributionRouter);
