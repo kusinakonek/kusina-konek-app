@@ -6,6 +6,7 @@ export const completeUserProfileSchema = z
     middleName: z.string().min(1).optional(),
     lastName: z.string().min(1),
     suffix: z.string().min(1).optional(),
+    role: z.enum(["DONOR", "RECIPIENT", "ADMIN"]).optional(),
 
     phoneNo: z.string().min(7),
 
