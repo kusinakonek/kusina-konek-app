@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { CreateFoodInput, UpdateFoodInput } from "@kusinakonek/common";
+import {
+  CreateFoodInput,
+  UpdateFoodInput,
+  RequestDonationInput,
+} from "@kusinakonek/common";
 import { foodService } from "../services/foodService";
 
 export const foodController = {
@@ -131,6 +135,19 @@ export const foodController = {
         foodID: req.params.foodID,
       });
       return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async requestDonation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = req.body as RequestDonationInput;
+      const result = await foodService.requestDonation({
+        recipientID: req.user!.id,
+        input,
+      });
+      return res.status(201).json(result);
     } catch (error) {
       next(error);
     }
