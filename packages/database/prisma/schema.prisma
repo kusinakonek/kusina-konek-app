@@ -91,6 +91,14 @@ model DropOffLocation {
   distributions Distribution[]
 }
 
+enum DistributionStatus {
+  PENDING
+  CLAIMED
+  ON_THE_WAY
+  DELIVERED
+  COMPLETED
+}
+
 model Distribution {
   disID         String   @id @default(uuid())
   donorID       String
@@ -102,6 +110,7 @@ model Distribution {
   foodID        String
   food          Food     @relation(fields: [foodID], references: [foodID])
   quantity      Int
+  status        DistributionStatus @default(PENDING)
   photoProof    String?
   scheduledTime DateTime
   actualTime    DateTime?
