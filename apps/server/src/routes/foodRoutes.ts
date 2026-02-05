@@ -7,28 +7,51 @@ import { foodController } from "../controllers/foodController";
 
 export const foodRouter = Router();
 
+foodRouter.get("/mine", authMiddleware, foodController.listMine);
+
 foodRouter.post(
-  "/",
+  "/donations",
   authMiddleware,
-  requireUserRole(["DONOR"]),
+  // requireUserRole(["DONOR"]),
   validateRequest(createFoodSchema),
-  foodController.create
+  foodController.createDonation,
 );
 
-foodRouter.get("/mine", authMiddleware, foodController.listMine);
-foodRouter.get("/:foodID", authMiddleware, foodController.getById);
+foodRouter.get("/donations", authMiddleware, foodController.getAllDonations);
+
+foodRouter.get(
+  "/donations/user/:userID",
+  authMiddleware,
+  foodController.getDonationsByUserId,
+);
+
+foodRouter.get(
+  "/donations/:foodID",
+  authMiddleware,
+  foodController.getDonationById,
+);
+
+foodRouter.put(
+  "/donations/:foodID",
+  authMiddleware,
+  // requireUserRole(["DONOR"]),
+  validateRequest(updateFoodSchema),
+  foodController.updateDonation,
+);
 
 foodRouter.patch(
-  "/:foodID",
+  "/donations/:foodID",
   authMiddleware,
-  requireUserRole(["DONOR"]),
+  // requireUserRole(["DONOR"]),
   validateRequest(updateFoodSchema),
-  foodController.update
+  foodController.updateDonation,
 );
 
 foodRouter.delete(
-  "/:foodID",
+  "/donations/:foodID",
   authMiddleware,
-  requireUserRole(["DONOR"]),
-  foodController.remove
+  // requireUserRole(["DONOR"]),
+  foodController.deleteDonation,
 );
+
+foodRouter.get("/:foodID", authMiddleware, foodController.getById);

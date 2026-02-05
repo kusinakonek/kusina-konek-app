@@ -5,7 +5,17 @@ export const createFoodSchema = z.object({
   dateCooked: z.string().datetime(),
   description: z.string().min(1).optional(),
   quantity: z.number().int().positive(),
-  image: z.string().url().optional()
+  image: z.string().url().optional(),
+  locations: z
+    .array(
+      z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        streetAddress: z.string().min(2),
+        barangay: z.string().min(2),
+      }),
+    )
+    .optional(),
 });
 
 export const updateFoodSchema = createFoodSchema.partial();
