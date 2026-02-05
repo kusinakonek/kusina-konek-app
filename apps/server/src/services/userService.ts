@@ -7,7 +7,9 @@ import { sha256Hex } from "../utils/hash";
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
 const normalizeRole = (value: unknown): Role | undefined => {
-  if (value === "DONOR" || value === "RECIPIENT") return value;
+  if (typeof value !== "string") return undefined;
+  const upper = value.toUpperCase();
+  if (upper === "DONOR" || upper === "RECIPIENT") return upper as Role;
   return undefined;
 };
 
@@ -24,9 +26,13 @@ export const userService = {
       throw new HttpError(400, "Authenticated email is missing");
     }
 
-    const roleName = normalizeRole(authRole);
+    // Try to get role from JWT token first, then fallback to request body
+    const roleFromToken = normalizeRole(authRole);
+    const roleFromInput = normalizeRole((input as any).role);
+    const roleName = roleFromToken || roleFromInput;
+
     if (!roleName) {
-      throw new HttpError(400, "User role is missing or invalid");
+      throw new HttpError(400, "User role is missing or invalid. Please provide 'role' as 'DONOR' or 'RECIPIENT'.");
     }
 
     const role = await roleRepository.getByName(roleName);
@@ -56,15 +62,15 @@ export const userService = {
           password: SUPABASE_MANAGED_PASSWORD,
           ...(input.address
             ? {
-                userAddress: {
-                  create: {
-                    latitude: input.address.latitude,
-                    longitude: input.address.longitude,
-                    streetAddress: input.address.streetAddress,
-                    barangay: input.address.barangay
-                  }
+              userAddress: {
+                create: {
+                  latitude: input.address.latitude,
+                  longitude: input.address.longitude,
+                  streetAddress: input.address.streetAddress,
+                  barangay: input.address.barangay
                 }
               }
+            }
             : {})
         },
         update: {
@@ -81,23 +87,23 @@ export const userService = {
           orgName: input.orgName ?? null,
           ...(input.address
             ? {
-                userAddress: {
-                  upsert: {
-                    create: {
-                      latitude: input.address.latitude,
-                      longitude: input.address.longitude,
-                      streetAddress: input.address.streetAddress,
-                      barangay: input.address.barangay
-                    },
-                    update: {
-                      latitude: input.address.latitude,
-                      longitude: input.address.longitude,
-                      streetAddress: input.address.streetAddress,
-                      barangay: input.address.barangay
-                    }
+              userAddress: {
+                upsert: {
+                  create: {
+                    latitude: input.address.latitude,
+                    longitude: input.address.longitude,
+                    streetAddress: input.address.streetAddress,
+                    barangay: input.address.barangay
+                  },
+                  update: {
+                    latitude: input.address.latitude,
+                    longitude: input.address.longitude,
+                    streetAddress: input.address.streetAddress,
+                    barangay: input.address.barangay
                   }
                 }
               }
+            }
             : {})
         },
         include: { role: true, userAddress: true }
@@ -121,11 +127,11 @@ export const userService = {
           orgName: user.orgName,
           address: user.userAddress
             ? {
-                latitude: user.userAddress.latitude,
-                longitude: user.userAddress.longitude,
-                streetAddress: user.userAddress.streetAddress,
-                barangay: user.userAddress.barangay
-              }
+              latitude: user.userAddress.latitude,
+              longitude: user.userAddress.longitude,
+              streetAddress: user.userAddress.streetAddress,
+              barangay: user.userAddress.barangay
+            }
             : null
         }
       };
