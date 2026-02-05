@@ -1,19 +1,41 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main, develop]
   push:
     branches: [main, develop]
 
+# Least privilege for the default GITHUB_TOKEN
+permissions:
+  contents: read
+
+# Cancel older runs on the same branch/PR when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (Server)
+        run: npm run typecheck
+
+      - name: Build (Server)
+        run: npm --workspace apps/server run build
