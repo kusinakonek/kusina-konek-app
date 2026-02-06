@@ -2,7 +2,7 @@
 CREATE TABLE "Distribution" (
     "disID" TEXT NOT NULL,
     "donorID" TEXT NOT NULL,
-    "recipientID" TEXT NOT NULL,
+    "recipientID" TEXT NULL,
     "locID" TEXT NOT NULL,
     "foodID" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,

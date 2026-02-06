@@ -21,8 +21,8 @@ model Status {
 
 model User {
   userID      String   @id @default(uuid())
-  roleID      Int
-  role        Role     @relation(fields: [roleID], references: [roleID])
+  roleID      Int?
+  role        Role?    @relation(fields: [roleID], references: [roleID])
   firstName   String
   middleName  String?
   lastName    String
