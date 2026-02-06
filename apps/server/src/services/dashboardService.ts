@@ -1,12 +1,14 @@
 import { HttpError } from "../middlewares/errorHandler";
 import { dashboardRepository, userRepository } from "../repositories";
+import { sha256Hex } from "../utils/hash";
 
 // ============================================================
 // Helper Functions
 // ============================================================
 
-const ensureProfile = async (userID: string) => {
-    const profile = await userRepository.getByUserId(userID);
+const ensureProfile = async (email: string) => {
+    const emailHash = sha256Hex(email.toLowerCase());
+    const profile = await userRepository.getByEmailHash(emailHash);
     if (!profile) throw new HttpError(400, "Complete your profile first");
     return profile;
 };
@@ -38,8 +40,9 @@ export const dashboardService = {
      * Get Donor Dashboard data
      * Returns stats and recent donations for the donor home page
      */
-    async getDonorDashboard(userID: string) {
-        await ensureProfile(userID);
+    async getDonorDashboard(email: string) {
+        const profile = await ensureProfile(email);
+        const userID = profile.userID;
 
         const [stats, recentDonations] = await Promise.all([
             dashboardRepository.getDonorStats(userID),
@@ -63,8 +66,9 @@ export const dashboardService = {
      * Get Recipient Dashboard data
      * Returns stats and recent foods for the recipient home page
      */
-    async getRecipientDashboard(userID: string) {
-        await ensureProfile(userID);
+    async getRecipientDashboard(email: string) {
+        const profile = await ensureProfile(email);
+        const userID = profile.userID;
 
         const [stats, recentFoods] = await Promise.all([
             dashboardRepository.getRecipientStats(userID),
