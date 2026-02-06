@@ -22,7 +22,7 @@ export const authService = {
    * - Email/phone hashed with SHA-256 for lookups
    */
   async signUp(input: SignUpInput) {
-    const { email, password, fullName, barangay, role, phoneNo } = input;
+    const { email, password, fullName, barangay, phoneNo } = input;
 
     // Parse fullName into firstName and lastName
     const nameParts = fullName.trim().split(/\s+/);
@@ -37,12 +37,6 @@ export const authService = {
       throw new HttpError(409, "An account with this email already exists");
     }
 
-    // Get role from database
-    const roleRecord = await roleRepository.getByName(role);
-    if (!roleRecord) {
-      throw new HttpError(400, `Invalid role: ${role}`);
-    }
-
     // Hash password with bcrypt
     const hashedPassword = await hashPassword(password);
 
@@ -54,11 +48,11 @@ export const authService = {
     const phoneNoHash = phoneNo ? sha256Hex(phoneNo) : sha256Hex(`placeholder_${Date.now()}`);
 
     // Create user in Prisma database with transaction (User + Address)
+    // Note: roleID is null - users select their role at login time
     const newUser = await prisma.$transaction(async (tx) => {
-      // Create User record
+      // Create User record without roleID (role is selected at login)
       const user = await tx.user.create({
         data: {
-          roleID: roleRecord.roleID,
           firstName: encryptedFirstName,
           lastName: encryptedLastName,
           phoneNo: encryptedPhoneNo,
@@ -67,8 +61,7 @@ export const authService = {
           emailHash: emailHash,
           password: hashedPassword,
           isOrg: false
-        },
-        include: { role: true }
+        }
       });
 
       // Create Address record with barangay
@@ -92,7 +85,6 @@ export const authService = {
       email_confirm: true,
       user_metadata: {
         display_name: fullName,
-        role: role,
         prisma_user_id: newUser.userID
       }
     });
@@ -110,8 +102,7 @@ export const authService = {
       user: {
         id: newUser.userID,
         email,
-        displayName: fullName,
-        role
+        displayName: fullName
       },
       session: data.user ? { id: data.user.id } : null
     };
@@ -122,9 +113,11 @@ export const authService = {
    * Sign in user with email and password
    */
   async signIn(input: SignInInput) {
+    const { email, password, role: selectedRole } = input;
+
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email: input.email,
-      password: input.password
+      email,
+      password
     });
 
     if (error) {
@@ -142,11 +135,19 @@ export const authService = {
     }
 
     // Lookup user by emailHash (since email is encrypted in DB)
-    const emailHash = sha256Hex(input.email.toLowerCase());
+    const emailHash = sha256Hex(email.toLowerCase());
     const profile = await userRepository.getByEmailHash(emailHash);
 
     // Import decrypt function for decrypting user data
     const { decrypt } = await import("../utils/encryption");
+
+    // Update Supabase user metadata with the selected role for this session
+    await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+      user_metadata: {
+        ...data.user.user_metadata,
+        role: selectedRole // Use the role selected at login
+      }
+    });
 
     return {
       message: "Signed in successfully",
@@ -158,18 +159,18 @@ export const authService = {
       user: profile
         ? {
           id: profile.userID,
-          email: input.email, // Return plain email from input
+          email: email, // Return plain email from input
           firstName: decrypt(profile.firstName),
           lastName: decrypt(profile.lastName),
           displayName: `${decrypt(profile.firstName)} ${decrypt(profile.lastName)}`.trim(),
-          role: profile.role.roleName,
+          role: selectedRole, // Return the selected role, not the DB role
           phoneNo: profile.phoneNo ? decrypt(profile.phoneNo) : null
         }
         : {
           id: data.user.id,
           email: data.user.email,
           displayName: data.user.user_metadata?.display_name,
-          role: data.user.user_metadata?.role
+          role: selectedRole // Return the selected role
         }
     };
   },
