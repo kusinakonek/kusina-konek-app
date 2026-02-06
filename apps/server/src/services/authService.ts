@@ -216,7 +216,7 @@ export const authService = {
         id: profile.userID,
         email: profile.email,
         displayName: userRepository.toDisplayName(profile),
-        role: profile.role.roleName,
+        role: profile.role?.roleName,
         createdAt: profile.DateAdded
       },
       profileCompleted: true

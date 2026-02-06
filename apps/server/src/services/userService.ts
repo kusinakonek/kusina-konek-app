@@ -49,7 +49,7 @@ export const userService = {
         id: user.userID,
         email: authEmail,
         displayName: `${firstName} ${lastName}`.trim(),
-        role: user.role.roleName as Role
+        role: user.role?.roleName as Role
       },
       profile: {
         firstName,
@@ -183,7 +183,7 @@ export const userService = {
           id: user.userID,
           email: authEmail, // Return plain email
           displayName: `${input.firstName} ${input.lastName}`.trim(),
-          role: user.role.roleName as Role
+          role: user.role?.roleName as Role
         },
         profile: {
           firstName: input.firstName,
