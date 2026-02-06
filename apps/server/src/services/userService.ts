@@ -3,6 +3,7 @@ import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
+import { encrypt, decrypt } from "../utils/encryption";
 
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
@@ -14,6 +15,62 @@ const normalizeRole = (value: unknown): Role | undefined => {
 };
 
 export const userService = {
+  /**
+   * Get user profile (decrypted)
+   */
+  async getProfile(params: { authUserId: string; authEmail?: string }) {
+    const { authUserId, authEmail } = params;
+
+    if (!authEmail) {
+      throw new HttpError(400, "Authenticated email is missing");
+    }
+
+    // Lookup user by emailHash
+    const emailHash = sha256Hex(authEmail.toLowerCase());
+    const user = await prisma.user.findUnique({
+      where: { emailHash },
+      include: { role: true, userAddress: true }
+    });
+
+    if (!user) {
+      throw new HttpError(404, "Profile not found. Please complete your profile first.");
+    }
+
+    // Decrypt PII fields
+    const firstName = decrypt(user.firstName);
+    const lastName = decrypt(user.lastName);
+    const middleName = user.middleName ? decrypt(user.middleName) : null;
+    const suffix = user.suffix ? decrypt(user.suffix) : null;
+    const phoneNo = user.phoneNo ? decrypt(user.phoneNo) : null;
+    const orgName = user.orgName ? decrypt(user.orgName) : null;
+
+    return {
+      user: {
+        id: user.userID,
+        email: authEmail,
+        displayName: `${firstName} ${lastName}`.trim(),
+        role: user.role?.roleName as Role
+      },
+      profile: {
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+        phoneNo,
+        isOrg: user.isOrg,
+        orgName,
+        address: user.userAddress
+          ? {
+            latitude: user.userAddress.latitude,
+            longitude: user.userAddress.longitude,
+            streetAddress: user.userAddress.streetAddress,
+            barangay: user.userAddress.barangay
+          }
+          : null
+      }
+    };
+  },
+
   async completeProfile(params: {
     authUserId: string;
     authEmail?: string;
@@ -40,25 +97,35 @@ export const userService = {
       throw new HttpError(500, `Role '${roleName}' not found in database. Run seed/migrations.`);
     }
 
+    // Hash for indexed lookups
     const emailHash = sha256Hex(authEmail.toLowerCase());
     const phoneNoHash = sha256Hex(input.phoneNo);
 
+    // Encrypt PII with AES-256-GCM
+    const encryptedEmail = encrypt(authEmail);
+    const encryptedFirstName = encrypt(input.firstName);
+    const encryptedMiddleName = input.middleName ? encrypt(input.middleName) : null;
+    const encryptedLastName = encrypt(input.lastName);
+    const encryptedSuffix = input.suffix ? encrypt(input.suffix) : null;
+    const encryptedPhoneNo = encrypt(input.phoneNo);
+    const encryptedOrgName = input.orgName ? encrypt(input.orgName) : null;
+
     try {
       const user = await prisma.user.upsert({
-        where: { userID: authUserId },
+        where: { emailHash },
         create: {
           userID: authUserId,
           roleID: role.roleID,
-          firstName: input.firstName,
-          middleName: input.middleName ?? null,
-          lastName: input.lastName,
-          suffix: input.suffix ?? null,
-          phoneNo: input.phoneNo,
+          firstName: encryptedFirstName,
+          middleName: encryptedMiddleName,
+          lastName: encryptedLastName,
+          suffix: encryptedSuffix,
+          phoneNo: encryptedPhoneNo,
           phoneNoHash,
-          email: authEmail,
+          email: encryptedEmail,
           emailHash,
           isOrg: input.isOrg ?? false,
-          orgName: input.orgName ?? null,
+          orgName: encryptedOrgName,
           password: SUPABASE_MANAGED_PASSWORD,
           ...(input.address
             ? {
@@ -75,16 +142,16 @@ export const userService = {
         },
         update: {
           roleID: role.roleID,
-          firstName: input.firstName,
-          middleName: input.middleName ?? null,
-          lastName: input.lastName,
-          suffix: input.suffix ?? null,
-          phoneNo: input.phoneNo,
+          firstName: encryptedFirstName,
+          middleName: encryptedMiddleName,
+          lastName: encryptedLastName,
+          suffix: encryptedSuffix,
+          phoneNo: encryptedPhoneNo,
           phoneNoHash,
-          email: authEmail,
+          email: encryptedEmail,
           emailHash,
           isOrg: input.isOrg ?? false,
-          orgName: input.orgName ?? null,
+          orgName: encryptedOrgName,
           ...(input.address
             ? {
               userAddress: {
@@ -109,22 +176,23 @@ export const userService = {
         include: { role: true, userAddress: true }
       });
 
+      // Decrypt for response
       return {
         message: "Profile completed successfully",
         user: {
           id: user.userID,
-          email: user.email,
-          displayName: userRepository.toDisplayName(user),
-          role: user.role.roleName as Role
+          email: authEmail, // Return plain email
+          displayName: `${input.firstName} ${input.lastName}`.trim(),
+          role: user.role?.roleName as Role
         },
         profile: {
-          firstName: user.firstName,
-          middleName: user.middleName,
-          lastName: user.lastName,
-          suffix: user.suffix,
-          phoneNo: user.phoneNo,
+          firstName: input.firstName,
+          middleName: input.middleName || null,
+          lastName: input.lastName,
+          suffix: input.suffix || null,
+          phoneNo: input.phoneNo,
           isOrg: user.isOrg,
-          orgName: user.orgName,
+          orgName: input.orgName || null,
           address: user.userAddress
             ? {
               latitude: user.userAddress.latitude,
