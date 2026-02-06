@@ -6,11 +6,14 @@
   "types": "src/index.ts",
   "dependencies": {
     "@prisma/client": "^5.20.0",
-    "@supabase/supabase-js": "^2.45.4"
+    "@supabase/supabase-js": "^2.45.4",
+    "bcrypt": "^6.0.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "dotenv-cli": "^11.0.0",
     "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.6.2"
   },
@@ -23,6 +26,6 @@
     "seed": "npx dotenv -e ../../.env -- prisma db seed --schema=prisma/schema.prisma"
   },
   "prisma": {
-    "seed": "ts-node-dev --transpile-only prisma/seed.ts"
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   }
 }

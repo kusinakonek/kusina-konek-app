@@ -14,7 +14,7 @@ export const requireRole = (roles: Role[]) =>
       include: { role: true }
     });
 
-    if (!user || !roles.includes(user.role.roleName as Role)) {
+    if (!user || !user.role || !roles.includes(user.role.roleName as Role)) {
       return res.status(403).json({ message: "Forbidden" });
     }
 

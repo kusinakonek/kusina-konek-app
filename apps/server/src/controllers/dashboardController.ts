@@ -8,7 +8,10 @@ export const dashboardController = {
      */
     async getDonorDashboard(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await dashboardService.getDonorDashboard(req.user!.id);
+            if (!req.user?.email) {
+                return res.status(400).json({ error: "Email is required" });
+            }
+            const result = await dashboardService.getDonorDashboard(req.user.email);
             return res.status(200).json(result);
         } catch (error) {
             next(error);
@@ -21,7 +24,10 @@ export const dashboardController = {
      */
     async getRecipientDashboard(req: Request, res: Response, next: NextFunction) {
         try {
-            const result = await dashboardService.getRecipientDashboard(req.user!.id);
+            if (!req.user?.email) {
+                return res.status(400).json({ error: "Email is required" });
+            }
+            const result = await dashboardService.getRecipientDashboard(req.user.email);
             return res.status(200).json(result);
         } catch (error) {
             next(error);
