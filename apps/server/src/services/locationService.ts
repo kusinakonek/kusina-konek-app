@@ -1,6 +1,14 @@
-import { CreateDropOffLocationInput, UpdateDropOffLocationInput } from "@kusinakonek/common";
+import {
+  CreateDropOffLocationInput,
+  UpdateDropOffLocationInput,
+} from "@kusinakonek/common";
 import { HttpError } from "../middlewares/errorHandler";
-import { foodRepository, locationRepository, userRepository } from "../repositories";
+import {
+  foodRepository,
+  locationRepository,
+  userRepository,
+} from "../repositories";
+import { encrypt, decrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
@@ -9,7 +17,10 @@ const ensureProfile = async (userID: string) => {
 };
 
 export const locationService = {
-  async createLocation(params: { userID: string; input: CreateDropOffLocationInput }) {
+  async createLocation(params: {
+    userID: string;
+    input: CreateDropOffLocationInput;
+  }) {
     await ensureProfile(params.userID);
 
     if (params.input.foodID) {
@@ -19,11 +30,13 @@ export const locationService = {
     }
 
     const location = await locationRepository.create(params.userID, {
-      ...(params.input.foodID ? { food: { connect: { foodID: params.input.foodID } } } : {}),
+      ...(params.input.foodID
+        ? { food: { connect: { foodID: params.input.foodID } } }
+        : {}),
       latitude: params.input.latitude,
       longitude: params.input.longitude,
-      streetAddress: params.input.streetAddress,
-      barangay: params.input.barangay
+      streetAddress: encrypt(params.input.streetAddress),
+      barangay: encrypt(params.input.barangay),
     });
 
     return { location };
@@ -41,11 +54,16 @@ export const locationService = {
     return { locations };
   },
 
-  async updateLocation(params: { userID: string; locID: string; input: UpdateDropOffLocationInput }) {
+  async updateLocation(params: {
+    userID: string;
+    locID: string;
+    input: UpdateDropOffLocationInput;
+  }) {
     await ensureProfile(params.userID);
     const existing = await locationRepository.getById(params.locID);
     if (!existing) throw new HttpError(404, "Location not found");
-    if (existing.userID !== params.userID) throw new HttpError(403, "Forbidden");
+    if (existing.userID !== params.userID)
+      throw new HttpError(403, "Forbidden");
 
     if (params.input.foodID) {
       const food = await foodRepository.getById(params.input.foodID);
@@ -59,10 +77,18 @@ export const locationService = {
           ? { food: { connect: { foodID: params.input.foodID } } }
           : { food: { disconnect: true } }
         : {}),
-      ...(params.input.latitude !== undefined ? { latitude: params.input.latitude } : {}),
-      ...(params.input.longitude !== undefined ? { longitude: params.input.longitude } : {}),
-      ...(params.input.streetAddress !== undefined ? { streetAddress: params.input.streetAddress } : {}),
-      ...(params.input.barangay !== undefined ? { barangay: params.input.barangay } : {})
+      ...(params.input.latitude !== undefined
+        ? { latitude: params.input.latitude }
+        : {}),
+      ...(params.input.longitude !== undefined
+        ? { longitude: params.input.longitude }
+        : {}),
+      ...(params.input.streetAddress !== undefined
+        ? { streetAddress: params.input.streetAddress }
+        : {}),
+      ...(params.input.barangay !== undefined
+        ? { barangay: params.input.barangay }
+        : {}),
     });
 
     return { location: updated };
@@ -72,9 +98,10 @@ export const locationService = {
     await ensureProfile(params.userID);
     const existing = await locationRepository.getById(params.locID);
     if (!existing) throw new HttpError(404, "Location not found");
-    if (existing.userID !== params.userID) throw new HttpError(403, "Forbidden");
+    if (existing.userID !== params.userID)
+      throw new HttpError(403, "Forbidden");
 
     await locationRepository.delete(params.locID);
     return { message: "Location deleted" };
-  }
+  },
 };
