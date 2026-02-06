@@ -6,6 +6,10 @@ import { userController } from "../controllers/userController";
 
 export const usersRouter = Router();
 
+// GET - Retrieve user profile (decrypted)
+usersRouter.get("/profile", authMiddleware, userController.getProfile);
+
+// PUT - Create or update user profile
 usersRouter.put(
   "/profile",
   authMiddleware,

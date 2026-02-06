@@ -4,6 +4,27 @@ import { userService } from "../services/userService";
 
 export const userController = {
   /**
+   * GET /api/users/profile
+   * Get the authenticated user's profile
+   */
+  async getProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const result = await userService.getProfile({
+        authUserId: req.user.id,
+        authEmail: req.user.email
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * PUT /api/users/profile
    * Create or update the authenticated user's DB profile
    */
