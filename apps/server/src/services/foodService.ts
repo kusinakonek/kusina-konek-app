@@ -18,6 +18,26 @@ const ensureProfile = async (userID: string) => {
   return profile;
 };
 
+// Helper to decrypt user data
+const decryptUser = (user: any) => {
+  if (!user) return null;
+  try {
+    return {
+      ...user,
+      firstName: user.firstName ? decrypt(user.firstName) : null,
+      middleName: user.middleName ? decrypt(user.middleName) : null,
+      lastName: user.lastName ? decrypt(user.lastName) : null,
+      suffix: user.suffix ? decrypt(user.suffix) : null,
+      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
+      email: user.email ? decrypt(user.email) : null,
+      orgName: user.orgName ? decrypt(user.orgName) : null,
+    };
+  } catch (error) {
+    // If decryption fails, return original (data might not be encrypted)
+    return user;
+  }
+};
+
 // Helper to decrypt food data
 const decryptFood = (food: any) => {
   return {
@@ -25,12 +45,14 @@ const decryptFood = (food: any) => {
     foodName: decrypt(food.foodName),
     description: food.description ? decrypt(food.description) : null,
     image: food.image ? decrypt(food.image) : null,
+    user: decryptUser(food.user),
     locations: food.locations?.map((loc: any) => {
       try {
         return {
           ...loc,
           streetAddress: decrypt(loc.streetAddress),
           barangay: decrypt(loc.barangay),
+          user: decryptUser(loc.user),
         };
       } catch (error) {
         // If location decryption fails, return original
@@ -38,6 +60,43 @@ const decryptFood = (food: any) => {
       }
     }),
   };
+};
+
+// Helper to decrypt distribution data (simplified for food service)
+const decryptDistribution = (distribution: any) => {
+  try {
+    return {
+      ...distribution,
+      photoProof: distribution.photoProof
+        ? decrypt(distribution.photoProof)
+        : null,
+      donor: decryptUser(distribution.donor),
+      recipient: decryptUser(distribution.recipient),
+      location: distribution.location
+        ? {
+            ...distribution.location,
+            streetAddress: decrypt(distribution.location.streetAddress),
+            barangay: decrypt(distribution.location.barangay),
+          }
+        : null,
+      food: distribution.food
+        ? {
+            ...distribution.food,
+            foodName: decrypt(distribution.food.foodName),
+            description: distribution.food.description
+              ? decrypt(distribution.food.description)
+              : null,
+            image: distribution.food.image
+              ? decrypt(distribution.food.image)
+              : null,
+            user: decryptUser(distribution.food.user),
+          }
+        : null,
+    };
+  } catch (error) {
+    // If decryption fails, return original (data might not be encrypted)
+    return distribution;
+  }
 };
 
 export const foodService = {
@@ -52,13 +111,21 @@ export const foodService = {
       image: params.input.image,
     });
 
-    return { food: created };
+    const decryptedFood = decryptFood(created);
+    return { food: decryptedFood };
   },
 
   async listMyFoods(userID: string) {
     await ensureProfile(userID);
     const foods = await foodRepository.listByUser(userID);
-    return { foods };
+    const decryptedFoods = foods.map((food) => {
+      try {
+        return decryptFood(food);
+      } catch (error) {
+        return food; // Return original if decryption fails
+      }
+    });
+    return { foods: decryptedFoods };
   },
 
   async getFood(params: { userID: string; foodID: string }) {
@@ -105,7 +172,8 @@ export const foodService = {
         : {}),
     });
 
-    return { food: updated };
+    const decryptedFood = decryptFood(updated);
+    return { food: decryptedFood };
   },
 
   async deleteFood(params: { userID: string; foodID: string }) {
@@ -174,7 +242,9 @@ export const foodService = {
       status: "PENDING",
     });
 
-    return { food: created, distribution };
+    const decryptedFood = decryptFood(created);
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { food: decryptedFood, distribution: decryptedDistribution };
   },
 
   async getAllDonations(userID: string) {
@@ -368,6 +438,7 @@ export const foodService = {
       status: "CLAIMED",
     });
 
-    return { distribution };
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
   },
 };

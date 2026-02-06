@@ -4,6 +4,7 @@ import {
   markDistributionCompleteSchema,
   updateDistributionSchema,
   updateDistributionStatusSchema,
+  requestDistributionSchema,
 } from "@kusinakonek/common";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { requireUserRole } from "../middlewares/requireUserRole";
@@ -69,4 +70,13 @@ distributionRouter.post(
   authMiddleware,
   validateRequest(markDistributionCompleteSchema),
   distributionController.complete,
+);
+
+// Request distribution (recipient only)
+distributionRouter.post(
+  "/:disID/request",
+  authMiddleware,
+  requireUserRole(["RECIPIENT"]),
+  validateRequest(requestDistributionSchema),
+  distributionController.request,
 );
