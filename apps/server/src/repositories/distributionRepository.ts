@@ -1,4 +1,5 @@
 import { prisma } from "@kusinakonek/database";
+import { DistributionStatus } from "@prisma/client";
 
 const defaultInclude = {
   donor: { include: { role: true } },
@@ -29,6 +30,7 @@ export const distributionRepository = {
 
   getAll() {
     return prisma.distribution.findMany({
+      where: { status: "PENDING" },
       orderBy: { timestamp: "desc" },
       include: defaultInclude,
     });
@@ -50,7 +52,7 @@ export const distributionRepository = {
     });
   },
 
-  updateStatus(disID: string, status: string) {
+  updateStatus(disID: string, status: DistributionStatus) {
     return prisma.distribution.update({
       where: { disID },
       data: { status },
@@ -60,7 +62,7 @@ export const distributionRepository = {
 
   listAvailable() {
     return prisma.distribution.findMany({
-      where: { status: "PENDING", recipientID: null },
+      where: { status: "PENDING" },
       orderBy: { timestamp: "desc" },
       include: defaultInclude,
     });

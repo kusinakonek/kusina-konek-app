@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const createDistributionSchema = z.object({
-  recipientID: z.string().uuid(),
+  recipientID: z.string().uuid().optional(),
   locID: z.string().uuid(),
   foodID: z.string().uuid(),
   quantity: z.number().int().positive(),
@@ -32,6 +32,11 @@ export const markDistributionCompleteSchema = z.object({
   actualTime: z.string().datetime().optional(),
 });
 
+export const requestDistributionSchema = z.object({
+  scheduledTime: z.string().datetime().optional(),
+  photoProof: z.string().url().optional(),
+});
+
 export type CreateDistributionInput = z.infer<typeof createDistributionSchema>;
 export type UpdateDistributionInput = z.infer<typeof updateDistributionSchema>;
 export type UpdateDistributionStatusInput = z.infer<
@@ -39,4 +44,7 @@ export type UpdateDistributionStatusInput = z.infer<
 >;
 export type MarkDistributionCompleteInput = z.infer<
   typeof markDistributionCompleteSchema
+>;
+export type RequestDistributionInput = z.infer<
+  typeof requestDistributionSchema
 >;

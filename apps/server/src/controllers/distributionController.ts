@@ -4,6 +4,7 @@ import {
   MarkDistributionCompleteInput,
   UpdateDistributionInput,
   UpdateDistributionStatusInput,
+  RequestDistributionInput,
 } from "@kusinakonek/common";
 import { distributionService } from "../services/distributionService";
 
@@ -112,6 +113,21 @@ export const distributionController = {
       const result = await distributionService.listDistributionsForRecipient(
         req.params.recipientID,
       );
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async request(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = req.body as RequestDistributionInput;
+      const result = await distributionService.requestDistribution({
+        userID: req.user!.id,
+        userRole: req.user?.role,
+        disID: req.params.disID,
+        input,
+      });
       return res.status(200).json(result);
     } catch (error) {
       next(error);
