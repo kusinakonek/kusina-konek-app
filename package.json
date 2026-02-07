@@ -15,5 +15,8 @@
     "db:push": "npm --workspace packages/database run push",
     "db:studio": "npm --workspace packages/database run studio",
     "db:seed": "npm --workspace packages/database run seed"
+  },
+  "devDependencies": {
+    "@types/react": "~19.0.10"
   }
 }
