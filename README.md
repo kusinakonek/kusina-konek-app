@@ -51,7 +51,15 @@ What this means in practice:
    - Automated alerts
 
 ## Quick Start
-1. Install dependencies
+### Prerequisites
+- Node.js: use the version in `.nvmrc` (Node 20 LTS recommended)
+- npm: use the repo root `package-lock.json` for reproducible installs
+
+### Install
+1. Install dependencies (recommended)
+   - npm ci
+
+   Or (local dev when changing deps)
    - npm install
 2. Generate Prisma client
    - npm run db:generate
@@ -59,6 +67,10 @@ What this means in practice:
    - npm run dev:server
 4. Run mobile
    - npm run dev:mobile
+
+### Common Workspace Commands
+- Run mobile tests: `npm -w apps/mobile test`
+- Run server typecheck: `npm run typecheck`
 
 ## Environment
 Copy .env.example to .env and fill values.
