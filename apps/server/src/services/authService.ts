@@ -1,7 +1,10 @@
 import { SignInInput, SignUpInput } from "@kusinakonek/common";
-import { supabaseAdmin } from "@kusinakonek/database";
+import { supabaseAdmin, prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { userRepository } from "../repositories";
+import { roleRepository } from "../repositories/roleRepository";
+import { encrypt } from "../utils/encryption";
+import { sha256Hex, hashPassword } from "../utils/hash";
 
 export interface PasswordResetInput {
   email: string;
@@ -13,60 +16,108 @@ export interface UpdatePasswordInput {
 
 export const authService = {
   /**
-  * Register a new user with Supabase Auth.
-  * Note: DB profile creation is handled separately once required profile fields are collected.
+   * Register a new user with Supabase Auth and Prisma database.
+   * - Password is hashed with bcrypt
+   * - PII (email, phone, names) encrypted with AES-256-GCM
+   * - Email/phone hashed with SHA-256 for lookups
    */
   async signUp(input: SignUpInput) {
-    const { email, password, displayName, role } = input;
+    const { email, password, fullName, barangay, phoneNo } = input;
 
-    // Check if user already exists in our database
-    // Note: email is not marked @unique in Prisma schema, so we use findFirst.
-    const existingUser = await userRepository.getFirstByEmail(email);
+    // Parse fullName into firstName and lastName
+    const nameParts = fullName.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+    // Check if user already exists
+    const emailHash = sha256Hex(email.toLowerCase());
+    const existingUser = await userRepository.getByEmailHash(emailHash);
 
     if (existingUser) {
       throw new HttpError(409, "An account with this email already exists");
     }
 
-    // Create user in Supabase Auth
-    const { data, error } = await supabaseAdmin.auth.signUp({
+    // Hash password with bcrypt
+    const hashedPassword = await hashPassword(password);
+
+    // Encrypt PII with AES-256-GCM
+    const encryptedEmail = encrypt(email);
+    const encryptedFirstName = encrypt(firstName);
+    const encryptedLastName = encrypt(lastName);
+    const encryptedPhoneNo = phoneNo ? encrypt(phoneNo) : encrypt("0000000000");
+    const phoneNoHash = phoneNo ? sha256Hex(phoneNo) : sha256Hex(`placeholder_${Date.now()}`);
+
+    // Create user in Prisma database with transaction (User + Address)
+    // Note: roleID is null - users select their role at login time
+    const newUser = await prisma.$transaction(async (tx) => {
+      // Create User record without roleID (role is selected at login)
+      const user = await tx.user.create({
+        data: {
+          firstName: encryptedFirstName,
+          lastName: encryptedLastName,
+          phoneNo: encryptedPhoneNo,
+          phoneNoHash: phoneNoHash,
+          email: encryptedEmail,
+          emailHash: emailHash,
+          password: hashedPassword,
+          isOrg: false
+        }
+      });
+
+      // Create Address record with barangay
+      await tx.address.create({
+        data: {
+          UserID: user.userID,
+          latitude: 0,
+          longitude: 0,
+          streetAddress: "",
+          barangay: barangay
+        }
+      });
+
+      return user;
+    });
+
+    // Create user in Supabase Auth (for session management)
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          display_name: displayName,
-          role: role
-        }
+      email_confirm: true,
+      user_metadata: {
+        display_name: fullName,
+        prisma_user_id: newUser.userID
       }
     });
 
     if (error) {
+      // Rollback Prisma user if Supabase fails
+      await prisma.address.deleteMany({ where: { UserID: newUser.userID } });
+      await prisma.user.delete({ where: { userID: newUser.userID } });
       console.error("[Auth Error]:", error.message);
       throw new HttpError(400, error.message);
     }
 
-    if (!data.user) {
-      throw new HttpError(500, "Failed to create user account");
-    }
-
     return {
-      message: "Account created successfully. Please check your email to verify your account.",
+      message: "Account created successfully.",
       user: {
-        id: data.user.id,
+        id: newUser.userID,
         email,
-        displayName,
-        role
+        displayName: fullName
       },
-      session: data.session
+      session: data.user ? { id: data.user.id } : null
     };
   },
+
 
   /**
    * Sign in user with email and password
    */
   async signIn(input: SignInInput) {
+    const { email, password, role: selectedRole } = input;
+
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email: input.email,
-      password: input.password
+      email,
+      password
     });
 
     if (error) {
@@ -83,8 +134,20 @@ export const authService = {
       throw new HttpError(400, error.message);
     }
 
-    // Fetch user profile from our database (optional; may not exist yet)
-    const profile = await userRepository.getByUserId(data.user.id);
+    // Lookup user by emailHash (since email is encrypted in DB)
+    const emailHash = sha256Hex(email.toLowerCase());
+    const profile = await userRepository.getByEmailHash(emailHash);
+
+    // Import decrypt function for decrypting user data
+    const { decrypt } = await import("../utils/encryption");
+
+    // Update Supabase user metadata with the selected role for this session
+    await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+      user_metadata: {
+        ...data.user.user_metadata,
+        role: selectedRole // Use the role selected at login
+      }
+    });
 
     return {
       message: "Signed in successfully",
@@ -93,22 +156,25 @@ export const authService = {
         refreshToken: data.session?.refresh_token,
         expiresAt: data.session?.expires_at
       },
-      user:
-        profile
-          ? {
-              id: profile.userID,
-              email: profile.email,
-              displayName: userRepository.toDisplayName(profile),
-              role: profile.role.roleName
-            }
-          : {
-              id: data.user.id,
-              email: data.user.email,
-              displayName: data.user.user_metadata?.display_name,
-              role: data.user.user_metadata?.role
-            }
+      user: profile
+        ? {
+          id: profile.userID,
+          email: email, // Return plain email from input
+          firstName: decrypt(profile.firstName),
+          lastName: decrypt(profile.lastName),
+          displayName: `${decrypt(profile.firstName)} ${decrypt(profile.lastName)}`.trim(),
+          role: selectedRole, // Return the selected role, not the DB role
+          phoneNo: profile.phoneNo ? decrypt(profile.phoneNo) : null
+        }
+        : {
+          id: data.user.id,
+          email: data.user.email,
+          displayName: data.user.user_metadata?.display_name,
+          role: selectedRole // Return the selected role
+        }
     };
   },
+
 
   /**
    * Sign out user (invalidate session)
@@ -150,7 +216,7 @@ export const authService = {
         id: profile.userID,
         email: profile.email,
         displayName: userRepository.toDisplayName(profile),
-        role: profile.role.roleName,
+        role: profile.role?.roleName,
         createdAt: profile.DateAdded
       },
       profileCompleted: true
