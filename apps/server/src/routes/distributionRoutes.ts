@@ -16,12 +16,6 @@ export const distributionRouter = Router();
 // Get available distributions (public - no auth required)
 distributionRouter.get("/available", distributionController.listAvailable);
 
-// // Get distributions for specific recipient (no auth required for browsing)
-// distributionRouter.get(
-//   "/recipient/:recipientID",
-//   distributionController.listForRecipient,
-// );
-
 // Create distribution (donor only)
 distributionRouter.post(
   "/",
