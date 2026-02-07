@@ -273,6 +273,7 @@ export const distributionService = {
       actualTime: params.input.actualTime
         ? new Date(params.input.actualTime)
         : new Date(),
+      status: "COMPLETED",
     });
 
     return { distribution: updated };
