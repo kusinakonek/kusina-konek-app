@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Role {
@@ -20,8 +21,8 @@ model Status {
 
 model User {
   userID      String   @id @default(uuid())
-  roleID      Int
-  role        Role     @relation(fields: [roleID], references: [roleID])
+  roleID      Int?
+  role        Role?    @relation(fields: [roleID], references: [roleID])
   firstName   String
   middleName  String?
   lastName    String
@@ -103,8 +104,8 @@ model Distribution {
   disID         String   @id @default(uuid())
   donorID       String
   donor         User     @relation("DonorDistributions", fields: [donorID], references: [userID])
-  recipientID   String
-  recipient     User     @relation("RecipientDistributions", fields: [recipientID], references: [userID])
+  recipientID   String?
+  recipient     User?    @relation("RecipientDistributions", fields: [recipientID], references: [userID])
   locID         String
   location      DropOffLocation @relation(fields: [locID], references: [locID])
   foodID        String
@@ -130,4 +131,5 @@ model Feedback {
   ratingScore   Int
   comments      String?
   timestamp     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
