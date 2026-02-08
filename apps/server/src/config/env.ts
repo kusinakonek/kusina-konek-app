@@ -13,7 +13,7 @@ const requireEnv = (key: string, fallback?: string) => {
 };
 
 export const env = {
-  PORT: Number(process.env.PORT ?? 4000),
+  PORT: Number(process.env.PORT ?? 3000),
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? "*",
   SUPABASE_URL: requireEnv("SUPABASE_URL"),
   SUPABASE_ANON_KEY: requireEnv("SUPABASE_ANON_KEY"),
