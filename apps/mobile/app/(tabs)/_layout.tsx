@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Home, User, ShoppingBag, PlusCircle, Search } from 'lucide-react-native';
+import { Home, User, ShoppingBag, PlusCircle, Search, Utensils } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform, Image } from 'react-native';
 
 export default function TabLayout() {
   const { role } = useAuth();
@@ -16,12 +16,12 @@ export default function TabLayout() {
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: '#f0f0f0',
-          height: 60,
-          paddingBottom: 8, // Adjust for Safe Area if needed, but handled by OS usually
+          height: Platform.OS === 'android' ? 65 : 85,
+          paddingBottom: Platform.OS === 'android' ? 10 : 28,
           paddingTop: 8,
           backgroundColor: '#fff',
-          elevation: 8, // Android shadow
-          shadowColor: '#000', // iOS shadow
+          elevation: 8,
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
@@ -42,31 +42,23 @@ export default function TabLayout() {
 
       {/* Middle Tab - Dynamic based on Role */}
       <Tabs.Screen
-        name="action" // We'll map this to a specific route or handle it
+        name="action"
         options={{
           title: isDonor ? 'Donate' : 'Browse',
           tabBarIcon: ({ color, size, focused }) => (
             <View style={styles.middleButtonContainer}>
-              <View style={[styles.middleButton, { backgroundColor: isDonor ? '#00C853' : (focused ? '#E8F5E9' : '#fff') }]}>
-                {/* Donor has a filled green circle button. Recipient has a standard icon or outlined? 
-                            The recipient screenshot shows a simple Box icon (ShoppingBag/Archive) with a badge.
-                            Let's stick to the design interpretation:
-                            Donor: Big Green Plus/Cutlery
-                            Recipient: Search/Box
-                         */}
+              <View style={[styles.middleButton, { backgroundColor: '#00C853' }]}>
                 {isDonor ? (
-                  <PlusCircle size={32} color="#fff" />
+                  <Utensils size={28} color="#fff" />
                 ) : (
-                  <Search size={24} color={color} />
+                  <Image
+                    source={require('../../assets/MyCart.png')}
+                    style={{ width: 28, height: 28, tintColor: '#fff' }}
+                  />
                 )}
               </View>
             </View>
           ),
-          // For now, we might need a listener to redirect or a dummy component if we don't have the page yet.
-          // But usually this would route to a /browse or /donate page.
-          // I'll set href to null and handle press if needed, or just let it go to a placeholder "action" route.
-          // Since "action" file doesn't exist, I should probably create it or use a modal.
-          // For this scope, I will create a placeholder "action.tsx" to avoid 404.
           tabBarLabel: isDonor ? 'Donate' : 'Browse',
         }}
       />
@@ -84,18 +76,17 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   middleButtonContainer: {
-    top: -10, // Raise it slightly if we want the "floating" effect, or keep inline
+    top: -16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   middleButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    // Shadow for the button
-    shadowColor: "#00C853",
+    shadowColor: '#00C853',
     shadowOffset: {
       width: 0,
       height: 4,

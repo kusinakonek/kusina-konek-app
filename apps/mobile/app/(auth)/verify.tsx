@@ -10,7 +10,9 @@ import {
     KeyboardAvoidingView,
     Platform,
     Image,
+    StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
@@ -120,16 +122,18 @@ export default function Verify() {
         : '';
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
-        >
-            <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.container}
             >
-                <ArrowLeft size={24} color="#333" />
-            </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => router.back()}
+                >
+                    <ArrowLeft size={24} color="#333" />
+                </TouchableOpacity>
 
             <View style={styles.content}>
                 <View style={styles.header}>
@@ -206,20 +210,24 @@ export default function Verify() {
                     )}
                 </View>
             </View>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
     container: {
         flex: 1,
         backgroundColor: '#fff',
     },
     backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 24,
-        zIndex: 1,
+        marginLeft: 24,
+        marginTop: 12,
+        alignSelf: 'flex-start',
     },
     content: {
         flex: 1,

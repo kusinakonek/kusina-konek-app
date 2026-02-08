@@ -12,6 +12,7 @@ export interface RecentItem {
     status?: 'donated' | 'claimed' | 'on-the-way';
     rating?: number;
     recipientName?: string; // For donors seeing who claimed
+    showFeedback?: boolean; // Show feedback button for recipients
 }
 
 interface RecentItemsListProps {
@@ -61,11 +62,11 @@ export const RecentItemsList = ({ items, role, onSeeAll }: RecentItemsListProps)
                 )}
             </View>
 
-            {/* Conditional feedback button for Recipient if not rated? 
-                Or simply display as per design. Design shows "Give Feedback" button for recipient.
-                I'll leave that for the main integration if needed, but the design 
-                shows it inside the card.
-            */}
+            {role === 'RECIPIENT' && item.showFeedback && (
+                <TouchableOpacity style={styles.feedbackButton}>
+                    <Text style={styles.feedbackButtonText}>Give Feedback</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 
@@ -202,5 +203,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         color: '#333',
+    },
+    feedbackButton: {
+        marginTop: 12,
+        backgroundColor: '#00C853',
+        height: 44,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    feedbackButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 }) as any; // Using any to avoid strict typing on dynamic status styles for now
