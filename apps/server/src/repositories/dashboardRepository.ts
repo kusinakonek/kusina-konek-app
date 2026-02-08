@@ -19,9 +19,9 @@ export interface RecipientStats {
 export interface DonorDonationItem {
   disID: string;
   foodName: string;
-  quantity: number;
+  quantity: string;
   status: string;
-  location: string;
+  location: string | null;
   timestamp: Date;
   claimedBy: string | null;
   rating: number | null;
@@ -30,9 +30,9 @@ export interface DonorDonationItem {
 export interface RecipientFoodItem {
   disID: string;
   foodName: string;
-  quantity: number;
+  quantity: string;
   status: string;
-  location: string;
+  location: string | null;
   timestamp: Date;
   canGiveFeedback: boolean;
   myRating: number | null;
@@ -42,10 +42,10 @@ export interface RecipientFoodItem {
 export interface AvailableFoodItem {
   disID: string;
   foodName: string;
-  quantity: number;
+  quantity: string;
   description: string | null;
   image: string | null;
-  location: string;
+  location: string | null;
   streetAddress: string;
   donorName: string;
   scheduledTime: Date;
@@ -158,19 +158,25 @@ export const dashboardRepository = {
         select: { locID: true },
       }),
 
-      // Sum total servings available
-      prisma.distribution.aggregate({
+      // Sum total servings available (Manual sum since quantity is string)
+      prisma.distribution.findMany({
         where: {
           actualTime: null,
         },
-        _sum: { quantity: true },
+        select: { quantity: true },
       }),
     ]);
+
+    // Calculate total servings by parsing string quantities
+    const totalServings = servingsData.reduce((acc, curr) => {
+      const parsed = parseInt(curr.quantity, 10);
+      return acc + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
 
     return {
       availableFoods,
       locations: locationData.length,
-      totalServings: servingsData._sum.quantity ?? 0,
+      totalServings,
     };
   },
 
