@@ -1,9 +1,28 @@
-import { View, Text } from 'react-native';
+import React from 'react';
+import { useAuth } from '../../context/AuthContext';
+import DonorHome from '../DONOR/Home';
+import RecipientHome from '../RECIPIENT/Home';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function Home() {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Home (Community Fridge)</Text>
-    </View>
-  );
+    const { role, isLoading } = useAuth();
+    //...
+    if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#00C853" />
+            </View>
+        );
+    }
+
+    return role === 'DONOR' ? <DonorHome /> : <RecipientHome />;
 }
+
+const styles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
+});
