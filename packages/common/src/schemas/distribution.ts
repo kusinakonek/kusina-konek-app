@@ -4,7 +4,7 @@ export const createDistributionSchema = z.object({
   recipientID: z.string().uuid().optional(),
   locID: z.string().uuid(),
   foodID: z.string().uuid(),
-  quantity: z.number().int().positive(),
+  quantity: z.string().min(1),
   scheduledTime: z.string().datetime(),
   photoProof: z.string().url().optional(),
 });
