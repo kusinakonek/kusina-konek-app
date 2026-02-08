@@ -82,7 +82,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        router.replace('/(tabs)');
+        // Get role from user metadata or stored role
+        const userRole = data.user?.user_metadata?.role || role;
+        if (userRole === 'DONOR') {
+            router.replace('/(donor)');
+        } else {
+            router.replace('/(tabs)');
+        }
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -143,8 +149,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Don't block login — profile creation is secondary
             }
             setPendingSignup(null);
+            // Route based on role from signup metadata
+            if (pendingSignup.metadata?.role === 'DONOR') {
+                router.replace('/(donor)');
+                return;
+            }
         }
 
+        // Default to recipient tabs
         router.replace('/(tabs)');
     };
 

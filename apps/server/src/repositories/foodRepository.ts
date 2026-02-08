@@ -33,7 +33,10 @@ export const foodRepository = {
     return prisma.food.findMany({
       where: { userID },
       orderBy: { timestamp: "desc" },
-      include: defaultInclude,
+      include: {
+        ...defaultInclude,
+        distributions: true,
+      },
     });
   },
 
