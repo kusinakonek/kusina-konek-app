@@ -161,6 +161,53 @@ async function main() {
             quantity: 5,
             scheduledTime: new Date(new Date().getTime() + 86400000), // Tomorrow
             photoProof: 'https://example.com/proof.jpg',
+            actualTime: new Date(), // Mark as completed for history
+        },
+    });
+
+    // 8. Available Distribution (No Recipient)
+    console.log('Creating Available Distribution...');
+    const food2 = await prisma.food.create({
+        data: {
+            userID: donorIndiv.userID,
+            foodName: 'Pancit Canton',
+            dateCooked: new Date(),
+            description: 'Delicious pancit for sharing',
+            quantity: 30,
+            image: 'https://example.com/pancit.jpg',
+        },
+    });
+
+    await prisma.dropOffLocation.create({
+        data: {
+            userID: admin.userID,
+            foodID: food2.foodID,
+            latitude: 14.601,
+            longitude: 121.001,
+            streetAddress: 'Barangay Hall 2',
+            barangay: 'Barangay 2',
+        },
+    });
+
+    // Use a fixed ID for the available distribution so we can upsert/reset it
+    const availableUuid = "22222222-2222-2222-2222-222222222222";
+
+    await prisma.distribution.upsert({
+        where: { disID: availableUuid },
+        update: {
+            recipientID: null, // Ensure it's available
+            actualTime: null,  // Ensure it's pending
+            status: 'PENDING',
+        },
+        create: {
+            disID: availableUuid,
+            donorID: donorIndiv.userID,
+            recipientID: null, // No recipient yet
+            locID: location.locID, // Reusing location for simplicity or create new match
+            foodID: food2.foodID,
+            quantity: 10,
+            scheduledTime: new Date(new Date().getTime() + 172800000), // 2 days later
+            status: 'PENDING',
         },
     });
 
