@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ImageBackground, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ImageBackground, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../lib/api';
 import { DashboardStats } from '../../src/components/DashboardStats';
 import { RecentItemsList, RecentItem } from '../../src/components/RecentItemsList';
-import { Heart, Package, Star, Plus, Utensils } from 'lucide-react-native';
+import { Heart, Package, Star, Plus, Utensils, LogOut } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 export default function DonorHome() {
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -19,8 +19,9 @@ export default function DonorHome() {
         try {
             const response = await api.get('/dashboard/donor');
             setDashboardData(response.data);
-        } catch (error) {
-            console.error('Error fetching dashboard data:', error);
+        } catch (error: any) {
+            // Silently handle - use fallback data
+            if (__DEV__) console.log('Dashboard API unavailable, using defaults');
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -36,26 +37,34 @@ export default function DonorHome() {
         fetchDashboardData();
     }, [fetchDashboardData]);
 
+    const handleLogout = async () => {
+        try {
+            await signOut();
+        } catch (error) {
+            console.error('Error logging out:', error);
+        }
+    };
+
     const getStats = () => {
-        if (!dashboardData?.stats) return [];
+        const stats = dashboardData?.stats;
         return [
             {
                 icon: Heart,
-                value: dashboardData.stats.totalDonated || 0,
+                value: stats?.totalDonated ?? 0,
                 label: 'Donated',
                 color: '#00C853',
                 bgColor: '#E8F5E9',
             },
             {
                 icon: Package,
-                value: dashboardData.stats.availableItems || 0,
+                value: stats?.availableItems ?? 0,
                 label: 'Available',
                 color: '#2196F3',
                 bgColor: '#E3F2FD',
             },
             {
                 icon: Star,
-                value: dashboardData.stats.averageRating || 'N/A',
+                value: stats?.averageRating ? stats.averageRating.toFixed(1) : '0.0',
                 label: 'Ratings',
                 color: '#FFC107',
                 bgColor: '#FFF8E1',
@@ -77,7 +86,8 @@ export default function DonorHome() {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
                     <View style={styles.logoIcon}>
@@ -88,9 +98,9 @@ export default function DonorHome() {
                         <Text style={styles.dashboardTitle}>Donor Dashboard</Text>
                     </View>
                 </View>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase()}</Text>
-                </View>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                    <LogOut size={20} color="#666" />
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -134,21 +144,103 @@ export default function DonorHome() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#fff' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#fff' },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    logoIcon: { width: 36, height: 36, backgroundColor: '#00C853', borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-    appName: { fontSize: 18, fontWeight: 'bold', color: '#1a1a1a' },
-    dashboardTitle: { fontSize: 12, color: '#666' },
-    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' },
-    avatarText: { fontSize: 16, fontWeight: 'bold', color: '#666' },
-    scrollContent: { padding: 20 },
-    heroContainer: { height: 160, borderRadius: 16, marginBottom: 24, overflow: 'hidden', backgroundColor: '#333' },
-    heroImage: { width: '100%', height: '100%', justifyContent: 'flex-end' },
-    heroOverlay: { padding: 16, backgroundColor: 'rgba(0,0,0,0.3)' },
-    heroTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-    heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
-    statsContainer: { marginBottom: 24 },
-    mainButton: { flexDirection: 'row', backgroundColor: '#00C853', height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, shadowColor: '#00C853', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-    mainButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+    safeArea: { 
+        flex: 1, 
+        backgroundColor: '#fff' 
+    },
+    header: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        paddingVertical: 16, 
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0'
+    },
+    headerLeft: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 12 
+    },
+    logoIcon: { 
+        width: 48, 
+        height: 48, 
+        backgroundColor: '#00C853', 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    appName: { 
+        fontSize: 18, 
+        fontWeight: 'bold', 
+        color: '#1a1a1a' 
+    },
+    dashboardTitle: { 
+        fontSize: 12, 
+        color: '#666',
+        marginTop: 2
+    },
+    logoutButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#f5f5f5'
+    },
+    scrollContent: { 
+        padding: 20 
+    },
+    heroContainer: { 
+        height: 180, 
+        borderRadius: 16, 
+        marginBottom: 24, 
+        overflow: 'hidden', 
+        backgroundColor: '#333',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 6
+    },
+    heroImage: { 
+        width: '100%', 
+        height: '100%', 
+        justifyContent: 'flex-end' 
+    },
+    heroOverlay: { 
+        padding: 20, 
+        backgroundColor: 'rgba(0,0,0,0.4)' 
+    },
+    heroTitle: { 
+        fontSize: 24, 
+        fontWeight: 'bold', 
+        color: '#fff', 
+        marginBottom: 6 
+    },
+    heroSubtitle: { 
+        fontSize: 14, 
+        color: 'rgba(255,255,255,0.95)' 
+    },
+    statsContainer: { 
+        marginBottom: 24 
+    },
+    mainButton: { 
+        flexDirection: 'row', 
+        backgroundColor: '#00C853', 
+        height: 56, 
+        borderRadius: 12, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        marginBottom: 24, 
+        shadowColor: '#00C853', 
+        shadowOffset: { width: 0, height: 4 }, 
+        shadowOpacity: 0.3, 
+        shadowRadius: 8, 
+        elevation: 4 
+    },
+    mainButtonText: { 
+        color: '#fff', 
+        fontSize: 18, 
+        fontWeight: 'bold',
+        marginLeft: 8
+    },
 });

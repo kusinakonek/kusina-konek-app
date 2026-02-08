@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Mail, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
@@ -44,17 +45,19 @@ export default function Login() {
 
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
-        >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => router.back()}
-                >
-                    <ArrowLeft size={24} color="#333" />
-                </TouchableOpacity>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.container}
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                    >
+                        <ArrowLeft size={24} color="#333" />
+                    </TouchableOpacity>
 
                 <View style={styles.header}>
                     <Image
@@ -120,12 +123,17 @@ export default function Login() {
                         <Text style={styles.linkText}>Sign Up</Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
     container: {
         flex: 1,
         backgroundColor: '#fff',
@@ -136,15 +144,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 24,
-        zIndex: 1,
+        marginBottom: 16,
+        alignSelf: 'flex-start',
     },
     header: {
         marginBottom: 40,
         alignItems: 'center',
-        marginTop: 60,
     },
     logoImage: {
         width: 100,
