@@ -11,6 +11,8 @@ export const API_ENDPOINTS = {
   FOOD: {
     GET_FOODS: '/food',
     ADD_FOOD: '/food/add',
+    ADD_DONATION: '/foods/donations',
+    GET_MY_DONATIONS: '/foods/mine',
     UPDATE_FOOD: '/food/update',
     DELETE_FOOD: '/food/delete',
   },
