@@ -54,10 +54,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         initAuth();
 
         // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);
+
+            if (event === 'SIGNED_OUT') {
+                // Clear state
+                setRoleState(null);
+                setPendingSignup(null);
+                await AsyncStorage.removeItem('userRole');
+                // Redirect to welcome screen
+                router.replace('/(auth)/welcome');
+            }
         });
 
         return () => subscription.unsubscribe();
