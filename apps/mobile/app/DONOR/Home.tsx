@@ -1,6 +1,6 @@
 import React from 'react';
-import HomeView from '../../src/donor/HomeComponents/HomeView';
+import DonorHome from '../../src/donor/Home';
 
-export default function DonorHome() {
-    return <HomeView />;
+export default function DonorHomeScreen() {
+    return <DonorHome />;
 }
