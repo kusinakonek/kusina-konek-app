@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 // START: CONFIGURATION
 // For Expo Go on physical device, use your machine's LAN IP.
@@ -27,7 +28,9 @@ const api = axios.create({
 // Request interceptor to add the auth token to every request
 api.interceptors.request.use(
     async (config) => {
-        const token = await AsyncStorage.getItem('userToken');
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
