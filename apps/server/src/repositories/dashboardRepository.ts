@@ -143,6 +143,7 @@ export const dashboardRepository = {
       prisma.distribution.count({
         where: {
           actualTime: null,
+          recipientID: null, // Only count items that haven't been claimed
         },
       }),
 
@@ -223,6 +224,7 @@ export const dashboardRepository = {
     const distributions = await prisma.distribution.findMany({
       where: {
         actualTime: null, // Use actualTime as fallback until Prisma is regenerated
+        recipientID: null, // Only show unclaimed items
       },
       orderBy: { timestamp: "desc" },
       take: limit,
