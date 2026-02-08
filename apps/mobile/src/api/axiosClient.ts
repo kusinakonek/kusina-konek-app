@@ -1,12 +1,12 @@
-import axios from 'axios';
-import { Platform } from 'react-native';
+import axios from "axios";
+import { Platform } from "react-native";
 
-const LAN_IP = '192.168.1.105'; // Same as lib/api.ts — update if your IP changes
+const LAN_IP = "10.142.135.110"; // Same as lib/api.ts — update if IP changes
 
 const axiosClient = axios.create({
-  baseURL: `http://${LAN_IP}:4000/api`,
+  baseURL: `http://${LAN_IP}:3000/api`,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 

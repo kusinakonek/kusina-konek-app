@@ -124,7 +124,8 @@ export const distributionService = {
       photoProof: params.input.photoProof,
     });
 
-    return { distribution };
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
   },
 
   async getDistribution(userID: string, disID: string) {
@@ -220,7 +221,8 @@ export const distributionService = {
       params.disID,
       updateData,
     );
-    return { distribution };
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
   },
 
   async updateDistributionStatus(params: {
@@ -248,7 +250,8 @@ export const distributionService = {
       params.disID,
       params.input.status,
     );
-    return { distribution };
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
   },
 
   async completeDistribution(params: {
@@ -276,7 +279,8 @@ export const distributionService = {
       status: "COMPLETED",
     });
 
-    return { distribution: updated };
+    const decryptedDistribution = decryptDistribution(updated);
+    return { distribution: decryptedDistribution };
   },
 
   async requestDistribution(params: {
