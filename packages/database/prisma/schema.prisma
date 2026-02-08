@@ -67,9 +67,9 @@ model Food {
   userID        String
   user          User     @relation(fields: [userID], references: [userID])
   foodName      String
-  dateCooked    DateTime
+  dateCooked    DateTime?
   description   String?
-  quantity      Int
+  quantity      String
   image         String?
   timestamp     DateTime @default(now())
 
@@ -87,7 +87,7 @@ model DropOffLocation {
   latitude      Float
   longitude     Float
   streetAddress String
-  barangay      String
+  barangay      String?
   
   distributions Distribution[]
 }
@@ -110,7 +110,7 @@ model Distribution {
   location      DropOffLocation @relation(fields: [locID], references: [locID])
   foodID        String
   food          Food     @relation(fields: [foodID], references: [foodID])
-  quantity      Int
+  quantity      String
   status        DistributionStatus @default(PENDING)
   photoProof    String?
   scheduledTime DateTime

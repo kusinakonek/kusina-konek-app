@@ -54,10 +54,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         initAuth();
 
         // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);
+
+            if (event === 'SIGNED_OUT') {
+                // Clear state
+                setRoleState(null);
+                setPendingSignup(null);
+                await AsyncStorage.removeItem('userRole');
+                // Redirect to welcome screen
+                router.replace('/(auth)/welcome');
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -82,7 +91,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        router.replace('/(tabs)');
+        // Get role from user metadata or stored role
+        const userRole = data.user?.user_metadata?.role || role;
+        if (userRole === 'DONOR') {
+            router.replace('/(donor)');
+        } else {
+            router.replace('/(tabs)');
+        }
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -143,8 +158,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 // Don't block login — profile creation is secondary
             }
             setPendingSignup(null);
+            // Route based on role from signup metadata
+            if (pendingSignup.metadata?.role === 'DONOR') {
+                router.replace('/(donor)');
+                return;
+            }
         }
 
+        // Default to recipient tabs
         router.replace('/(tabs)');
     };
 

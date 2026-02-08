@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Heart, ShoppingBag, ArrowRight } from 'lucide-react-native';
@@ -16,7 +17,8 @@ export default function Welcome() {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
             <View style={styles.header}>
                 <Image
                     source={require('../../assets/KusinaKonek-Logo.png')}
@@ -80,7 +82,7 @@ export default function Welcome() {
             <Text style={styles.footer}>
                 You can update your account type later in settings
             </Text>
-        </View>
+        </SafeAreaView>
     );
 }
 
