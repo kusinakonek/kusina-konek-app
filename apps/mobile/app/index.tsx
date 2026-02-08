@@ -4,7 +4,7 @@ import { View, ActivityIndicator, StyleSheet, Image, Text, Animated } from 'reac
 import { useAuth } from '../context/AuthContext';
 
 export default function Index() {
-    const { userToken, isLoading } = useAuth();
+    const { userToken, isLoading, role } = useAuth();
     const [showSplash, setShowSplash] = useState(true);
     const fadeAnim = useState(new Animated.Value(0))[0];
     const scaleAnim = useState(new Animated.Value(0.8))[0];
@@ -51,6 +51,11 @@ export default function Index() {
     }
 
     if (userToken) {
+        // Route based on user role
+        if (role === 'DONOR') {
+            return <Redirect href="/(donor)" />;
+        }
+        // Default to recipient/tabs view
         return <Redirect href="/(tabs)" />;
     }
 

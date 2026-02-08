@@ -1,6 +1,6 @@
 import React from 'react';
-import HomeView from '../../src/recipient/HomeComponents/HomeView';
+import RecipientHome from '../../src/recipient/Home';
 
-export default function RecipientHome() {
-    return <HomeView />;
+export default function RecipientHomeScreen() {
+    return <RecipientHome />;
 }
