@@ -16,6 +16,57 @@ const ensureProfile = async (userID: string) => {
   return profile;
 };
 
+// Helper to decrypt user data
+const decryptUser = (user: any) => {
+  if (!user) return null;
+  try {
+    return {
+      ...user,
+      firstName: user.firstName ? decrypt(user.firstName) : null,
+      middleName: user.middleName ? decrypt(user.middleName) : null,
+      lastName: user.lastName ? decrypt(user.lastName) : null,
+      suffix: user.suffix ? decrypt(user.suffix) : null,
+      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
+      email: user.email ? decrypt(user.email) : null,
+      orgName: user.orgName ? decrypt(user.orgName) : null,
+    };
+  } catch (error) {
+    return user;
+  }
+};
+
+// Helper to decrypt food data (nested in location)
+const decryptFood = (food: any) => {
+  if (!food) return null;
+  try {
+    return {
+      ...food,
+      foodName: decrypt(food.foodName),
+      description: food.description ? decrypt(food.description) : null,
+      image: food.image ? decrypt(food.image) : null,
+      user: food.user ? decryptUser(food.user) : undefined,
+    };
+  } catch (error) {
+    return food;
+  }
+};
+
+// Helper to decrypt location data
+const decryptLocation = (location: any) => {
+  if (!location) return null;
+  try {
+    return {
+      ...location,
+      streetAddress: decrypt(location.streetAddress),
+      barangay: decrypt(location.barangay),
+      food: location.food ? decryptFood(location.food) : null,
+      user: location.user ? decryptUser(location.user) : undefined,
+    };
+  } catch (error) {
+    return location;
+  }
+};
+
 export const locationService = {
   async createLocation(params: {
     userID: string;
@@ -39,19 +90,19 @@ export const locationService = {
       barangay: params.input.barangay ? encrypt(params.input.barangay) : null,
     });
 
-    return { location };
+    return { location: decryptLocation(location) };
   },
 
   async listMyLocations(userID: string) {
     await ensureProfile(userID);
     const locations = await locationRepository.listByUser(userID);
-    return { locations };
+    return { locations: locations.map(decryptLocation) };
   },
 
   async listLocationsForFood(params: { userID: string; foodID: string }) {
     await ensureProfile(params.userID);
     const locations = await locationRepository.listByFood(params.foodID);
-    return { locations };
+    return { locations: locations.map(decryptLocation) };
   },
 
   async updateLocation(params: {
@@ -84,14 +135,14 @@ export const locationService = {
         ? { longitude: params.input.longitude }
         : {}),
       ...(params.input.streetAddress !== undefined
-        ? { streetAddress: params.input.streetAddress }
+        ? { streetAddress: encrypt(params.input.streetAddress) }
         : {}),
       ...(params.input.barangay !== undefined
-        ? { barangay: params.input.barangay }
+        ? { barangay: encrypt(params.input.barangay) }
         : {}),
     });
 
-    return { location: updated };
+    return { location: decryptLocation(updated) };
   },
 
   async deleteLocation(params: { userID: string; locID: string }) {
