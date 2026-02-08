@@ -28,8 +28,22 @@ const api = axios.create({
 // Request interceptor to add the auth token to every request
 api.interceptors.request.use(
     async (config) => {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
+        let token = null;
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                if (error.message.includes('Refresh Token Not Found') || error.message.includes('Invalid Refresh Token')) {
+                    console.log('Session expired or invalid refresh token. Signing out...');
+                    await supabase.auth.signOut();
+                }
+                throw error;
+            }
+            token = data.session?.access_token;
+        } catch (e) {
+            // If getSession fails, we might want to proceed without a token or reject
+            // Here we just log it. The request will likely fail with 401 later.
+            console.error('Error getting session in interceptor:', e);
+        }
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
