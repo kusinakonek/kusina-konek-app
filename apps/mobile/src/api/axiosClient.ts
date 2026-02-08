@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { Platform } from 'react-native';
+import axios from "axios";
+import { Platform } from "react-native";
 
 const LAN_IP = '192.168.254.148'; // Same as lib/api.ts — update if your IP changes
 
@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 const axiosClient = axios.create({
   baseURL: `http://${LAN_IP}:3000/api`,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 

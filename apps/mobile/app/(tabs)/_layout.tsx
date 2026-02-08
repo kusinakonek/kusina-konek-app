@@ -1,23 +1,48 @@
-import { Tabs } from 'expo-router';
-import { Home, User, ShoppingBag, PlusCircle, Search, Utensils } from 'lucide-react-native';
-import { useAuth } from '../../context/AuthContext';
-import { View, Text, StyleSheet, Platform, Image } from 'react-native';
+import { Tabs } from "expo-router";
+import { Home, ShoppingCart, User } from "lucide-react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
+
+function CartIcon({
+  color,
+  size,
+  badgeCount,
+}: {
+  color: string;
+  size: number;
+  badgeCount?: number;
+}) {
+  return (
+    <View>
+      <ShoppingCart size={size} color={color} />
+      {badgeCount != null && badgeCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {badgeCount > 9 ? "9+" : badgeCount}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   const { role } = useAuth();
-  const isDonor = role === 'DONOR';
+  const { items: cartItems } = useCart();
+  const isRecipient = role === "RECIPIENT";
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#00C853',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: "#00C853",
+        tabBarInactiveTintColor: "#999",
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
-          height: Platform.OS === 'android' ? 65 : 85,
-          paddingBottom: Platform.OS === 'android' ? 10 : 28,
+          borderTopColor: "#f0f0f0",
+          height: 60,
+          paddingBottom: 8,
           paddingTop: 8,
           backgroundColor: '#fff',
           elevation: 8,
@@ -30,43 +55,30 @@ export default function TabLayout() {
           fontSize: 12,
           fontWeight: '500',
         },
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: "Home",
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
 
-      {/* Middle Tab - Dynamic based on Role */}
       <Tabs.Screen
-        name="action"
+        name="my-cart"
         options={{
-          title: isDonor ? 'Donate' : 'Browse',
-          tabBarIcon: ({ color, size, focused }) => (
-            <View style={styles.middleButtonContainer}>
-              <View style={[styles.middleButton, { backgroundColor: '#00C853' }]}>
-                {isDonor ? (
-                  <Utensils size={28} color="#fff" />
-                ) : (
-                  <Image
-                    source={require('../../assets/MyCart.png')}
-                    style={{ width: 28, height: 28, tintColor: '#fff' }}
-                  />
-                )}
-              </View>
-            </View>
+          title: "My Cart",
+          href: isRecipient ? "/(tabs)/my-cart" : null,
+          tabBarIcon: ({ color, size }) => (
+            <CartIcon color={color} size={size} badgeCount={cartItems.length} />
           ),
-          tabBarLabel: isDonor ? 'Donate' : 'Browse',
         }}
       />
 
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: "Profile",
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
@@ -75,24 +87,21 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  middleButtonContainer: {
-    top: -16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -8,
+    backgroundColor: "#D32F2F",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
   },
-  middleButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#00C853',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
   },
 });
