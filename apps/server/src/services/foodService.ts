@@ -42,16 +42,17 @@ const decryptUser = (user: any) => {
 const decryptFood = (food: any) => {
   return {
     ...food,
-    foodName: decrypt(food.foodName),
-    description: food.description ? decrypt(food.description) : null,
-    image: food.image ? decrypt(food.image) : null,
+    // foodName, description, and image are now stored as plain text
+    foodName: food.foodName,
+    description: food.description,
+    image: food.image,
     user: decryptUser(food.user),
     locations: food.locations?.map((loc: any) => {
       try {
         return {
           ...loc,
           streetAddress: decrypt(loc.streetAddress),
-          barangay: decrypt(loc.barangay),
+          barangay: loc.barangay ? decrypt(loc.barangay) : null,
           user: decryptUser(loc.user),
         };
       } catch (error) {
@@ -74,23 +75,22 @@ const decryptDistribution = (distribution: any) => {
       recipient: decryptUser(distribution.recipient),
       location: distribution.location
         ? {
-            ...distribution.location,
-            streetAddress: decrypt(distribution.location.streetAddress),
-            barangay: decrypt(distribution.location.barangay),
-          }
+          ...distribution.location,
+          streetAddress: decrypt(distribution.location.streetAddress),
+          barangay: distribution.location.barangay
+            ? decrypt(distribution.location.barangay)
+            : null,
+        }
         : null,
       food: distribution.food
         ? {
-            ...distribution.food,
-            foodName: decrypt(distribution.food.foodName),
-            description: distribution.food.description
-              ? decrypt(distribution.food.description)
-              : null,
-            image: distribution.food.image
-              ? decrypt(distribution.food.image)
-              : null,
-            user: decryptUser(distribution.food.user),
-          }
+          ...distribution.food,
+          // foodName, description, and image are now stored as plain text
+          foodName: distribution.food.foodName,
+          description: distribution.food.description,
+          image: distribution.food.image,
+          user: decryptUser(distribution.food.user),
+        }
         : null,
     };
   } catch (error) {
@@ -105,7 +105,7 @@ export const foodService = {
 
     const created = await foodRepository.create(params.userID, {
       foodName: params.input.foodName,
-      dateCooked: new Date(params.input.dateCooked),
+      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
@@ -192,14 +192,13 @@ export const foodService = {
     await ensureProfile(params.userID);
 
     // Encrypt sensitive data before storing
+    // Encrypt sensitive data before storing
     const encryptedFoodData = {
-      foodName: encrypt(params.input.foodName),
-      dateCooked: new Date(params.input.dateCooked),
-      description: params.input.description
-        ? encrypt(params.input.description)
-        : undefined,
+      foodName: params.input.foodName,
+      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
+      description: params.input.description,
       quantity: params.input.quantity,
-      image: params.input.image ? encrypt(params.input.image) : undefined,
+      image: params.input.image,
     };
 
     // Create food first
@@ -319,17 +318,13 @@ export const foodService = {
     const encryptedData: any = {};
 
     if (params.input.foodName) {
-      encryptedData.foodName = encrypt(params.input.foodName);
+      encryptedData.foodName = params.input.foodName;
     }
     if (params.input.description !== undefined) {
-      encryptedData.description = params.input.description
-        ? encrypt(params.input.description)
-        : null;
+      encryptedData.description = params.input.description;
     }
     if (params.input.image !== undefined) {
-      encryptedData.image = params.input.image
-        ? encrypt(params.input.image)
-        : null;
+      encryptedData.image = params.input.image;
     }
     if (params.input.dateCooked) {
       encryptedData.dateCooked = new Date(params.input.dateCooked);

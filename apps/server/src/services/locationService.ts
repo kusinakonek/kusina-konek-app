@@ -87,7 +87,7 @@ export const locationService = {
       latitude: params.input.latitude,
       longitude: params.input.longitude,
       streetAddress: encrypt(params.input.streetAddress),
-      barangay: encrypt(params.input.barangay),
+      barangay: params.input.barangay ? encrypt(params.input.barangay) : null,
     });
 
     return { location: decryptLocation(location) };
