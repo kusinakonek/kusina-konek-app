@@ -64,11 +64,10 @@ export const dashboardRepository = {
   async getDonorStats(userID: string): Promise<DonorStats> {
     const [totalDonated, availableItems, avgRating] = await Promise.all([
       // Count completed distributions (donations that were delivered)
-      // Using actualTime as fallback until Prisma is regenerated with status field
       prisma.distribution.count({
         where: {
           donorID: userID,
-          actualTime: { not: null },
+          status: { in: ["DELIVERED", "COMPLETED"] },
         },
       }),
 
@@ -114,17 +113,15 @@ export const dashboardRepository = {
     });
 
     return distributions.map((d) => {
-      // Use actualTime to determine status until Prisma is regenerated with status field
-      const derivedStatus = d.actualTime ? "completed" : "pending";
       return {
         disID: d.disID,
         foodName: d.food.foodName,
         quantity: d.quantity,
-        status: derivedStatus,
+        status: d.status.toLowerCase(),
         location: d.location.barangay,
         timestamp: d.timestamp,
         claimedBy:
-          d.actualTime && d.recipient
+          d.recipient
             ? `${d.recipient.firstName} ${d.recipient.lastName}`
             : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
@@ -139,10 +136,10 @@ export const dashboardRepository = {
   async getRecipientStats(userID: string): Promise<RecipientStats> {
     const [availableFoods, locationData, servingsData] = await Promise.all([
       // Count available distributions (pending - not yet completed)
-      // Using actualTime as fallback until Prisma is regenerated with status field
       prisma.distribution.count({
         where: {
-          actualTime: null,
+          status: "PENDING",
+          recipientID: null, // Only count items that haven't been claimed
         },
       }),
 
@@ -151,7 +148,7 @@ export const dashboardRepository = {
         where: {
           distributions: {
             some: {
-              actualTime: null,
+              status: "PENDING",
             },
           },
         },
@@ -161,7 +158,7 @@ export const dashboardRepository = {
       // Sum total servings available (Manual sum since quantity is string)
       prisma.distribution.findMany({
         where: {
-          actualTime: null,
+          status: "PENDING",
         },
         select: { quantity: true },
       }),
@@ -203,16 +200,14 @@ export const dashboardRepository = {
 
     return distributions.map((d) => {
       const myFeedback = d.feedbacks[0];
-      // Use actualTime to determine status until Prisma is regenerated with status field
-      const isCompleted = d.actualTime !== null;
-      const derivedStatus = isCompleted ? "completed" : "pending";
+      const isCompleted = d.status === "COMPLETED";
       const hasFeedback = !!myFeedback;
 
       return {
         disID: d.disID,
         foodName: d.food.foodName,
         quantity: d.quantity,
-        status: derivedStatus,
+        status: d.status.toLowerCase(),
         location: d.location.barangay,
         timestamp: d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
@@ -228,7 +223,8 @@ export const dashboardRepository = {
   async getAvailableFoods(limit: number = 20): Promise<AvailableFoodItem[]> {
     const distributions = await prisma.distribution.findMany({
       where: {
-        actualTime: null, // Use actualTime as fallback until Prisma is regenerated
+        status: "PENDING",
+        recipientID: null, // Only show unclaimed items
       },
       orderBy: { timestamp: "desc" },
       take: limit,
