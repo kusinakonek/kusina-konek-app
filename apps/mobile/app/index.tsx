@@ -53,7 +53,7 @@ export default function Index() {
     if (userToken) {
         // Route based on user role
         if (role === 'DONOR') {
-            return <Redirect href="/(donor)" />;
+            return <Redirect href="/(donor)/donate" />;
         }
         // Default to recipient/tabs view
         return <Redirect href="/(tabs)" />;
