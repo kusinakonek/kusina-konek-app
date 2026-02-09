@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Map } from 'lucide-react-native';
-import InteractiveMap from './InteractiveMap';
-import Input from './Input';
+import InteractiveMap from '../../../src/components/InteractiveMap';
+import Input from '../../../src/components/Input';
 
 export interface LocationValue {
     latitude: number;
