@@ -51,11 +51,7 @@ export default function Index() {
     }
 
     if (userToken) {
-        // Route based on user role
-        if (role === 'DONOR') {
-            return <Redirect href="/(donor)/donate" />;
-        }
-        // Default to recipient/tabs view
+        // Both DONOR and RECIPIENT use the tabs view
         return <Redirect href="/(tabs)" />;
     }
 

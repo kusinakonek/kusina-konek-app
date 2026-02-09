@@ -40,6 +40,18 @@ export const encrypt = (text: string): string => {
     return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 };
 
+/**
+ * Safely decrypt text — returns the original string if it is not
+ * in the expected IV:AuthTag:Data format (e.g. plain-text seed data).
+ */
+export const safeDecrypt = (text: string): string => {
+    try {
+        return decrypt(text);
+    } catch {
+        return text;
+    }
+};
+
 export const decrypt = (text: string): string => {
     const parts = text.split(':');
     if (parts.length !== 3) {

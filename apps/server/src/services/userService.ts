@@ -3,7 +3,7 @@ import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
@@ -36,13 +36,13 @@ export const userService = {
       throw new HttpError(404, "Profile not found. Please complete your profile first.");
     }
 
-    // Decrypt PII fields
-    const firstName = decrypt(user.firstName);
-    const lastName = decrypt(user.lastName);
-    const middleName = user.middleName ? decrypt(user.middleName) : null;
-    const suffix = user.suffix ? decrypt(user.suffix) : null;
-    const phoneNo = user.phoneNo ? decrypt(user.phoneNo) : null;
-    const orgName = user.orgName ? decrypt(user.orgName) : null;
+    // Decrypt PII fields (safeDecrypt handles plain-text seed/RPC data gracefully)
+    const firstName = safeDecrypt(user.firstName);
+    const lastName = safeDecrypt(user.lastName);
+    const middleName = user.middleName ? safeDecrypt(user.middleName) : null;
+    const suffix = user.suffix ? safeDecrypt(user.suffix) : null;
+    const phoneNo = user.phoneNo ? safeDecrypt(user.phoneNo) : null;
+    const orgName = user.orgName ? safeDecrypt(user.orgName) : null;
 
     return {
       user: {

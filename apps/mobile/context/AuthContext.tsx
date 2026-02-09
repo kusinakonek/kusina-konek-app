@@ -91,13 +91,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        // Get role from user metadata or stored role
-        const userRole = data.user?.user_metadata?.role || role;
-        if (userRole === 'DONOR') {
-            router.replace('/(donor)');
-        } else {
-            router.replace('/(tabs)');
-        }
+        // Keep the role the user selected on the welcome screen.
+        // Do NOT override with user_metadata.role — the same account
+        // can switch between DONOR and RECIPIENT freely.
+        // `role` is already set by the welcome screen's setRole() call.
+        // Both roles use the tabs view
+        router.replace('/(tabs)');
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -155,17 +154,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserProfile(data.user.id, pendingSignup.password, pendingSignup.metadata);
             } catch (e) {
                 console.error('Error creating user profile:', e);
-                // Don't block login — profile creation is secondary
+            }
+            // Save role
+            if (pendingSignup.metadata?.role) {
+                await setRole(pendingSignup.metadata.role as 'DONOR' | 'RECIPIENT');
             }
             setPendingSignup(null);
-            // Route based on role from signup metadata
-            if (pendingSignup.metadata?.role === 'DONOR') {
-                router.replace('/(donor)');
-                return;
-            }
         }
 
-        // Default to recipient tabs
+        // Both roles use the tabs view
         router.replace('/(tabs)');
     };
 

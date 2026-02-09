@@ -1,4 +1,5 @@
 import { prisma } from "@kusinakonek/database";
+import { safeDecrypt } from "../utils/encryption";
 
 // ============================================================
 // Type Definitions
@@ -118,11 +119,11 @@ export const dashboardRepository = {
         foodName: d.food.foodName,
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
+        location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
         claimedBy:
           d.recipient
-            ? `${d.recipient.firstName} ${d.recipient.lastName}`
+            ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
             : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
       };
@@ -208,7 +209,7 @@ export const dashboardRepository = {
         foodName: d.food.foodName,
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
+        location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
@@ -248,11 +249,11 @@ export const dashboardRepository = {
       quantity: d.quantity,
       description: d.food.description,
       image: d.food.image,
-      location: d.location.barangay,
-      streetAddress: d.location.streetAddress,
+      location: safeDecrypt(d.location.barangay),
+      streetAddress: safeDecrypt(d.location.streetAddress),
       donorName: d.donor.isOrg
-        ? (d.donor.orgName ?? "Organization")
-        : `${d.donor.firstName} ${d.donor.lastName}`,
+        ? safeDecrypt(d.donor.orgName ?? "Organization")
+        : `${safeDecrypt(d.donor.firstName)} ${safeDecrypt(d.donor.lastName)}`,
       scheduledTime: d.scheduledTime,
       timestamp: d.timestamp,
     }));
