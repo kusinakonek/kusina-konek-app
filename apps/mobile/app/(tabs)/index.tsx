@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import DonorHome from '../DONOR/Home';
-import RecipientHome from '../RECIPIENT/Home';
+import DonorHome from '../../src/donor/Home';
+import RecipientHome from '../../src/recipient/Home';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function Home() {
