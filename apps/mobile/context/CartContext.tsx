@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { Alert } from "react-native";
-import api from "../lib/api";
+import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -139,7 +139,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     for (const item of validItems) {
       try {
-        await api.post(API_ENDPOINTS.DISTRIBUTION.REQUEST(item.disID), {});
+        await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.REQUEST(item.disID), {});
         results.push({ disID: item.disID, success: true });
       } catch (err: any) {
         const msg =
