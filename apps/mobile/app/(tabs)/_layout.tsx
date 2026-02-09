@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, ShoppingCart, User } from "lucide-react-native";
+import { Home, ShoppingCart, User, PlusCircle, Search } from "lucide-react-native";
 import { View, Text, StyleSheet } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
@@ -61,6 +61,16 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="action"
+        options={{
+          title: role === 'DONOR' ? "Donate" : "Browse",
+          tabBarIcon: ({ color, size }) => (
+            role === 'DONOR' ? <PlusCircle size={size} color={color} /> : <Search size={size} color={color} />
+          ),
         }}
       />
 

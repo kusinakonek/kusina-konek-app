@@ -1,6 +1,6 @@
 export * from "./Button";
 export * from "./Card";
-export * from "./Input";
+export { default as Input } from "./Input";
 export * from "./Modal";
 export * from "./Spinner";
 export * from "./Toast";
