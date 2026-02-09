@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, TextInput, View, Pressable } from "react-native";
 import { Search, SlidersHorizontal } from "lucide-react-native";
-import { theme } from "../constants/theme";
+import { theme } from "../../constants/theme";
 
 type SearchBarProps = {
   value: string;
