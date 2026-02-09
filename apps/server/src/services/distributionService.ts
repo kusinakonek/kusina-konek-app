@@ -21,67 +21,65 @@ const ensureProfile = async (userID: string) => {
   return profile;
 };
 
-// Helper to decrypt user data
-const decryptUser = (user: any) => {
-  if (!user) return null;
+// Safe per-field decrypt: returns original value if decryption fails
+const safeDecrypt = (value: string | null | undefined): string | null => {
+  if (!value) return null;
   try {
-    return {
-      ...user,
-      firstName: user.firstName ? decrypt(user.firstName) : null,
-      middleName: user.middleName ? decrypt(user.middleName) : null,
-      lastName: user.lastName ? decrypt(user.lastName) : null,
-      suffix: user.suffix ? decrypt(user.suffix) : null,
-      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
-      email: user.email ? decrypt(user.email) : null,
-      orgName: user.orgName ? decrypt(user.orgName) : null,
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return user;
+    return decrypt(value);
+  } catch {
+    return value; // Return original if not encrypted or format is wrong
   }
 };
 
-// Helper to decrypt distribution data
+// Helper to decrypt user data (each field independent)
+const decryptUser = (user: any) => {
+  if (!user) return null;
+  return {
+    ...user,
+    firstName: safeDecrypt(user.firstName),
+    middleName: safeDecrypt(user.middleName),
+    lastName: safeDecrypt(user.lastName),
+    suffix: safeDecrypt(user.suffix),
+    phoneNo: safeDecrypt(user.phoneNo),
+    email: safeDecrypt(user.email),
+    orgName: safeDecrypt(user.orgName),
+  };
+};
+
+// Helper to decrypt location data (each field independent)
+const decryptLocation = (location: any) => {
+  if (!location) return null;
+  return {
+    ...location,
+    streetAddress: safeDecrypt(location.streetAddress),
+    barangay: safeDecrypt(location.barangay),
+  };
+};
+
+// Helper to decrypt distribution data (each section independent)
 const decryptDistribution = (distribution: any) => {
-  try {
-    return {
-      ...distribution,
-      photoProof: distribution.photoProof
-        ? decrypt(distribution.photoProof)
-        : null,
-      donor: decryptUser(distribution.donor),
-      recipient: decryptUser(distribution.recipient),
-      location: distribution.location
-        ? {
-            ...distribution.location,
-            streetAddress: decrypt(distribution.location.streetAddress),
-            barangay: decrypt(distribution.location.barangay),
-          }
-        : null,
-      food: distribution.food
-        ? {
-            ...distribution.food,
-            foodName: decrypt(distribution.food.foodName),
-            description: distribution.food.description
-              ? decrypt(distribution.food.description)
-              : null,
-            image: distribution.food.image
-              ? decrypt(distribution.food.image)
-              : null,
-            user: decryptUser(distribution.food.user),
-          }
-        : null,
-      feedbacks:
-        distribution.feedbacks?.map((feedback: any) => ({
-          ...feedback,
-          donor: decryptUser(feedback.donor),
-          recipient: decryptUser(feedback.recipient),
-        })) || [],
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return distribution;
-  }
+  return {
+    ...distribution,
+    photoProof: safeDecrypt(distribution.photoProof),
+    donor: decryptUser(distribution.donor),
+    recipient: decryptUser(distribution.recipient),
+    location: decryptLocation(distribution.location),
+    food: distribution.food
+      ? {
+          ...distribution.food,
+          foodName: safeDecrypt(distribution.food.foodName),
+          description: safeDecrypt(distribution.food.description),
+          image: safeDecrypt(distribution.food.image),
+          user: decryptUser(distribution.food.user),
+        }
+      : null,
+    feedbacks:
+      distribution.feedbacks?.map((feedback: any) => ({
+        ...feedback,
+        donor: decryptUser(feedback.donor),
+        recipient: decryptUser(feedback.recipient),
+      })) || [],
+  };
 };
 
 export const distributionService = {
