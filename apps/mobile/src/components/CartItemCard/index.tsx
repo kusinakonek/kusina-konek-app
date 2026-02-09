@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { MapPin, Clock, Trash2, Timer } from "lucide-react-native";
-import { theme } from "../constants/theme";
+import { theme } from "../../constants/theme";
 
 const RESERVATION_MS = 15 * 60 * 1000;
 

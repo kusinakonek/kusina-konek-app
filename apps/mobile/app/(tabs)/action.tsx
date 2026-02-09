@@ -1,17 +1,26 @@
-import { View, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import { useAuth } from '../../context/AuthContext';
+import AddFood from '../../src/donor/AddFood';
+import BrowseFood from '../../src/recipient/BrowseFood';
+import Cart from '../../src/recipient/Cart';
+import { useLocalSearchParams } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
 
 export default function Action() {
-    return (
-        <View style={styles.container}>
-            <Text>Action Page (Donate/Browse)</Text>
-        </View>
-    );
-}
+    const { role, isLoading } = useAuth();
+    const params = useLocalSearchParams();
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-});
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#00C853" />
+            </View>
+        );
+    }
+
+    if (role === 'RECIPIENT' && params.screen === 'Cart') {
+        return <Cart />;
+    }
+
+    return role === 'DONOR' ? <AddFood /> : <BrowseFood />;
+}
