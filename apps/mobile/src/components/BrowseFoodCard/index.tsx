@@ -1,9 +1,9 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { MapPin, Clock, Users } from "lucide-react-native";
-import { theme } from "../constants/theme";
+import { theme } from "../../constants/theme";
 
-const DEFAULT_FOOD_IMAGE = require("../../assets/KusinaKonek-Logo.png");
+const DEFAULT_FOOD_IMAGE = require("../../../assets/KusinaKonek-Logo.png");
 
 export type BrowseFoodCardProps = {
   imageUri?: string | null;
