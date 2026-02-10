@@ -3,7 +3,7 @@ import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
-import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt, safeDecryptAsync } from "../utils/encryption";
 
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
@@ -36,13 +36,23 @@ export const userService = {
       throw new HttpError(404, "Profile not found. Please complete your profile first.");
     }
 
-    // Decrypt PII fields (safeDecrypt handles plain-text seed/RPC data gracefully)
-    const firstName = safeDecrypt(user.firstName);
-    const lastName = safeDecrypt(user.lastName);
-    const middleName = user.middleName ? safeDecrypt(user.middleName) : null;
-    const suffix = user.suffix ? safeDecrypt(user.suffix) : null;
-    const phoneNo = user.phoneNo ? safeDecrypt(user.phoneNo) : null;
-    const orgName = user.orgName ? safeDecrypt(user.orgName) : null;
+    // Decrypt PII fields using async decryption (handles both AES and PGP)
+    const firstName = await safeDecryptAsync(user.firstName);
+    const lastName = await safeDecryptAsync(user.lastName);
+    const middleName = user.middleName ? await safeDecryptAsync(user.middleName) : null;
+    const suffix = user.suffix ? await safeDecryptAsync(user.suffix) : null;
+    const phoneNo = user.phoneNo ? await safeDecryptAsync(user.phoneNo) : null;
+    const orgName = user.orgName ? await safeDecryptAsync(user.orgName) : null;
+
+    // Decrypt address fields if address exists
+    const address = user.userAddress
+      ? {
+          latitude: user.userAddress.latitude,
+          longitude: user.userAddress.longitude,
+          streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
+          barangay: await safeDecryptAsync(user.userAddress.barangay)
+        }
+      : null;
 
     // Detect if essential fields are empty/missing after decryption
     // (happens when profile was created with old PGP encryption from Supabase RPC)
@@ -63,14 +73,7 @@ export const userService = {
         phoneNo: phoneNo || '',
         isOrg: user.isOrg,
         orgName,
-        address: user.userAddress
-          ? {
-            latitude: user.userAddress.latitude,
-            longitude: user.userAddress.longitude,
-            streetAddress: user.userAddress.streetAddress,
-            barangay: user.userAddress.barangay
-          }
-          : null
+        address
       },
       needsProfileUpdate
     };

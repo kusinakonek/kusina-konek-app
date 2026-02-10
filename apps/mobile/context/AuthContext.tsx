@@ -34,17 +34,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Get initial session
         const initAuth = async () => {
             try {
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                setSession(currentSession);
-                setUser(currentSession?.user ?? null);
-                setUserToken(currentSession?.access_token ?? null);
+                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+                if (error || !currentSession) {
+                    // Session is invalid/expired — clear stale state silently
+                    console.log('No valid session found, starting fresh');
+                    setSession(null);
+                    setUser(null);
+                    setUserToken(null);
+                } else {
+                    setSession(currentSession);
+                    setUser(currentSession.user);
+                    setUserToken(currentSession.access_token);
+                }
 
                 const storedRole = await AsyncStorage.getItem('userRole');
                 if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
                     setRoleState(storedRole);
                 }
             } catch (e) {
-                console.error('Failed to load auth data', e);
+                // Refresh token errors (e.g. "Refresh Token Not Found") end up here
+                console.log('Auth init error (expected on fresh start):', (e as any)?.message || e);
+                setSession(null);
+                setUser(null);
+                setUserToken(null);
             } finally {
                 setIsLoading(false);
             }
@@ -54,6 +66,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            // Ignore TOKEN_REFRESHED failures — they happen when refresh token is stale
+            if (event === 'TOKEN_REFRESHED' && !newSession) {
+                console.log('Token refresh failed, ignoring');
+                return;
+            }
+
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);

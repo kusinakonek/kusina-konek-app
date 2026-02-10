@@ -17,20 +17,24 @@ export default function Profile() {
 
     const fetchProfileData = useCallback(async () => {
         try {
-            const [profileRes, dashboardRes] = await Promise.all([
-                axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE),
-                role === 'DONOR'
-                    ? axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
-                    : axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT),
-            ]);
+            // Fetch profile and dashboard separately so one failure doesn't block the other
+            const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
             setProfileData(profileRes.data);
-            setStatsData(dashboardRes.data?.stats || null);
         } catch (error) {
             console.error('Error fetching profile:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
         }
+
+        try {
+            const dashboardRes = role === 'DONOR'
+                ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
+                : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+            setStatsData(dashboardRes.data?.stats || null);
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
+        }
+
+        setLoading(false);
+        setRefreshing(false);
     }, [role]);
 
     useEffect(() => {
