@@ -1,16 +1,18 @@
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "react-native";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <SafeAreaProvider>
+    <SafeAreaProvider>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <AuthProvider>
+        <CartProvider>
           <Stack screenOptions={{ headerShown: false }} />
-        </SafeAreaProvider>
-      </CartProvider>
-    </AuthProvider>
+        </CartProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

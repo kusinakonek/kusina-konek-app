@@ -9,7 +9,7 @@ import {
   userRepository,
   distributionRepository,
 } from "../repositories";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 import { locationService } from "./locationService";
 
 const ensureProfile = async (userID: string) => {
@@ -21,21 +21,16 @@ const ensureProfile = async (userID: string) => {
 // Helper to decrypt user data
 const decryptUser = (user: any) => {
   if (!user) return null;
-  try {
-    return {
-      ...user,
-      firstName: user.firstName ? decrypt(user.firstName) : null,
-      middleName: user.middleName ? decrypt(user.middleName) : null,
-      lastName: user.lastName ? decrypt(user.lastName) : null,
-      suffix: user.suffix ? decrypt(user.suffix) : null,
-      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
-      email: user.email ? decrypt(user.email) : null,
-      orgName: user.orgName ? decrypt(user.orgName) : null,
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return user;
-  }
+  return {
+    ...user,
+    firstName: user.firstName ? safeDecrypt(user.firstName) : null,
+    middleName: user.middleName ? safeDecrypt(user.middleName) : null,
+    lastName: user.lastName ? safeDecrypt(user.lastName) : null,
+    suffix: user.suffix ? safeDecrypt(user.suffix) : null,
+    phoneNo: user.phoneNo ? safeDecrypt(user.phoneNo) : null,
+    email: user.email ? safeDecrypt(user.email) : null,
+    orgName: user.orgName ? safeDecrypt(user.orgName) : null,
+  };
 };
 
 // Helper to decrypt food data
@@ -47,56 +42,43 @@ const decryptFood = (food: any) => {
     description: food.description,
     image: food.image,
     user: decryptUser(food.user),
-    locations: food.locations?.map((loc: any) => {
-      try {
-        return {
-          ...loc,
-          streetAddress: decrypt(loc.streetAddress),
-          barangay: loc.barangay ? decrypt(loc.barangay) : null,
-          user: decryptUser(loc.user),
-        };
-      } catch (error) {
-        // If location decryption fails, return original
-        return loc;
-      }
-    }),
+    locations: food.locations?.map((loc: any) => ({
+      ...loc,
+      streetAddress: safeDecrypt(loc.streetAddress),
+      barangay: loc.barangay ? safeDecrypt(loc.barangay) : null,
+      user: decryptUser(loc.user),
+    })),
   };
 };
 
 // Helper to decrypt distribution data (simplified for food service)
 const decryptDistribution = (distribution: any) => {
-  try {
-    return {
-      ...distribution,
-      photoProof: distribution.photoProof
-        ? decrypt(distribution.photoProof)
-        : null,
-      donor: decryptUser(distribution.donor),
-      recipient: decryptUser(distribution.recipient),
-      location: distribution.location
-        ? {
-          ...distribution.location,
-          streetAddress: decrypt(distribution.location.streetAddress),
-          barangay: distribution.location.barangay
-            ? decrypt(distribution.location.barangay)
-            : null,
-        }
-        : null,
-      food: distribution.food
-        ? {
-          ...distribution.food,
-          // foodName, description, and image are now stored as plain text
-          foodName: distribution.food.foodName,
-          description: distribution.food.description,
-          image: distribution.food.image,
-          user: decryptUser(distribution.food.user),
-        }
-        : null,
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return distribution;
-  }
+  return {
+    ...distribution,
+    photoProof: distribution.photoProof
+      ? safeDecrypt(distribution.photoProof)
+      : null,
+    donor: decryptUser(distribution.donor),
+    recipient: decryptUser(distribution.recipient),
+    location: distribution.location
+      ? {
+        ...distribution.location,
+        streetAddress: safeDecrypt(distribution.location.streetAddress),
+        barangay: distribution.location.barangay
+          ? safeDecrypt(distribution.location.barangay)
+          : null,
+      }
+      : null,
+    food: distribution.food
+      ? {
+        ...distribution.food,
+        foodName: distribution.food.foodName,
+        description: distribution.food.description,
+        image: distribution.food.image,
+        user: decryptUser(distribution.food.user),
+      }
+      : null,
+  };
 };
 
 export const foodService = {

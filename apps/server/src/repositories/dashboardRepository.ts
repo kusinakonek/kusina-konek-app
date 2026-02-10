@@ -1,4 +1,5 @@
 import { prisma } from "@kusinakonek/database";
+import { safeDecrypt } from "../utils/encryption";
 
 // ============================================================
 // Type Definitions
@@ -101,13 +102,18 @@ export const dashboardRepository = {
       where: { donorID: userID },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
-        recipient: true,
+      select: {
+        disID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        food: { select: { foodName: true } },
+        location: { select: { barangay: true } },
+        recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
           where: { donorID: userID },
           take: 1,
+          select: { ratingScore: true },
         },
       },
     });
@@ -115,14 +121,14 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
+        location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
         claimedBy:
           d.recipient
-            ? `${d.recipient.firstName} ${d.recipient.lastName}`
+            ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
             : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
       };
@@ -134,17 +140,16 @@ export const dashboardRepository = {
    * Counts: available foods, distinct locations, total servings
    */
   async getRecipientStats(userID: string): Promise<RecipientStats> {
-    const [availableFoods, locationData, servingsData] = await Promise.all([
-      // Count available distributions (pending - not yet completed)
+    // quantity is a String field, so we can't use _sum in aggregate.
+    // Fetch counts + quantities separately.
+    const [availableCount, locationCount, quantities] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
-          recipientID: null, // Only count items that haven't been claimed
+          recipientID: null,
         },
       }),
-
-      // Count distinct locations with available food
-      prisma.dropOffLocation.findMany({
+      prisma.dropOffLocation.count({
         where: {
           distributions: {
             some: {
@@ -152,27 +157,25 @@ export const dashboardRepository = {
             },
           },
         },
-        select: { locID: true },
       }),
-
-      // Sum total servings available (Manual sum since quantity is string)
       prisma.distribution.findMany({
         where: {
           status: "PENDING",
+          recipientID: null,
         },
         select: { quantity: true },
       }),
     ]);
 
-    // Calculate total servings by parsing string quantities
-    const totalServings = servingsData.reduce((acc, curr) => {
-      const parsed = parseInt(curr.quantity, 10);
-      return acc + (isNaN(parsed) ? 0 : parsed);
+    // Parse and sum quantity strings manually
+    const totalServings = quantities.reduce((sum, d) => {
+      const parsed = parseInt(String(d.quantity), 10);
+      return sum + (isNaN(parsed) ? 0 : parsed);
     }, 0);
 
     return {
-      availableFoods,
-      locations: locationData.length,
+      availableFoods: availableCount,
+      locations: locationCount,
       totalServings,
     };
   },
@@ -188,12 +191,17 @@ export const dashboardRepository = {
       where: { recipientID: userID },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        food: { select: { foodName: true } },
+        location: { select: { barangay: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
+          select: { ratingScore: true, comments: true },
         },
       },
     });
@@ -205,10 +213,10 @@ export const dashboardRepository = {
 
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
+        location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
@@ -228,9 +236,13 @@ export const dashboardRepository = {
       },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        scheduledTime: true,
+        timestamp: true,
+        food: { select: { foodName: true, description: true, image: true } },
+        location: { select: { barangay: true, streetAddress: true } },
         donor: {
           select: {
             firstName: true,
@@ -244,15 +256,15 @@ export const dashboardRepository = {
 
     return distributions.map((d) => ({
       disID: d.disID,
-      foodName: d.food.foodName,
+      foodName: safeDecrypt(d.food.foodName),
       quantity: d.quantity,
-      description: d.food.description,
-      image: d.food.image,
-      location: d.location.barangay,
-      streetAddress: d.location.streetAddress,
+      description: d.food.description ? safeDecrypt(d.food.description) : null,
+      image: d.food.image ? safeDecrypt(d.food.image) : null,
+      location: safeDecrypt(d.location.barangay),
+      streetAddress: safeDecrypt(d.location.streetAddress),
       donorName: d.donor.isOrg
-        ? (d.donor.orgName ?? "Organization")
-        : `${d.donor.firstName} ${d.donor.lastName}`,
+        ? safeDecrypt(d.donor.orgName ?? "Organization")
+        : `${safeDecrypt(d.donor.firstName)} ${safeDecrypt(d.donor.lastName)}`,
       scheduledTime: d.scheduledTime,
       timestamp: d.timestamp,
     }));

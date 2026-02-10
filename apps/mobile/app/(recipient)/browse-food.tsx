@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ShoppingCart } from "lucide-react-native";
 import { Pressable } from "react-native";
-import api from "../../lib/api";
+import axiosClient from "../../src/api/axiosClient";
 import { API_ENDPOINTS } from "../../src/api/endpoints";
 import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import SearchBar from "../../src/components/SearchBar";
@@ -86,7 +86,7 @@ export default function BrowseFood() {
   const fetchAvailableDistributions = useCallback(async () => {
     try {
       setError(null);
-      const response = await api.get(API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE);
+      const response = await axiosClient.get(API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE);
       const data = response.data?.distributions ?? [];
       setDistributions(data);
       setFilteredDistributions(data);

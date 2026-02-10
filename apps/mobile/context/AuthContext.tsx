@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 import { Session, User } from '@supabase/supabase-js';
-import * as Crypto from 'expo-crypto';
 
 // Define the shape of the AuthContext
 interface AuthContextType {
@@ -35,17 +34,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Get initial session
         const initAuth = async () => {
             try {
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                setSession(currentSession);
-                setUser(currentSession?.user ?? null);
-                setUserToken(currentSession?.access_token ?? null);
+                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+                if (error || !currentSession) {
+                    // Session is invalid/expired — clear stale state silently
+                    console.log('No valid session found, starting fresh');
+                    setSession(null);
+                    setUser(null);
+                    setUserToken(null);
+                } else {
+                    setSession(currentSession);
+                    setUser(currentSession.user);
+                    setUserToken(currentSession.access_token);
+                }
 
                 const storedRole = await AsyncStorage.getItem('userRole');
                 if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
                     setRoleState(storedRole);
                 }
             } catch (e) {
-                console.error('Failed to load auth data', e);
+                // Refresh token errors (e.g. "Refresh Token Not Found") end up here
+                console.log('Auth init error (expected on fresh start):', (e as any)?.message || e);
+                setSession(null);
+                setUser(null);
+                setUserToken(null);
             } finally {
                 setIsLoading(false);
             }
@@ -55,6 +66,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            // Ignore TOKEN_REFRESHED failures — they happen when refresh token is stale
+            if (event === 'TOKEN_REFRESHED' && !newSession) {
+                console.log('Token refresh failed, ignoring');
+                return;
+            }
+
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);
@@ -91,13 +108,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        // Get role from user metadata or stored role
-        const userRole = data.user?.user_metadata?.role || role;
-        if (userRole === 'DONOR') {
-            router.replace('/(donor)');
-        } else {
-            router.replace('/(tabs)');
-        }
+        // Keep the role the user selected on the welcome screen.
+        // Do NOT override with user_metadata.role — the same account
+        // can switch between DONOR and RECIPIENT freely.
+        // `role` is already set by the welcome screen's setRole() call.
+        // Both roles use the tabs view
+        router.replace('/(tabs)');
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -155,35 +171,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserProfile(data.user.id, pendingSignup.password, pendingSignup.metadata);
             } catch (e) {
                 console.error('Error creating user profile:', e);
-                // Don't block login — profile creation is secondary
+            }
+            // Save role
+            if (pendingSignup.metadata?.role) {
+                await setRole(pendingSignup.metadata.role as 'DONOR' | 'RECIPIENT');
             }
             setPendingSignup(null);
-            // Route based on role from signup metadata
-            if (pendingSignup.metadata?.role === 'DONOR') {
-                router.replace('/(donor)');
-                return;
-            }
         }
 
-        // Default to recipient tabs
+        // Both roles use the tabs view
         router.replace('/(tabs)');
     };
 
-    // Helper: Create user profile in database via RPC
-    // Sends raw data — encryption (AES-256) and bcrypt happen server-side in PostgreSQL
+    // Helper: Create user profile in database via the Node.js API
+    // The backend handles encryption with AES-256-GCM consistently
     const createUserProfile = async (userId: string, password: string, metadata?: any) => {
         const normalizedEmail = metadata?.email || pendingSignup?.email || '';
         const phone = metadata?.phone_no || '';
-
-        // SHA-256 hashes for indexed lookup fields (unique constraints in DB)
-        const emailHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            normalizedEmail
-        );
-        const phoneNoHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            phone || `no-phone-${userId}`
-        );
 
         // Split full name into first and last
         const nameParts = (metadata?.full_name || '').trim().split(' ');
@@ -192,25 +196,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const selectedRole = metadata?.role || 'RECIPIENT';
 
-        // Call the RPC function — raw data sent over HTTPS
-        // The PostgreSQL function handles:
-        //   - AES-256 encryption for PII fields (firstName, lastName, email, phoneNo)
-        //   - bcrypt hashing for password
-        const { error: rpcError } = await supabase.rpc('create_user_profile', {
-            p_user_id: userId,
-            p_role_name: selectedRole,
-            p_first_name: firstName,
-            p_last_name: lastName || firstName,
-            p_phone_no: phone,
-            p_phone_no_hash: phoneNoHash,
-            p_email: normalizedEmail,
-            p_email_hash: emailHash,
-            p_password: password,
+        // Use the backend API which encrypts consistently with Node.js AES-256-GCM
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        if (!token) {
+            throw new Error('No auth token available to create profile');
+        }
+
+        const axiosClient = (await import('../src/api/axiosClient')).default;
+        const response = await axiosClient.put('/users/profile', {
+            firstName,
+            lastName: lastName || firstName,
+            phoneNo: phone || `no-phone-${userId}`,
+            role: selectedRole,
+            isOrg: false,
         });
 
-        if (rpcError) {
-            console.error('Failed to create user profile:', rpcError);
-            throw rpcError;
+        if (response.status !== 200) {
+            throw new Error('Failed to create user profile via API');
         }
     };
 

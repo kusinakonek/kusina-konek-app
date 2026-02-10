@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { env } from '../config/env';
+import { prisma } from '@kusinakonek/database';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
@@ -39,6 +40,96 @@ export const encrypt = (text: string): string => {
     // Format: IV:AuthTag:EncryptedData
     return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 };
+
+/**
+ * Decrypt using PostgreSQL pgcrypto (for old PGP-encrypted data)
+ * Falls back to returning empty string if decryption fails
+ */
+export const pgDecrypt = async (text: string | null | undefined): Promise<string> => {
+    if (!text) return '';
+    try {
+        const result = await prisma.$queryRaw<[{ decrypted: string }]>`
+            SELECT pgp_sym_decrypt(decode(${text}, 'hex'), ${env.ENCRYPTION_KEY}) AS decrypted
+        `;
+        return result[0]?.decrypted || '';
+    } catch (error) {
+        console.warn('PG decryption failed:', error);
+        return '';
+    }
+};
+
+/**
+ * Safely decrypt text  tries AES first, then PostgreSQL pgcrypto for old data.
+ * This is an async wrapper that should be used in services that need to handle
+ * both new AES and old PGP encrypted data.
+ */
+export const safeDecryptAsync = async (text: string | null | undefined): Promise<string> => {
+    if (!text) return '';
+    
+    // Try AES decryption first (fast, synchronous)
+    try {
+        return decrypt(text);
+    } catch {
+        // If it looks like PGP data, try PostgreSQL decryption
+        if (isLikelyEncryptedBinary(text)) {
+            return await pgDecrypt(text);
+        }
+        // Plain text — return as-is
+        return text;
+    }
+};
+
+/**
+ * Safely decrypt text — returns the original string if it is not
+ * in the expected IV:AuthTag:Data format (e.g. plain-text seed data).
+ * Returns empty string if the data appears to be encrypted with a
+ * different algorithm (e.g. PostgreSQL pgcrypto PGP data from old RPC).
+ * NOTE: This is synchronous and cannot decrypt PGP data. Use safeDecryptAsync for that.
+ */
+export const safeDecrypt = (text: string | null | undefined): string => {
+    if (!text) return '';
+    try {
+        return decrypt(text);
+    } catch {
+        // Check if the text looks like unreadable encrypted/binary data
+        // rather than legitimate plain text
+        if (isLikelyEncryptedBinary(text)) {
+            return ''; // Can't decrypt PGP synchronously
+        }
+        return text;
+    }
+};
+
+/**
+ * Detect if a string appears to be encrypted/binary data that
+ * shouldn't be displayed to users (e.g. pgcrypto PGP output stored as text).
+ */
+function isLikelyEncryptedBinary(text: string): boolean {
+    // PostgreSQL bytea hex escape format
+    if (text.startsWith('\\x')) return true;
+
+    // Skip short strings — they're likely just normal text
+    if (text.length < 8) return false;
+
+    // Detect pgcrypto PGP data: starts with c30d (PGP packet header)
+    // and contains only hex characters. These are long hex strings
+    // produced by Supabase RPC pgp_sym_encrypt stored as text.
+    if (text.length > 40 && /^[0-9a-fA-F]+$/.test(text)) return true;
+
+    // Count non-printable or non-ASCII characters
+    let nonPrintable = 0;
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code < 32 || code > 126) {
+            nonPrintable++;
+        }
+    }
+
+    // If >25% of characters are non-printable, it's likely binary/encrypted
+    if (nonPrintable / text.length > 0.25) return true;
+
+    return false;
+}
 
 export const decrypt = (text: string): string => {
     const parts = text.split(':');
