@@ -62,8 +62,9 @@ export const distributionRepository = {
 
   listAvailable() {
     return prisma.distribution.findMany({
-      where: { status: "PENDING" },
+      where: { status: "PENDING", recipientID: null },
       orderBy: { timestamp: "desc" },
+      take: 50,
       include: defaultInclude,
     });
   },

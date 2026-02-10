@@ -1,6 +1,6 @@
-import { Tabs } from "expo-router";
-import { Home, ShoppingCart, User, PlusCircle, Search } from "lucide-react-native";
-import { View, Text, StyleSheet } from "react-native";
+import { Tabs, router } from "expo-router";
+import { Home, ShoppingCart, User, Utensils } from "lucide-react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 
@@ -27,9 +27,20 @@ function CartIcon({
   );
 }
 
+function FloatingActionButton() {
+  return (
+    <View style={styles.fabContainer} pointerEvents="none">
+      <View style={styles.fab}>
+        <Utensils size={28} color="#fff" />
+      </View>
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const { role } = useAuth();
   const { items: cartItems } = useCart();
+  const isDonor = role === "DONOR";
   const isRecipient = role === "RECIPIENT";
 
   return (
@@ -39,21 +50,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: "#00C853",
         tabBarInactiveTintColor: "#999",
         tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: "#f0f0f0",
-          height: 60,
-          paddingBottom: 8,
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
           paddingTop: 8,
           backgroundColor: '#fff',
-          elevation: 8,
+          elevation: 12,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
+          shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.1,
-          shadowRadius: 4,
+          shadowRadius: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 11,
+          fontWeight: '600',
         },
       }}>
       <Tabs.Screen
@@ -66,19 +76,25 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="action"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/(donor)/donate');
+          },
+        }}
         options={{
-          title: role === 'DONOR' ? "Donate" : "Browse",
-          tabBarIcon: ({ color, size }) => (
-            role === 'DONOR' ? <PlusCircle size={size} color={color} /> : <Search size={size} color={color} />
-          ),
+          title: "",
+          href: isDonor ? "/(tabs)/action" : null,
+          tabBarIcon: () => <FloatingActionButton />,
+          tabBarLabel: () => null,
         }}
       />
 
       <Tabs.Screen
         name="my-cart"
         options={{
-          title: "My Cart",
-          href: isRecipient ? "/(tabs)/my-cart" : null,
+          title: "Cart",
+          href: isRecipient ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <CartIcon color={color} size={size} badgeCount={cartItems.length} />
           ),
@@ -97,6 +113,25 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  fabContainer: {
+    position: 'absolute',
+    top: -28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#00C853',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#00C853',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
   badge: {
     position: "absolute",
     top: -4,
