@@ -13,22 +13,12 @@ import {
   locationRepository,
   userRepository,
 } from "../repositories";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
   if (!profile) throw new HttpError(400, "Complete your profile first");
   return profile;
-};
-
-// Safe per-field decrypt: returns original value if decryption fails
-const safeDecrypt = (value: string | null | undefined): string | null => {
-  if (!value) return null;
-  try {
-    return decrypt(value);
-  } catch {
-    return value; // Return original if not encrypted or format is wrong
-  }
 };
 
 // Helper to decrypt user data (each field independent)

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import api from "../../lib/api";
+import axiosClient from "../../src/api/axiosClient";
 import { API_ENDPOINTS } from "../../src/api/endpoints";
 import CartHeader from "../../src/components/CartHeader";
 import CartBottomBar from "../../src/components/CartBottomBar";
@@ -49,7 +49,7 @@ export default function MyCart() {
 
   const fetchMyDistributions = useCallback(async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.DISTRIBUTION.GET_MINE);
+      const response = await axiosClient.get(API_ENDPOINTS.DISTRIBUTION.GET_MINE);
       const data: CartItem[] = response.data?.distributions ?? [];
       // Filter to show only CLAIMED distributions (items in cart)
       const claimed = data.filter((d) => d.status === "CLAIMED");
