@@ -44,19 +44,23 @@ export const userService = {
     const phoneNo = user.phoneNo ? safeDecrypt(user.phoneNo) : null;
     const orgName = user.orgName ? safeDecrypt(user.orgName) : null;
 
+    // Detect if essential fields are empty/missing after decryption
+    // (happens when profile was created with old PGP encryption from Supabase RPC)
+    const needsProfileUpdate = !firstName || !lastName;
+
     return {
       user: {
         id: user.userID,
         email: authEmail,
-        displayName: `${firstName} ${lastName}`.trim(),
+        displayName: (firstName && lastName) ? `${firstName} ${lastName}`.trim() : (authEmail?.split('@')[0] || 'User'),
         role: user.role?.roleName as Role
       },
       profile: {
-        firstName,
+        firstName: firstName || '',
         middleName,
-        lastName,
+        lastName: lastName || '',
         suffix,
-        phoneNo,
+        phoneNo: phoneNo || '',
         isOrg: user.isOrg,
         orgName,
         address: user.userAddress
@@ -67,7 +71,8 @@ export const userService = {
             barangay: user.userAddress.barangay
           }
           : null
-      }
+      },
+      needsProfileUpdate
     };
   },
 

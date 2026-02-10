@@ -78,9 +78,9 @@ export default function DonorHome() {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
             <View style={styles.header}>
-                <View style={styles.headerLeft}>
+                <TouchableOpacity style={styles.headerLeft} onPress={() => router.push('/(donor)/donate')} activeOpacity={0.7}>
                     <Image
                         source={require('../../assets/KusinaKonek-Logo.png')}
                         style={styles.logoImage}
@@ -90,7 +90,7 @@ export default function DonorHome() {
                         <Text style={styles.appName}>KusinaKonek</Text>
                         <Text style={styles.dashboardTitle}>Donor Dashboard</Text>
                     </View>
-                </View>
+                </TouchableOpacity>
             </View>
 
             <ScrollView

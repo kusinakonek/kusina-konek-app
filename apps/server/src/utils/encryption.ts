@@ -43,14 +43,48 @@ export const encrypt = (text: string): string => {
 /**
  * Safely decrypt text — returns the original string if it is not
  * in the expected IV:AuthTag:Data format (e.g. plain-text seed data).
+ * Returns empty string if the data appears to be encrypted with a
+ * different algorithm (e.g. PostgreSQL pgcrypto PGP data from old RPC).
  */
 export const safeDecrypt = (text: string): string => {
+    if (!text) return text;
     try {
         return decrypt(text);
     } catch {
+        // Check if the text looks like unreadable encrypted/binary data
+        // rather than legitimate plain text
+        if (isLikelyEncryptedBinary(text)) {
+            return ''; // Return empty rather than showing gibberish
+        }
         return text;
     }
 };
+
+/**
+ * Detect if a string appears to be encrypted/binary data that
+ * shouldn't be displayed to users (e.g. pgcrypto PGP output stored as text).
+ */
+function isLikelyEncryptedBinary(text: string): boolean {
+    // PostgreSQL bytea hex escape format
+    if (text.startsWith('\\x')) return true;
+
+    // Skip short strings — they're likely just normal text
+    if (text.length < 8) return false;
+
+    // Count non-printable or non-ASCII characters
+    let nonPrintable = 0;
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code < 32 || code > 126) {
+            nonPrintable++;
+        }
+    }
+
+    // If >25% of characters are non-printable, it's likely binary/encrypted
+    if (nonPrintable / text.length > 0.25) return true;
+
+    return false;
+}
 
 export const decrypt = (text: string): string => {
     const parts = text.split(':');
