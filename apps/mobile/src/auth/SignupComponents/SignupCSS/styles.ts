@@ -22,6 +22,13 @@ export const styles = StyleSheet.create({
         marginBottom: 30,
         alignItems: 'center',
     },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
+    },
     logoImage: {
         width: 90,
         height: 90,

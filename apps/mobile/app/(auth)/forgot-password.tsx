@@ -11,6 +11,7 @@ import {
     Platform,
     Image,
     StatusBar,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -48,18 +49,22 @@ export default function ForgotPassword() {
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
-            >
+
+            {/* Fixed Header */}
+            <View style={styles.fixedHeader}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
                     <ArrowLeft size={24} color="#333" />
                 </TouchableOpacity>
+            </View>
 
-                <View style={styles.content}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.container}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
                     <View style={styles.header}>
                         <View style={styles.iconContainer}>
                             <Mail size={32} color="#00C853" />
@@ -99,7 +104,7 @@ export default function ForgotPassword() {
                             )}
                         </TouchableOpacity>
                     </View>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -114,14 +119,21 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
     },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
+    },
     backButton: {
-        marginLeft: 24,
-        marginTop: 12,
         alignSelf: 'flex-start',
+        padding: 4,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         padding: 24,
+        paddingTop: 8,
         justifyContent: 'center',
     },
     header: {

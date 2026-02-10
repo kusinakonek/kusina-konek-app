@@ -17,6 +17,8 @@ export default function DonorHome() {
     const [dashboardData, setDashboardData] = useState<any>(null);
 
     const fetchDashboardData = useCallback(async () => {
+        if (!user) return; // Prevent fetching if logged out
+
         try {
             const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
             setDashboardData(response.data);
@@ -26,7 +28,7 @@ export default function DonorHome() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         fetchDashboardData();

@@ -5,9 +5,18 @@ import RecipientHome from '../../src/recipient/Home';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function Home() {
-    const { role, isLoading } = useAuth();
-    //...
+    const { role, isLoading, user } = useAuth();
+
     if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#00C853" />
+            </View>
+        );
+    }
+
+    // Prevent rendering if no user (e.g., during logout)
+    if (!user) {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#00C853" />
