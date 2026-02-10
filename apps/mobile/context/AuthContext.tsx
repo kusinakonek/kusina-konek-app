@@ -17,6 +17,9 @@ interface AuthContextType {
     signUp: (email: string, password: string, metadata?: any) => Promise<void>;
     verifyOtp: (email: string, token: string) => Promise<void>;
     resendOtp: (email: string) => Promise<void>;
+    sendRecoveryOtp: (email: string) => Promise<void>;
+    verifyRecoveryOtp: (email: string, token: string) => Promise<void>;
+    updatePassword: (password: string) => Promise<void>;
     pendingSignup: { email: string; password: string; metadata?: any } | null;
 }
 
@@ -218,11 +221,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    // Resend OTP email
+    // Resend OTP email (for signup)
     const resendOtp = async (email: string) => {
         const { error } = await supabase.auth.resend({
             type: 'signup',
             email,
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Send recovery OTP (for forgot password)
+    const sendRecoveryOtp = async (email: string) => {
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                shouldCreateUser: false, // Ensure we don't create new users
+            }
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Verify recovery OTP (logs user in)
+    const verifyRecoveryOtp = async (email: string, token: string) => {
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        if (data.session) {
+            setSession(data.session);
+            setUser(data.user);
+            setUserToken(data.session.access_token);
+        }
+    };
+
+    // Update user password
+    const updatePassword = async (password: string) => {
+        const { error } = await supabase.auth.updateUser({
+            password
         });
 
         if (error) {
@@ -244,7 +291,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthContext.Provider value={{
             userToken, session, user, isLoading, role, setRole,
-            signIn, signOut, signUp, verifyOtp, resendOtp, pendingSignup,
+            signIn, signOut, signUp, verifyOtp, resendOtp,
+            sendRecoveryOtp, verifyRecoveryOtp, updatePassword,
+            pendingSignup,
         }}>
             {children}
         </AuthContext.Provider>
