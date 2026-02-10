@@ -20,20 +20,24 @@ export default function LoginView() {
     } = useLoginLogic();
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+            {/* Fixed Header */}
+            <View style={styles.fixedHeader}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => router.back()}
+                >
+                    <ArrowLeft size={24} color="#333" />
+                </TouchableOpacity>
+            </View>
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
-                    >
-                        <ArrowLeft size={24} color="#333" />
-                    </TouchableOpacity>
-
                     <View style={styles.header}>
                         <Image
                             source={require('../../../assets/KusinaKonek-Logo.png')}

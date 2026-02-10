@@ -16,6 +16,8 @@ export default function Profile() {
     const [loading, setLoading] = useState(true);
 
     const fetchProfileData = useCallback(async () => {
+        if (!user) return; // Prevent fetching if logged out
+
         try {
             // Fetch profile and dashboard separately so one failure doesn't block the other
             const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
@@ -35,7 +37,7 @@ export default function Profile() {
 
         setLoading(false);
         setRefreshing(false);
-    }, [role]);
+    }, [role, user]);
 
     useEffect(() => {
         fetchProfileData();
@@ -48,6 +50,9 @@ export default function Profile() {
 
     const handleLogout = async () => {
         try {
+            // Clear local data immediately to stop rendering/fetching
+            setProfileData(null);
+            setStatsData(null);
             await signOut();
         } catch (error) {
             console.error(error);

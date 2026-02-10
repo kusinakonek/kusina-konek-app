@@ -63,18 +63,22 @@ export default function NewPassword() {
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+            {/* Fixed Header */}
+            <View style={styles.fixedHeader}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => router.replace('/(auth)/login')}
+                >
+                    <ArrowLeft size={24} color="#333" />
+                </TouchableOpacity>
+            </View>
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.replace('/(auth)/login')}
-                    >
-                        <ArrowLeft size={24} color="#333" />
-                    </TouchableOpacity>
-
                     <View style={styles.header}>
                         <View style={styles.iconContainer}>
                             <CheckCircle size={32} color="#00C853" />
@@ -152,11 +156,19 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         padding: 24,
+        paddingTop: 8,
         justifyContent: 'center',
+    },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
     },
     backButton: {
         alignSelf: 'flex-start',
-        marginBottom: 24,
+        padding: 4,
     },
     header: {
         alignItems: 'center',

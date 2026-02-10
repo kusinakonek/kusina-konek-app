@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform, StatusBar } from 'react-native';
 
 export const styles = StyleSheet.create({
     safeArea: {
@@ -12,11 +12,19 @@ export const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         padding: 24,
+        paddingTop: 8,
         justifyContent: 'center',
     },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight! + 12 : 50, // Adjust for safe area manually
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
+    },
     backButton: {
-        marginBottom: 16,
         alignSelf: 'flex-start',
+        padding: 4,
     },
     header: {
         marginBottom: 40,
