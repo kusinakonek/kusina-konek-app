@@ -45,7 +45,7 @@ export const encrypt = (text: string): string => {
  * Decrypt using PostgreSQL pgcrypto (for old PGP-encrypted data)
  * Falls back to returning empty string if decryption fails
  */
-export const pgDecrypt = async (text: string): Promise<string> => {
+export const pgDecrypt = async (text: string | null | undefined): Promise<string> => {
     if (!text) return '';
     try {
         const result = await prisma.$queryRaw<[{ decrypted: string }]>`
@@ -63,8 +63,8 @@ export const pgDecrypt = async (text: string): Promise<string> => {
  * This is an async wrapper that should be used in services that need to handle
  * both new AES and old PGP encrypted data.
  */
-export const safeDecryptAsync = async (text: string): Promise<string> => {
-    if (!text) return text;
+export const safeDecryptAsync = async (text: string | null | undefined): Promise<string> => {
+    if (!text) return '';
     
     // Try AES decryption first (fast, synchronous)
     try {
@@ -86,8 +86,8 @@ export const safeDecryptAsync = async (text: string): Promise<string> => {
  * different algorithm (e.g. PostgreSQL pgcrypto PGP data from old RPC).
  * NOTE: This is synchronous and cannot decrypt PGP data. Use safeDecryptAsync for that.
  */
-export const safeDecrypt = (text: string): string => {
-    if (!text) return text;
+export const safeDecrypt = (text: string | null | undefined): string => {
+    if (!text) return '';
     try {
         return decrypt(text);
     } catch {
