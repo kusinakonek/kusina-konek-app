@@ -1,57 +1,108 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Redirect } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet, Image, Text, Animated } from 'react-native';
+import { View, StyleSheet, Image, Text, Animated, Dimensions, StatusBar } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
+const LOADING_BAR_WIDTH = width * 0.6;
 
 export default function Index() {
     const { userToken, isLoading, role } = useAuth();
     const [showSplash, setShowSplash] = useState(true);
-    const fadeAnim = useState(new Animated.Value(0))[0];
-    const scaleAnim = useState(new Animated.Value(0.8))[0];
+
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.6)).current;
+    const loadingProgress = useRef(new Animated.Value(0)).current;
+    const footerFade = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         // Animate logo entrance
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 800,
+                duration: 600,
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
                 friction: 6,
-                tension: 40,
+                tension: 50,
                 useNativeDriver: true,
             }),
         ]).start();
 
-        // Show splash for at least 2 seconds
+        // Animate loading bar
+        Animated.timing(loadingProgress, {
+            toValue: 1,
+            duration: 2200,
+            useNativeDriver: false,
+        }).start();
+
+        // Fade in footer
+        Animated.timing(footerFade, {
+            toValue: 1,
+            duration: 800,
+            delay: 400,
+            useNativeDriver: true,
+        }).start();
+
+        // Show splash for at least 2.5 seconds
         const timer = setTimeout(() => {
             setShowSplash(false);
-        }, 2000);
+        }, 2500);
 
         return () => clearTimeout(timer);
     }, []);
 
     if (isLoading || showSplash) {
+        const loadingBarWidth = loadingProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, LOADING_BAR_WIDTH],
+        });
+
         return (
-            <View style={styles.container}>
+            <LinearGradient
+                colors={['#00E676', '#00C853', '#00A844']}
+                style={styles.container}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+            >
+                <StatusBar barStyle="light-content" backgroundColor="#00C853" />
+
                 <Animated.View style={[styles.logoWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-                    <Image
-                        source={require('../assets/KusinaKonek-Logo.png')}
-                        style={styles.logo}
-                        resizeMode="contain"
-                    />
+                    {/* White circle with logo */}
+                    <View style={styles.logoCircle}>
+                        <Image
+                            source={require('../assets/green icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    {/* App name and tagline */}
                     <Text style={styles.appName}>KusinaKonek</Text>
-                    <Text style={styles.tagline}>Connecting communities through food</Text>
+                    <Text style={styles.tagline}>Sharing food, connecting hearts</Text>
                 </Animated.View>
-                <ActivityIndicator size="large" color="#00C853" style={styles.loader} />
-            </View>
+
+                {/* Loading bar */}
+                <View style={styles.loadingSection}>
+                    <View style={styles.loadingBarContainer}>
+                        <Animated.View style={[styles.loadingBarFill, { width: loadingBarWidth }]} />
+                    </View>
+                    <Text style={styles.loadingText}>Loading...</Text>
+                </View>
+
+                {/* Footer */}
+                <Animated.View style={[styles.footer, { opacity: footerFade }]}>
+                    <Text style={styles.footerText}>Naga City Food Sharing Platform</Text>
+                </Animated.View>
+            </LinearGradient>
         );
     }
 
     if (userToken) {
-        // Both DONOR and RECIPIENT use the tabs view
         return <Redirect href="/(tabs)" />;
     }
 
@@ -63,29 +114,72 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
     },
     logoWrapper: {
         alignItems: 'center',
     },
+    logoCircle: {
+        width: 130,
+        height: 130,
+        borderRadius: 65,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+    },
     logo: {
-        width: 140,
-        height: 140,
-        marginBottom: 16,
+        width: 80,
+        height: 80,
     },
     appName: {
-        fontSize: 32,
+        fontSize: 34,
         fontWeight: 'bold',
-        color: '#1a1a1a',
+        color: '#fff',
         marginBottom: 8,
+        letterSpacing: 1,
     },
     tagline: {
         fontSize: 16,
-        color: '#666',
+        color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
+        fontWeight: '400',
     },
-    loader: {
+    loadingSection: {
         position: 'absolute',
-        bottom: 80,
+        bottom: 120,
+        alignItems: 'center',
+    },
+    loadingBarContainer: {
+        width: LOADING_BAR_WIDTH,
+        height: 6,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        borderRadius: 3,
+        overflow: 'hidden',
+        marginBottom: 12,
+    },
+    loadingBarFill: {
+        height: '100%',
+        backgroundColor: '#fff',
+        borderRadius: 3,
+    },
+    loadingText: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontWeight: '500',
+    },
+    footer: {
+        position: 'absolute',
+        bottom: 50,
+        alignItems: 'center',
+    },
+    footerText: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.7)',
+        fontWeight: '400',
     },
 });

@@ -102,13 +102,18 @@ export const dashboardRepository = {
       where: { donorID: userID },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
-        recipient: true,
+      select: {
+        disID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        food: { select: { foodName: true } },
+        location: { select: { barangay: true } },
+        recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
           where: { donorID: userID },
           take: 1,
+          select: { ratingScore: true },
         },
       },
     });
@@ -135,17 +140,17 @@ export const dashboardRepository = {
    * Counts: available foods, distinct locations, total servings
    */
   async getRecipientStats(userID: string): Promise<RecipientStats> {
-    const [availableFoods, locationData, servingsData] = await Promise.all([
-      // Count available distributions (pending - not yet completed)
-      prisma.distribution.count({
+    // Single optimized query instead of 3 separate queries
+    const [countResult, locationCount] = await Promise.all([
+      prisma.distribution.aggregate({
         where: {
           status: "PENDING",
-          recipientID: null, // Only count items that haven't been claimed
+          recipientID: null,
         },
+        _count: true,
+        _sum: { quantity: true },
       }),
-
-      // Count distinct locations with available food
-      prisma.dropOffLocation.findMany({
+      prisma.dropOffLocation.count({
         where: {
           distributions: {
             some: {
@@ -153,27 +158,15 @@ export const dashboardRepository = {
             },
           },
         },
-        select: { locID: true },
-      }),
-
-      // Sum total servings available (Manual sum since quantity is string)
-      prisma.distribution.findMany({
-        where: {
-          status: "PENDING",
-        },
-        select: { quantity: true },
       }),
     ]);
 
-    // Calculate total servings by parsing string quantities
-    const totalServings = servingsData.reduce((acc, curr) => {
-      const parsed = parseInt(curr.quantity, 10);
-      return acc + (isNaN(parsed) ? 0 : parsed);
-    }, 0);
+    // Parse total servings
+    const totalServings = parseInt(String(countResult._sum.quantity ?? '0'), 10) || 0;
 
     return {
-      availableFoods,
-      locations: locationData.length,
+      availableFoods: countResult._count,
+      locations: locationCount,
       totalServings,
     };
   },
@@ -189,12 +182,17 @@ export const dashboardRepository = {
       where: { recipientID: userID },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        food: { select: { foodName: true } },
+        location: { select: { barangay: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
+          select: { ratingScore: true, comments: true },
         },
       },
     });
@@ -229,9 +227,13 @@ export const dashboardRepository = {
       },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        scheduledTime: true,
+        timestamp: true,
+        food: { select: { foodName: true, description: true, image: true } },
+        location: { select: { barangay: true, streetAddress: true } },
         donor: {
           select: {
             firstName: true,

@@ -52,17 +52,18 @@ export default function Profile() {
     };
 
     const displayName = profileData?.profile
-        ? `${profileData.profile.firstName || ''} ${profileData.profile.lastName || ''}`.trim()
-        : user?.user_metadata?.full_name || 'User';
+        ? `${profileData.profile.firstName || ''} ${profileData.profile.lastName || ''}`.trim() || profileData?.user?.displayName || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
+        : user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
     const displayEmail = profileData?.user?.email || user?.email || '';
     const displayPhone = profileData?.profile?.phoneNo || user?.phone || 'Not provided';
     const displayBarangay = profileData?.profile?.address?.barangay || 'Not set';
     const memberSince = user?.created_at
         ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
         : 'N/A';
+    const needsProfileUpdate = profileData?.needsProfileUpdate === true;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
@@ -78,6 +79,15 @@ export default function Profile() {
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00C853']} />}
             >
+                {/* Profile update banner */}
+                {needsProfileUpdate && (
+                    <View style={styles.updateBanner}>
+                        <Text style={styles.updateBannerText}>
+                            Your profile information needs to be updated. Please edit your profile to fix displayed data.
+                        </Text>
+                    </View>
+                )}
+
                 {/* Profile Card with Banner */}
                 <View style={styles.profileCard}>
                     <View style={styles.bannerImage}>
@@ -257,4 +267,9 @@ const styles = StyleSheet.create({
     settingsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
     settingsRowText: { fontSize: 15, color: '#333', fontWeight: '500' },
     divider: { height: 1, backgroundColor: '#f0f0f0' },
+    updateBanner: {
+        backgroundColor: '#FFF3E0', borderRadius: 12, padding: 14, marginBottom: 16,
+        borderWidth: 1, borderColor: '#FFE0B2',
+    },
+    updateBannerText: { fontSize: 13, color: '#E65100', lineHeight: 18 },
 });

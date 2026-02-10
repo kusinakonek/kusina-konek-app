@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 import { Session, User } from '@supabase/supabase-js';
-import * as Crypto from 'expo-crypto';
 
 // Define the shape of the AuthContext
 interface AuthContextType {
@@ -166,21 +165,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.replace('/(tabs)');
     };
 
-    // Helper: Create user profile in database via RPC
-    // Sends raw data — encryption (AES-256) and bcrypt happen server-side in PostgreSQL
+    // Helper: Create user profile in database via the Node.js API
+    // The backend handles encryption with AES-256-GCM consistently
     const createUserProfile = async (userId: string, password: string, metadata?: any) => {
         const normalizedEmail = metadata?.email || pendingSignup?.email || '';
         const phone = metadata?.phone_no || '';
-
-        // SHA-256 hashes for indexed lookup fields (unique constraints in DB)
-        const emailHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            normalizedEmail
-        );
-        const phoneNoHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            phone || `no-phone-${userId}`
-        );
 
         // Split full name into first and last
         const nameParts = (metadata?.full_name || '').trim().split(' ');
@@ -189,25 +178,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const selectedRole = metadata?.role || 'RECIPIENT';
 
-        // Call the RPC function — raw data sent over HTTPS
-        // The PostgreSQL function handles:
-        //   - AES-256 encryption for PII fields (firstName, lastName, email, phoneNo)
-        //   - bcrypt hashing for password
-        const { error: rpcError } = await supabase.rpc('create_user_profile', {
-            p_user_id: userId,
-            p_role_name: selectedRole,
-            p_first_name: firstName,
-            p_last_name: lastName || firstName,
-            p_phone_no: phone,
-            p_phone_no_hash: phoneNoHash,
-            p_email: normalizedEmail,
-            p_email_hash: emailHash,
-            p_password: password,
+        // Use the backend API which encrypts consistently with Node.js AES-256-GCM
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        if (!token) {
+            throw new Error('No auth token available to create profile');
+        }
+
+        const axiosClient = (await import('../src/api/axiosClient')).default;
+        const response = await axiosClient.put('/users/profile', {
+            firstName,
+            lastName: lastName || firstName,
+            phoneNo: phone || `no-phone-${userId}`,
+            role: selectedRole,
+            isOrg: false,
         });
 
-        if (rpcError) {
-            console.error('Failed to create user profile:', rpcError);
-            throw rpcError;
+        if (response.status !== 200) {
+            throw new Error('Failed to create user profile via API');
         }
     };
 
