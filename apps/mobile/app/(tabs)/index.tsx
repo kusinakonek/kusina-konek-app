@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import DonorHome from '../../src/donor/Home';
 import RecipientHome from '../../src/recipient/Home';
@@ -7,10 +7,12 @@ import { router } from 'expo-router';
 
 export default function Home() {
     const { role, isLoading, user } = useAuth();
+    const hasRedirected = useRef(false);
 
     useEffect(() => {
         // Redirect to welcome screen if user is not authenticated after loading completes
-        if (!isLoading && !user) {
+        if (!isLoading && !user && !hasRedirected.current) {
+            hasRedirected.current = true;
             router.replace('/(auth)/welcome');
         }
     }, [isLoading, user]);
