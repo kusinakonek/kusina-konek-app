@@ -3,7 +3,7 @@ import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt, safeDecryptAsync } from "../utils/encryption";
 
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
@@ -36,38 +36,46 @@ export const userService = {
       throw new HttpError(404, "Profile not found. Please complete your profile first.");
     }
 
-    // Decrypt PII fields
-    const firstName = decrypt(user.firstName);
-    const lastName = decrypt(user.lastName);
-    const middleName = user.middleName ? decrypt(user.middleName) : null;
-    const suffix = user.suffix ? decrypt(user.suffix) : null;
-    const phoneNo = user.phoneNo ? decrypt(user.phoneNo) : null;
-    const orgName = user.orgName ? decrypt(user.orgName) : null;
+    // Decrypt PII fields using async decryption (handles both AES and PGP)
+    const firstName = await safeDecryptAsync(user.firstName);
+    const lastName = await safeDecryptAsync(user.lastName);
+    const middleName = user.middleName ? await safeDecryptAsync(user.middleName) : null;
+    const suffix = user.suffix ? await safeDecryptAsync(user.suffix) : null;
+    const phoneNo = user.phoneNo ? await safeDecryptAsync(user.phoneNo) : null;
+    const orgName = user.orgName ? await safeDecryptAsync(user.orgName) : null;
+
+    // Decrypt address fields if address exists
+    const address = user.userAddress
+      ? {
+          latitude: user.userAddress.latitude,
+          longitude: user.userAddress.longitude,
+          streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
+          barangay: await safeDecryptAsync(user.userAddress.barangay)
+        }
+      : null;
+
+    // Detect if essential fields are empty/missing after decryption
+    // (happens when profile was created with old PGP encryption from Supabase RPC)
+    const needsProfileUpdate = !firstName || !lastName;
 
     return {
       user: {
         id: user.userID,
         email: authEmail,
-        displayName: `${firstName} ${lastName}`.trim(),
+        displayName: (firstName && lastName) ? `${firstName} ${lastName}`.trim() : (authEmail?.split('@')[0] || 'User'),
         role: user.role?.roleName as Role
       },
       profile: {
-        firstName,
+        firstName: firstName || '',
         middleName,
-        lastName,
+        lastName: lastName || '',
         suffix,
-        phoneNo,
+        phoneNo: phoneNo || '',
         isOrg: user.isOrg,
         orgName,
-        address: user.userAddress
-          ? {
-            latitude: user.userAddress.latitude,
-            longitude: user.userAddress.longitude,
-            streetAddress: user.userAddress.streetAddress,
-            barangay: user.userAddress.barangay
-          }
-          : null
-      }
+        address
+      },
+      needsProfileUpdate
     };
   },
 

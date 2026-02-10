@@ -138,8 +138,8 @@ export const authService = {
     const emailHash = sha256Hex(email.toLowerCase());
     const profile = await userRepository.getByEmailHash(emailHash);
 
-    // Import decrypt function for decrypting user data
-    const { decrypt } = await import("../utils/encryption");
+    // Import safeDecrypt function for decrypting user data
+    const { safeDecrypt } = await import("../utils/encryption");
 
     // Update Supabase user metadata with the selected role for this session
     await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
@@ -160,11 +160,11 @@ export const authService = {
         ? {
           id: profile.userID,
           email: email, // Return plain email from input
-          firstName: decrypt(profile.firstName),
-          lastName: decrypt(profile.lastName),
-          displayName: `${decrypt(profile.firstName)} ${decrypt(profile.lastName)}`.trim(),
+          firstName: safeDecrypt(profile.firstName),
+          lastName: safeDecrypt(profile.lastName),
+          displayName: `${safeDecrypt(profile.firstName)} ${safeDecrypt(profile.lastName)}`.trim(),
           role: selectedRole, // Return the selected role, not the DB role
-          phoneNo: profile.phoneNo ? decrypt(profile.phoneNo) : null
+          phoneNo: profile.phoneNo ? safeDecrypt(profile.phoneNo) : null
         }
         : {
           id: data.user.id,

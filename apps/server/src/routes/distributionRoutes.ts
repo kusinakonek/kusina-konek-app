@@ -7,7 +7,6 @@ import {
   requestDistributionSchema,
 } from "@kusinakonek/common";
 import { authMiddleware } from "../middlewares/authMiddleware";
-import { requireUserRole } from "../middlewares/requireUserRole";
 import { validateRequest } from "../middlewares/validateRequest";
 import { distributionController } from "../controllers/distributionController";
 
@@ -16,11 +15,10 @@ export const distributionRouter = Router();
 // Get available distributions (public - no auth required)
 distributionRouter.get("/available", distributionController.listAvailable);
 
-// Create distribution (donor only)
+// Create distribution
 distributionRouter.post(
   "/",
   authMiddleware,
-  requireUserRole(["DONOR"]),
   validateRequest(createDistributionSchema),
   distributionController.create,
 );
@@ -42,7 +40,7 @@ distributionRouter.get(
   distributionController.getById,
 );
 
-// Update distribution (donor only)
+// Update distribution
 distributionRouter.patch(
   "/:disID",
   authMiddleware,
@@ -50,7 +48,7 @@ distributionRouter.patch(
   distributionController.update,
 );
 
-// Update distribution status (donor or recipient - instead of delete)
+// Update distribution status
 distributionRouter.patch(
   "/:disID/status",
   authMiddleware,
@@ -66,11 +64,10 @@ distributionRouter.post(
   distributionController.complete,
 );
 
-// Request distribution (recipient only)
+// Request distribution
 distributionRouter.post(
   "/:disID/request",
   authMiddleware,
-  requireUserRole(["RECIPIENT"]),
   validateRequest(requestDistributionSchema),
   distributionController.request,
 );
