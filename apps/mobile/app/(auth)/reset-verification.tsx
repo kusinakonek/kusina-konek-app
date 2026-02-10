@@ -15,22 +15,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, Lock, RefreshCw } from 'lucide-react-native';
 import { useResendTimer } from '../../src/hooks/useResendTimer';
 
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 8; // User specified 8 digits
 
-export default function Verify() {
+export default function ResetVerification() {
     const router = useRouter();
     const { email } = useLocalSearchParams<{ email: string }>();
-    const { verifyOtp, resendOtp } = useAuth();
+    const { verifyRecoveryOtp, sendRecoveryOtp } = useAuth(); // Reuse sendRecoveryOtp for resend
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
     const [resending, setResending] = useState(false);
     const inputRefs = useRef<(TextInput | null)[]>([]);
 
-    const { countdown, startTimer } = useResendTimer(email || '', 'signup');
+    const { countdown, startTimer } = useResendTimer(email || '', 'reset');
 
     const handleChange = (value: string, index: number) => {
         // Only allow digits
@@ -67,27 +67,24 @@ export default function Verify() {
     const handleVerify = async (code?: string) => {
         const otpCode = code || otp.join('');
         if (otpCode.length !== OTP_LENGTH) {
-            Alert.alert('Error', 'Please enter the complete 8-digit code');
+            Alert.alert('Error', `Please enter the complete ${OTP_LENGTH}-digit code`);
             return;
         }
 
         if (!email) {
-            Alert.alert('Error', 'No email found. Please try signing up again.');
+            Alert.alert('Error', 'No email found. Please try again.');
             return;
         }
 
         setLoading(true);
         try {
-            await verifyOtp(email, otpCode);
-            // Navigation happens inside verifyOtp
+            await verifyRecoveryOtp(email, otpCode);
+            // On success, navigate to new password screen
+            router.replace('/(auth)/new-password');
         } catch (error: any) {
             console.error(error);
             const message = error.message || 'Invalid verification code';
-            if (message.includes('expired')) {
-                Alert.alert('Code Expired', 'Your verification code has expired. Please request a new one.');
-            } else {
-                Alert.alert('Verification Failed', message);
-            }
+            Alert.alert('Verification Failed', message);
             // Clear OTP inputs on failure
             setOtp(Array(OTP_LENGTH).fill(''));
             inputRefs.current[0]?.focus();
@@ -101,7 +98,7 @@ export default function Verify() {
 
         setResending(true);
         try {
-            await resendOtp(email);
+            await sendRecoveryOtp(email);
             startTimer();
             Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
         } catch (error: any) {
@@ -132,17 +129,12 @@ export default function Verify() {
 
                 <View style={styles.content}>
                     <View style={styles.header}>
-                        <Image
-                            source={require('../../assets/KusinaKonek-Logo.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                        <View style={styles.mailIconContainer}>
-                            <Mail size={32} color="#00C853" />
+                        <View style={styles.iconContainer}>
+                            <Lock size={32} color="#00C853" />
                         </View>
-                        <Text style={styles.title}>Verify Your Email</Text>
+                        <Text style={styles.title}>Enter Security Code</Text>
                         <Text style={styles.subtitle}>
-                            We sent an 8-digit verification code to
+                            We sent an {OTP_LENGTH}-digit recovery code to
                         </Text>
                         <Text style={styles.emailText}>{maskedEmail}</Text>
                         <Text style={styles.hintText}>
@@ -180,7 +172,7 @@ export default function Verify() {
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.verifyButtonText}>Verify Email</Text>
+                            <Text style={styles.verifyButtonText}>Verify Code</Text>
                         )}
                     </TouchableOpacity>
 
@@ -233,12 +225,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 36,
     },
-    logo: {
-        width: 70,
-        height: 70,
-        marginBottom: 16,
-    },
-    mailIconContainer: {
+    iconContainer: {
         width: 64,
         height: 64,
         borderRadius: 32,
@@ -273,13 +260,13 @@ const styles = StyleSheet.create({
     otpContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 10,
+        gap: 8,
         marginBottom: 32,
     },
     otpInput: {
-        width: 40,
-        height: 50,
-        borderRadius: 10,
+        width: 36,
+        height: 48,
+        borderRadius: 8,
         borderWidth: 2,
         borderColor: '#E0E0E0',
         backgroundColor: '#F5F5F5',
