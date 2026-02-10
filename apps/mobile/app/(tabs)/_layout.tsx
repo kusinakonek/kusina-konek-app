@@ -28,9 +28,8 @@ function CartIcon({
 }
 
 function FloatingActionButton() {
-  const { role } = useAuth();
   return (
-    <View style={styles.fabContainer}>
+    <View style={styles.fabContainer} pointerEvents="none">
       <View style={styles.fab}>
         <Utensils size={28} color="#fff" />
       </View>

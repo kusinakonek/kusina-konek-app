@@ -121,7 +121,7 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
@@ -140,15 +140,14 @@ export const dashboardRepository = {
    * Counts: available foods, distinct locations, total servings
    */
   async getRecipientStats(userID: string): Promise<RecipientStats> {
-    // Single optimized query instead of 3 separate queries
-    const [countResult, locationCount] = await Promise.all([
-      prisma.distribution.aggregate({
+    // quantity is a String field, so we can't use _sum in aggregate.
+    // Fetch counts + quantities separately.
+    const [availableCount, locationCount, quantities] = await Promise.all([
+      prisma.distribution.count({
         where: {
           status: "PENDING",
           recipientID: null,
         },
-        _count: true,
-        _sum: { quantity: true },
       }),
       prisma.dropOffLocation.count({
         where: {
@@ -159,13 +158,23 @@ export const dashboardRepository = {
           },
         },
       }),
+      prisma.distribution.findMany({
+        where: {
+          status: "PENDING",
+          recipientID: null,
+        },
+        select: { quantity: true },
+      }),
     ]);
 
-    // Parse total servings
-    const totalServings = parseInt(String(countResult._sum.quantity ?? '0'), 10) || 0;
+    // Parse and sum quantity strings manually
+    const totalServings = quantities.reduce((sum, d) => {
+      const parsed = parseInt(String(d.quantity), 10);
+      return sum + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
 
     return {
-      availableFoods: countResult._count,
+      availableFoods: availableCount,
       locations: locationCount,
       totalServings,
     };
@@ -204,7 +213,7 @@ export const dashboardRepository = {
 
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
@@ -247,10 +256,10 @@ export const dashboardRepository = {
 
     return distributions.map((d) => ({
       disID: d.disID,
-      foodName: d.food.foodName,
+      foodName: safeDecrypt(d.food.foodName),
       quantity: d.quantity,
-      description: d.food.description,
-      image: d.food.image,
+      description: d.food.description ? safeDecrypt(d.food.description) : null,
+      image: d.food.image ? safeDecrypt(d.food.image) : null,
       location: safeDecrypt(d.location.barangay),
       streetAddress: safeDecrypt(d.location.streetAddress),
       donorName: d.donor.isOrg
