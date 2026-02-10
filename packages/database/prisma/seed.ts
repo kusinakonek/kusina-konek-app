@@ -1,4 +1,4 @@
-import { prisma } from '@kusinakonek/database';
+import { prisma } from '../src';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -54,57 +54,56 @@ async function main() {
     console.log('Creating Users...');
 
     // Admin
-    const adminEmail = 'admin@gmail.com';
+    const adminEmail = 'admin@kusinakonek.com';
     const adminPhone = '09170000000';
-
 
     const admin = await prisma.user.upsert({
         where: { emailHash: sha256Hex(adminEmail) },
         update: {},
         create: {
             firstName: encrypt('Admin'),
-            lastName: encrypt('User'),
+            lastName: encrypt('Kusina'),
             phoneNo: encrypt(adminPhone),
             phoneNoHash: sha256Hex(adminPhone),
             email: encrypt(adminEmail),
             emailHash: sha256Hex(adminEmail),
-            password: await hashPassword('hashed_password_123'),
+            password: await hashPassword('admin123'),
             isOrg: false,
         },
     });
 
     // Recipient User
-    const recipientEmail = 'recipient@gmail.com';
+    const recipientEmail = 'recipient@kusinakonek.com';
     const recipientPhone = '09172222222';
     const recipient = await prisma.user.upsert({
         where: { emailHash: sha256Hex(recipientEmail) },
         update: {},
         create: {
-            firstName: encrypt('Jane'),
-            lastName: encrypt('Recipient'),
+            firstName: encrypt('Maria'),
+            lastName: encrypt('Santos'),
             phoneNo: encrypt(recipientPhone),
             phoneNoHash: sha256Hex(recipientPhone),
             email: encrypt(recipientEmail),
             emailHash: sha256Hex(recipientEmail),
-            password: await hashPassword('hashed_password_123'),
+            password: await hashPassword('recipient123'),
             isOrg: false,
         },
     });
 
     // Donor User
-    const donorEmail = 'donor@gmail.com';
+    const donorEmail = 'donor@kusinakonek.com';
     const donorPhone = '09171111111';
     const donorIndiv = await prisma.user.upsert({
         where: { emailHash: sha256Hex(donorEmail) },
         update: {},
         create: {
-            firstName: encrypt('John'),
-            lastName: encrypt('Doe'),
+            firstName: encrypt('Juan'),
+            lastName: encrypt('Dela Cruz'),
             phoneNo: encrypt(donorPhone),
             phoneNoHash: sha256Hex(donorPhone),
             email: encrypt(donorEmail),
             emailHash: sha256Hex(donorEmail),
-            password: await hashPassword('hashed_password_123'),
+            password: await hashPassword('donor123'),
             isOrg: false,
         },
     });
@@ -129,7 +128,7 @@ async function main() {
             foodName: 'Chicken Adobo',
             dateCooked: new Date(),
             description: 'Homemade organic chicken adobo',
-            quantity: 50,
+            quantity: '50',
             image: 'https://example.com/adobo.jpg',
         },
     });
@@ -158,7 +157,7 @@ async function main() {
             recipientID: recipient.userID,
             locID: location.locID,
             foodID: food.foodID,
-            quantity: 5,
+            quantity: '5',
             scheduledTime: new Date(new Date().getTime() + 86400000), // Tomorrow
             photoProof: 'https://example.com/proof.jpg',
             actualTime: new Date(), // Mark as completed for history
@@ -173,7 +172,7 @@ async function main() {
             foodName: 'Pancit Canton',
             dateCooked: new Date(),
             description: 'Delicious pancit for sharing',
-            quantity: 30,
+            quantity: '30',
             image: 'https://example.com/pancit.jpg',
         },
     });
@@ -205,7 +204,7 @@ async function main() {
             recipientID: null, // No recipient yet
             locID: location.locID, // Reusing location for simplicity or create new match
             foodID: food2.foodID,
-            quantity: 10,
+            quantity: '10',
             scheduledTime: new Date(new Date().getTime() + 172800000), // 2 days later
             status: 'PENDING',
         },
