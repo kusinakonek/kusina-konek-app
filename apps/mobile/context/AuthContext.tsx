@@ -40,7 +40,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const { data: { session: currentSession }, error } = await supabase.auth.getSession();
                 if (error || !currentSession) {
                     // Session is invalid/expired — clear stale state silently
-                    console.log('No valid session found, starting fresh');
                     setSession(null);
                     setUser(null);
                     setUserToken(null);
@@ -54,12 +53,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
                     setRoleState(storedRole);
                 }
-            } catch (e) {
+            } catch (e: any) {
                 // Refresh token errors (e.g. "Refresh Token Not Found") end up here
-                console.log('Auth init error (expected on fresh start):', (e as any)?.message || e);
+                console.log('Auth init error (expected on fresh start):', e?.message || e);
+
+                // If the error is related to invalid tokens, strictly clear everything
+                if (e?.message?.includes('Refresh Token Not Found') || e?.message?.includes('Invalid Refresh Token')) {
+                    await AsyncStorage.removeItem('userRole');
+                    await supabase.auth.signOut(); // Ensure Supabase client is also cleared
+                }
+
                 setSession(null);
                 setUser(null);
                 setUserToken(null);
+                setRoleState(null);
             } finally {
                 setIsLoading(false);
             }

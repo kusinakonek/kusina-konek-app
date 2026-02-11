@@ -9,7 +9,7 @@ This is the mobile application for the Kusina Konek project built using Expo. Th
 - **app/**: Contains the Expo Router file-based navigation screens.
   - **(auth)**: Authentication-related screens.
   - **(tabs)**: Tab navigation screens.
-  - **_layout.tsx**: Main layout component for the app.
+  - **\_layout.tsx**: Main layout component for the app.
   - **+not-found.tsx**: Component to handle not found routes.
 
 - **src/**: Contains the core application logic.
@@ -24,18 +24,79 @@ This is the mobile application for the Kusina Konek project built using Expo. Th
 
 ## Getting Started
 
-1. **Install Dependencies (from repo root)**:
-  - Recommended: `npm ci`
-  - Or: `npm install`
+### 1. Install Dependencies (from repo root)
 
-2. **Run the Application (from repo root)**:
-  - `npm run dev:mobile`
+- Recommended: `npm ci`
+- Or: `npm install`
 
-3. **Build for Production**: Use EAS Build (recommended) or a custom build pipeline for production releases.
+### 2. Configure API Connection
+
+**⚠️ Important: Environment configuration has moved to the ROOT `.env` file.**
+
+All environment variables (including mobile app configuration) are now centralized in `../../.env` (root of the monorepo).
+
+**Automated Setup (Recommended):**
+
+```bash
+# From the ROOT of the repository
+
+# Windows (PowerShell)
+.\scripts\setup-dev-env.ps1
+
+# Mac/Linux
+chmod +x scripts/setup-dev-env.sh
+./scripts/setup-dev-env.sh
+```
+
+**Manual Setup:**
+
+1. Copy `.env.example` to `.env` in the **root folder** (not in apps/mobile)
+2. Find your local IP address:
+   - **Windows**: Run `ipconfig` in PowerShell and look for your WiFi/Ethernet IPv4 Address
+   - **Mac/Linux**: Run `ifconfig | grep "inet "` and look for your local IP
+3. Update `EXPO_PUBLIC_API_HOST` in the root `.env` with your IP address
+
+Example root `.env` (partial):
+
+```
+EXPO_PUBLIC_API_HOST=10.142.135.110
+EXPO_PUBLIC_API_PORT=3000
+```
+
+**Important Notes:**
+
+- Environment configuration is **centralized in the root** `.env` file
+- Each team member needs their own `.env` with their machine's IP
+- `.env` is gitignored, so you won't conflict with other developers
+- If your IP changes (e.g., different WiFi network), run the setup script again
+- Make sure your backend server is running on port 3000 (or update accordingly)
+- Your device/emulator must be on the same network as your development machine
+
+### 3. Run the Application (from repo root)
+
+- `npm run dev:mobile`
+
+### 4. Build for Production
+
+Use EAS Build (recommended) or a custom build pipeline for production releases.
 
 ## API Integration
 
-The application uses Axios for API calls. The Axios client is configured in `src/api/axiosClient.ts` with a base URL pointing to the backend server.
+The application uses Axios for API calls. The configuration is managed through:
+
+- **`src/config/apiConfig.ts`**: Auto-detects the API base URL based on environment and platform
+- **`src/api/axiosClient.ts`**: Configured Axios instance with authentication interceptors
+- **Root `.env`**: Centralized environment configuration (not committed to git)
+
+The API client automatically:
+
+- Reads configuration from the root `.env` file
+- Detects iOS Simulator, Android Emulator, or physical devices
+- Injects authentication tokens from Supabase
+- Handles token refresh on 401 responses
+- Uses environment variables for flexible configuration across team members
+
+**Note:** All environment variables are read from the root `.env` file, allowing all apps in the monorepo to share configuration.
 
 ## Contributing
 

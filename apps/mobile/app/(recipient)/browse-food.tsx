@@ -12,48 +12,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ShoppingCart } from "lucide-react-native";
 import { Pressable } from "react-native";
-import axiosClient from "../../src/api/axiosClient";
-import { API_ENDPOINTS } from "../../src/api/endpoints";
-import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import SearchBar from "../../src/components/SearchBar";
+import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
-
-// Distribution type based on the API response
-type Distribution = {
-  disID: string;
-  donorID: string;
-  recipientID: string | null;
-  locID: string;
-  foodID: string;
-  quantity: number;
-  status: string;
-  photoProof: string | null;
-  scheduledTime: string;
-  actualTime: string | null;
-  timestamp: string;
-  food: {
-    foodID: string;
-    foodName: string;
-    description: string | null;
-    image: string | null;
-    quantity: number;
-    dateCooked: string;
-  } | null;
-  location: {
-    locID: string;
-    streetAddress: string;
-    barangay: string;
-    latitude: number;
-    longitude: number;
-  } | null;
-  donor: {
-    userID: string;
-    firstName: string;
-    lastName: string;
-    orgName: string | null;
-  } | null;
-};
+import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
+import { wp, hp, fp } from "../../src/utils/responsive";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -73,37 +37,20 @@ function timeAgo(dateString: string): string {
 }
 
 export default function BrowseFood() {
-  const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [filteredDistributions, setFilteredDistributions] = useState<
     Distribution[]
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
   const { items: cartItems, addItem } = useCart();
+  const { distributions, loading, error, fetchDistributions, isCached } =
+    useFoodCache();
 
-  const fetchAvailableDistributions = useCallback(async () => {
-    try {
-      setError(null);
-      const response = await axiosClient.get(API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE);
-      const data = response.data?.distributions ?? [];
-      setDistributions(data);
-      setFilteredDistributions(data);
-    } catch (err: any) {
-      console.error("Failed to fetch distributions:", err);
-      setError(
-        err?.response?.data?.message ?? "Failed to load available food.",
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
+  // Fetch distributions on mount (only if not cached)
   useEffect(() => {
-    fetchAvailableDistributions();
-  }, [fetchAvailableDistributions]);
+    fetchDistributions();
+  }, [fetchDistributions]);
 
   // Filter distributions based on search query
   useEffect(() => {
@@ -126,10 +73,11 @@ export default function BrowseFood() {
     setFilteredDistributions(filtered);
   }, [searchQuery, distributions]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchAvailableDistributions();
-  }, [fetchAvailableDistributions]);
+    await fetchDistributions(true); // Force refresh
+    setRefreshing(false);
+  }, [fetchDistributions]);
 
   const handleRequest = (distribution: Distribution) => {
     const alreadyInCart = cartItems.some((i) => i.disID === distribution.disID);
@@ -176,7 +124,7 @@ export default function BrowseFood() {
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Go back">
-          <ArrowLeft size={24} color={theme.colors.text} />
+          <ArrowLeft size={wp(24)} color={theme.colors.text} />
         </Pressable>
 
         <View style={styles.headerTitleContainer}>
@@ -190,7 +138,7 @@ export default function BrowseFood() {
           accessibilityRole="button"
           accessibilityLabel="Cart">
           <View>
-            <ShoppingCart size={22} color={theme.colors.text} />
+            <ShoppingCart size={wp(24)} color={theme.colors.primary} />
             {cartItems.length > 0 && (
               <View style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>
@@ -257,51 +205,55 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: wp(theme.spacing.md),
+    paddingVertical: hp(theme.spacing.sm),
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: wp(40),
+    height: wp(40),
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitleContainer: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
+    marginLeft: wp(theme.spacing.sm),
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: fp(20),
     fontWeight: "700",
     color: theme.colors.text,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: fp(13),
     color: theme.colors.mutedText,
-    marginTop: 1,
+    marginTop: hp(1),
   },
   cartButton: {
-    width: 40,
-    height: 40,
+    width: wp(44),
+    height: wp(44),
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(46, 125, 50, 0.1)",
+    borderRadius: wp(12),
+    borderWidth: 1,
+    borderColor: "rgba(46, 125, 50, 0.2)",
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: wp(theme.spacing.md),
+    paddingTop: hp(theme.spacing.md),
   },
   countText: {
-    fontSize: 16,
+    fontSize: fp(16),
     fontWeight: "700",
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: hp(theme.spacing.md),
   },
   listContent: {
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: hp(theme.spacing.lg),
   },
   loadingContainer: {
     flex: 1,
@@ -309,16 +261,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    marginTop: theme.spacing.sm,
-    fontSize: 14,
+    marginTop: hp(theme.spacing.sm),
+    fontSize: fp(14),
     color: theme.colors.mutedText,
   },
   emptyContainer: {
-    paddingVertical: 60,
+    paddingVertical: hp(60),
     alignItems: "center",
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: fp(15),
     color: theme.colors.mutedText,
     textAlign: "center",
   },
@@ -327,16 +279,16 @@ const styles = StyleSheet.create({
     top: -4,
     right: -8,
     backgroundColor: "#D32F2F",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: wp(10),
+    minWidth: wp(18),
+    height: wp(18),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: wp(4),
   },
   cartBadgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: fp(10),
     fontWeight: "700",
   },
 });

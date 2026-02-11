@@ -7,8 +7,11 @@ import React, {
   useState,
 } from "react";
 import { Alert } from "react-native";
+import { router } from "expo-router";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
+import ClaimsConfirmedModal from "../src/components/ClaimsConfirmedModal";
+import { useFoodCache } from "./FoodCacheContext";
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -63,7 +66,14 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isPickingUp, setIsPickingUp] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [claimedItems, setClaimedItems] = useState<
+    { disID: string; foodName: string; location: string }[]
+  >([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Access food cache context to invalidate when items are picked up
+  const { invalidateCache } = useFoodCache();
 
   // Periodically purge expired items (every 30 s)
   useEffect(() => {
@@ -139,7 +149,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     for (const item of validItems) {
       try {
-        await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.REQUEST(item.disID), {});
+        await axiosClient.post(
+          API_ENDPOINTS.DISTRIBUTION.REQUEST(item.disID),
+          {},
+        );
         results.push({ disID: item.disID, success: true });
       } catch (err: any) {
         const msg =
@@ -154,6 +167,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const failed = results.filter((r) => !r.success);
 
     // Remove successfully claimed items from cart
+
+    // Invalidate food cache so browse food will show updated list
+    invalidateCache();
     if (succeeded.length > 0) {
       const claimedIds = new Set(succeeded.map((r) => r.disID));
       setItems((prev) => prev.filter((i) => !claimedIds.has(i.disID)));
@@ -163,6 +179,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       Alert.alert(
         "Partial Success",
         `${succeeded.length} item(s) claimed successfully.\n${failed.length} item(s) failed: ${failed.map((f) => f.error).join(", ")}`,
+        [{ text: "OK", onPress: () => router.push("/(tabs)") }],
       );
     } else if (failed.length > 0) {
       Alert.alert(
@@ -170,9 +187,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         `Could not claim items: ${failed.map((f) => f.error).join(", ")}`,
       );
     } else {
-      Alert.alert("Success", "All items have been claimed! 🎉");
+      // Show success modal with claimed items
+      const claimedData = succeeded.map((result) => {
+        const item = validItems.find((i) => i.disID === result.disID);
+        return {
+          disID: result.disID,
+          foodName: item?.food?.foodName || "Food Item",
+          location: item?.location?.barangay || "Location",
+        };
+      });
+      (setCl, invalidateCacheaimedItems(claimedData));
+      setShowSuccessModal(true);
     }
   }, [items]);
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    router.push("/(tabs)");
+  };
 
   return (
     <CartContext.Provider
@@ -186,6 +218,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         getRemainingMs,
       }}>
       {children}
+      <ClaimsConfirmedModal
+        visible={showSuccessModal}
+        claimedItems={claimedItems}
+        onClose={handleCloseSuccessModal}
+      />
     </CartContext.Provider>
   );
 }

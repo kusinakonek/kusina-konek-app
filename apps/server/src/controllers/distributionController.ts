@@ -101,7 +101,9 @@ export const distributionController = {
 
   async listAvailable(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await distributionService.listAvailableDistributions();
+      // Exclude the authenticated user's own donations (anti-cheat)
+      const excludeDonorID = req.user?.id;
+      const result = await distributionService.listAvailableDistributions(excludeDonorID);
       return res.status(200).json(result);
     } catch (error) {
       next(error);
