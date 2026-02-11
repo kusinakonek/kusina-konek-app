@@ -56,12 +56,12 @@ const decryptDistribution = (distribution: any) => {
     location: decryptLocation(distribution.location),
     food: distribution.food
       ? {
-          ...distribution.food,
-          foodName: safeDecrypt(distribution.food.foodName),
-          description: safeDecrypt(distribution.food.description),
-          image: safeDecrypt(distribution.food.image),
-          user: decryptUser(distribution.food.user),
-        }
+        ...distribution.food,
+        foodName: safeDecrypt(distribution.food.foodName),
+        description: safeDecrypt(distribution.food.description),
+        image: safeDecrypt(distribution.food.image),
+        user: decryptUser(distribution.food.user),
+      }
       : null,
     feedbacks:
       distribution.feedbacks?.map((feedback: any) => ({
@@ -141,9 +141,9 @@ export const distributionService = {
     return { distributions: decryptedDistributions };
   },
 
-  async listAvailableDistributions() {
-    // No auth required - public endpoint for browsing available distributions
-    const distributions = await distributionRepository.listAvailable();
+  async listAvailableDistributions(excludeDonorID?: string) {
+    // Exclude the donor's own distributions to prevent self-claiming (anti-cheat)
+    const distributions = await distributionRepository.listAvailable(excludeDonorID);
     const decryptedDistributions = distributions.map(decryptDistribution);
     return { distributions: decryptedDistributions };
   },
@@ -302,13 +302,13 @@ export const distributionService = {
       status: "CLAIMED",
       ...(params.input.scheduledTime
         ? {
-            scheduledTime: new Date(params.input.scheduledTime),
-          }
+          scheduledTime: new Date(params.input.scheduledTime),
+        }
         : {}),
       ...(params.input.photoProof
         ? {
-            photoProof: params.input.photoProof,
-          }
+          photoProof: params.input.photoProof,
+        }
         : {}),
     });
 

@@ -18,6 +18,7 @@ import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import SearchBar from "../../src/components/SearchBar";
 import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
+import { wp, hp, fp } from "../../src/utils/responsive";
 
 // Distribution type based on the API response
 type Distribution = {
@@ -176,7 +177,7 @@ export default function BrowseFood() {
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Go back">
-          <ArrowLeft size={24} color={theme.colors.text} />
+          <ArrowLeft size={wp(24)} color={theme.colors.text} />
         </Pressable>
 
         <View style={styles.headerTitleContainer}>
@@ -190,7 +191,7 @@ export default function BrowseFood() {
           accessibilityRole="button"
           accessibilityLabel="Cart">
           <View>
-            <ShoppingCart size={22} color={theme.colors.text} />
+            <ShoppingCart size={wp(22)} color={theme.colors.text} />
             {cartItems.length > 0 && (
               <View style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>
@@ -257,51 +258,51 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: wp(theme.spacing.md),
+    paddingVertical: hp(theme.spacing.sm),
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: wp(40),
+    height: wp(40),
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitleContainer: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
+    marginLeft: wp(theme.spacing.sm),
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: fp(20),
     fontWeight: "700",
     color: theme.colors.text,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: fp(13),
     color: theme.colors.mutedText,
-    marginTop: 1,
+    marginTop: hp(1),
   },
   cartButton: {
-    width: 40,
-    height: 40,
+    width: wp(40),
+    height: wp(40),
     justifyContent: "center",
     alignItems: "center",
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: wp(theme.spacing.md),
+    paddingTop: hp(theme.spacing.md),
   },
   countText: {
-    fontSize: 16,
+    fontSize: fp(16),
     fontWeight: "700",
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: hp(theme.spacing.md),
   },
   listContent: {
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: hp(theme.spacing.lg),
   },
   loadingContainer: {
     flex: 1,
@@ -309,16 +310,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    marginTop: theme.spacing.sm,
-    fontSize: 14,
+    marginTop: hp(theme.spacing.sm),
+    fontSize: fp(14),
     color: theme.colors.mutedText,
   },
   emptyContainer: {
-    paddingVertical: 60,
+    paddingVertical: hp(60),
     alignItems: "center",
   },
   emptyText: {
-    fontSize: 15,
+    fontSize: fp(15),
     color: theme.colors.mutedText,
     textAlign: "center",
   },
@@ -327,16 +328,16 @@ const styles = StyleSheet.create({
     top: -4,
     right: -8,
     backgroundColor: "#D32F2F",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: wp(10),
+    minWidth: wp(18),
+    height: wp(18),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: wp(4),
   },
   cartBadgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: fp(10),
     fontWeight: "700",
   },
 });
