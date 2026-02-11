@@ -60,9 +60,13 @@ export const distributionRepository = {
     });
   },
 
-  listAvailable() {
+  listAvailable(excludeDonorID?: string) {
     return prisma.distribution.findMany({
-      where: { status: "PENDING", recipientID: null },
+      where: {
+        status: "PENDING",
+        recipientID: null,
+        ...(excludeDonorID ? { donorID: { not: excludeDonorID } } : {}),
+      },
       orderBy: { timestamp: "desc" },
       take: 50,
       include: defaultInclude,
