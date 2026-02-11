@@ -126,10 +126,9 @@ export const dashboardRepository = {
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
-        claimedBy:
-          d.recipient
-            ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
-            : null,
+        claimedBy: d.recipient
+          ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
+          : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
       };
     });
@@ -189,13 +188,14 @@ export const dashboardRepository = {
   ): Promise<RecipientFoodItem[]> {
     const distributions = await prisma.distribution.findMany({
       where: { recipientID: userID },
-      orderBy: { timestamp: "desc" },
+      orderBy: { claimedAt: "desc" },
       take: limit,
       select: {
         disID: true,
         quantity: true,
         status: true,
         timestamp: true,
+        claimedAt: true,
         food: { select: { foodName: true } },
         location: { select: { barangay: true } },
         feedbacks: {
@@ -217,7 +217,7 @@ export const dashboardRepository = {
         quantity: d.quantity,
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
-        timestamp: d.timestamp,
+        timestamp: d.claimedAt || d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
         myComment: myFeedback?.comments ?? null,

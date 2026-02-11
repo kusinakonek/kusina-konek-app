@@ -12,49 +12,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ShoppingCart } from "lucide-react-native";
 import { Pressable } from "react-native";
-import axiosClient from "../../src/api/axiosClient";
-import { API_ENDPOINTS } from "../../src/api/endpoints";
-import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import SearchBar from "../../src/components/SearchBar";
+import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
+import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
-
-// Distribution type based on the API response
-type Distribution = {
-  disID: string;
-  donorID: string;
-  recipientID: string | null;
-  locID: string;
-  foodID: string;
-  quantity: number;
-  status: string;
-  photoProof: string | null;
-  scheduledTime: string;
-  actualTime: string | null;
-  timestamp: string;
-  food: {
-    foodID: string;
-    foodName: string;
-    description: string | null;
-    image: string | null;
-    quantity: number;
-    dateCooked: string;
-  } | null;
-  location: {
-    locID: string;
-    streetAddress: string;
-    barangay: string;
-    latitude: number;
-    longitude: number;
-  } | null;
-  donor: {
-    userID: string;
-    firstName: string;
-    lastName: string;
-    orgName: string | null;
-  } | null;
-};
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -74,37 +37,20 @@ function timeAgo(dateString: string): string {
 }
 
 export default function BrowseFood() {
-  const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [filteredDistributions, setFilteredDistributions] = useState<
     Distribution[]
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
   const { items: cartItems, addItem } = useCart();
+  const { distributions, loading, error, fetchDistributions, isCached } =
+    useFoodCache();
 
-  const fetchAvailableDistributions = useCallback(async () => {
-    try {
-      setError(null);
-      const response = await axiosClient.get(API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE);
-      const data = response.data?.distributions ?? [];
-      setDistributions(data);
-      setFilteredDistributions(data);
-    } catch (err: any) {
-      console.error("Failed to fetch distributions:", err);
-      setError(
-        err?.response?.data?.message ?? "Failed to load available food.",
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
+  // Fetch distributions on mount (only if not cached)
   useEffect(() => {
-    fetchAvailableDistributions();
-  }, [fetchAvailableDistributions]);
+    fetchDistributions();
+  }, [fetchDistributions]);
 
   // Filter distributions based on search query
   useEffect(() => {
@@ -127,10 +73,11 @@ export default function BrowseFood() {
     setFilteredDistributions(filtered);
   }, [searchQuery, distributions]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    fetchAvailableDistributions();
-  }, [fetchAvailableDistributions]);
+    await fetchDistributions(true); // Force refresh
+    setRefreshing(false);
+  }, [fetchDistributions]);
 
   const handleRequest = (distribution: Distribution) => {
     const alreadyInCart = cartItems.some((i) => i.disID === distribution.disID);
@@ -191,7 +138,7 @@ export default function BrowseFood() {
           accessibilityRole="button"
           accessibilityLabel="Cart">
           <View>
-            <ShoppingCart size={wp(22)} color={theme.colors.text} />
+            <ShoppingCart size={wp(24)} color={theme.colors.primary} />
             {cartItems.length > 0 && (
               <View style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>
@@ -285,10 +232,14 @@ const styles = StyleSheet.create({
     marginTop: hp(1),
   },
   cartButton: {
-    width: wp(40),
-    height: wp(40),
+    width: wp(44),
+    height: wp(44),
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(46, 125, 50, 0.1)",
+    borderRadius: wp(12),
+    borderWidth: 1,
+    borderColor: "rgba(46, 125, 50, 0.2)",
   },
   content: {
     flex: 1,
