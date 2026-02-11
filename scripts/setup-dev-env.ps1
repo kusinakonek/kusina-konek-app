@@ -2,11 +2,7 @@
 # Script to automatically detect and configure your local IP for development
 # This updates the root .env file with your current machine's IP address
 
-Write-Host ""
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "🔍 Kusina Konek - Dev Environment Setup" -ForegroundColor Cyan
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "[*] Detecting your local IP address..." -ForegroundColor Cyan
 
 # Get the best IP address (prefer WiFi over hotspot/virtual adapters)
 # Priority: Wi-Fi > Ethernet > any other non-loopback
@@ -49,7 +45,7 @@ if ($wifiIp) {
 }
 
 if ($ipAddress) {
-    Write-Host "✅ Found IP: $ipAddress ($adapter)" -ForegroundColor Green
+    Write-Host "[+] Found IP: $ipAddress" -ForegroundColor Green
     
     # Root .env file
     $rootDir = Split-Path -Parent $PSScriptRoot
@@ -60,7 +56,7 @@ if ($ipAddress) {
         if ($content -match 'EXPO_PUBLIC_API_HOST=') {
             $newContent = $content -replace 'EXPO_PUBLIC_API_HOST=.*', "EXPO_PUBLIC_API_HOST=$ipAddress"
             $newContent | Set-Content $envFile -NoNewline
-            Write-Host "✅ Updated EXPO_PUBLIC_API_HOST in .env" -ForegroundColor Green
+            Write-Host "[+] Updated .env file with new IP address" -ForegroundColor Green
         } else {
             $mobileConfig = @"
 
@@ -69,7 +65,7 @@ EXPO_PUBLIC_API_HOST=$ipAddress
 EXPO_PUBLIC_API_PORT=3000
 "@
             Add-Content $envFile $mobileConfig
-            Write-Host "✅ Added mobile configuration to .env" -ForegroundColor Green
+            Write-Host "[+] Added mobile configuration to .env file" -ForegroundColor Green
         }
     } else {
         $exampleFile = Join-Path $rootDir ".env.example"
@@ -77,9 +73,9 @@ EXPO_PUBLIC_API_PORT=3000
             $content = Get-Content $exampleFile -Raw
             $newContent = $content -replace 'EXPO_PUBLIC_API_HOST=.*', "EXPO_PUBLIC_API_HOST=$ipAddress"
             $newContent | Set-Content $envFile -NoNewline
-            Write-Host "✅ Created .env from template" -ForegroundColor Green
+            Write-Host "[+] Created .env file from template" -ForegroundColor Green
         } else {
-            Write-Host "⚠️  No .env or .env.example found." -ForegroundColor Yellow
+            Write-Host "[!] No .env.example found. Please create one first." -ForegroundColor Yellow
             exit 1
         }
     }
@@ -100,11 +96,11 @@ EXPO_PUBLIC_API_PORT=3000
     }
     
     Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-    Write-Host "✨ Setup Complete!" -ForegroundColor Green
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+    Write-Host "============================================" -ForegroundColor Cyan
+    Write-Host "Setup Complete!" -ForegroundColor Green
+    Write-Host "============================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "📱 Mobile app will connect to: " -NoNewline -ForegroundColor White
+    Write-Host "Mobile app will connect to: " -NoNewline -ForegroundColor White
     Write-Host "http://${ipAddress}:3000/api" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
@@ -115,7 +111,7 @@ EXPO_PUBLIC_API_PORT=3000
     Write-Host ""
     
 } else {
-    Write-Host "❌ Could not detect your IP address" -ForegroundColor Red
+    Write-Host "[X] Could not detect your IP address" -ForegroundColor Red
     Write-Host ""
     Write-Host "Please manually find your IP and update EXPO_PUBLIC_API_HOST in .env" -ForegroundColor Yellow
     Write-Host "  ipconfig  (Look for IPv4 Address under Wi-Fi adapter)" -ForegroundColor Gray
