@@ -8,6 +8,7 @@ import { DashboardStats } from '../components/DashboardStats';
 import { RecentItemsList, RecentItem } from '../components/RecentItemsList';
 import { Heart, Package, Star, Plus, Utensils } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { wp, hp, fp, isTablet } from '../utils/responsive';
 
 export default function DonorHome() {
     const { user } = useAuth();
@@ -82,7 +83,7 @@ export default function DonorHome() {
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
             <View style={styles.header}>
-                <TouchableOpacity style={styles.headerLeft} onPress={() => router.push('/(donor)/donate')} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.headerLeft} onPress={() => router.push('/donate')} activeOpacity={0.7}>
                     <Image
                         source={require('../../assets/KusinaKonek-Logo.png')}
                         style={styles.logoImage}
@@ -105,7 +106,7 @@ export default function DonorHome() {
                     <ImageBackground
                         source={{ uri: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop' }}
                         style={styles.heroImage}
-                        imageStyle={{ borderRadius: 16, opacity: 0.85 }}
+                        imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}
                     >
                         <View style={styles.heroOverlay}>
                             <Text style={styles.heroTitle}>Share Your Blessings Today</Text>
@@ -118,8 +119,8 @@ export default function DonorHome() {
                     <DashboardStats stats={getStats()} />
                 </View>
 
-                <TouchableOpacity style={styles.mainButton} onPress={() => router.push('/(donor)/donate')}>
-                    <Plus size={24} color="#fff" style={{ marginRight: 8 }} />
+                <TouchableOpacity style={styles.mainButton} onPress={() => router.push('/donate')}>
+                    <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
                     <Text style={styles.mainButtonText}>Donate Food</Text>
                 </TouchableOpacity>
 
@@ -129,7 +130,7 @@ export default function DonorHome() {
                     onSeeAll={() => { }}
                 />
 
-                <View style={{ height: 20 }} />
+                <View style={{ height: hp(20) }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -137,18 +138,28 @@ export default function DonorHome() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#fff' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#fff' },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    logoImage: { width: 40, height: 40, borderRadius: 8 },
-    appName: { fontSize: 18, fontWeight: 'bold', color: '#1a1a1a' },
-    dashboardTitle: { fontSize: 12, color: '#666' },
-    scrollContent: { padding: 20 },
-    heroContainer: { height: 160, borderRadius: 16, marginBottom: 24, overflow: 'hidden', backgroundColor: '#333' },
+    header: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingHorizontal: wp(20), paddingVertical: hp(12), backgroundColor: '#fff',
+    },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: wp(12) },
+    logoImage: { width: wp(40), height: wp(40), borderRadius: wp(8) },
+    appName: { fontSize: fp(18), fontWeight: 'bold', color: '#1a1a1a' },
+    dashboardTitle: { fontSize: fp(12), color: '#666' },
+    scrollContent: { padding: wp(20) },
+    heroContainer: {
+        height: hp(160), borderRadius: wp(16), marginBottom: hp(24),
+        overflow: 'hidden', backgroundColor: '#333',
+    },
     heroImage: { width: '100%', height: '100%', justifyContent: 'flex-end' },
-    heroOverlay: { padding: 16, backgroundColor: 'rgba(0,0,0,0.3)' },
-    heroTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
-    heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)' },
+    heroOverlay: { padding: wp(16), backgroundColor: 'rgba(0,0,0,0.3)' },
+    heroTitle: { fontSize: fp(22), fontWeight: 'bold', color: '#fff', marginBottom: hp(4) },
+    heroSubtitle: { fontSize: fp(14), color: 'rgba(255,255,255,0.9)' },
     statsContainer: { marginBottom: 0 },
-    mainButton: { flexDirection: 'row', backgroundColor: '#00C853', height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, shadowColor: '#00C853', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-    mainButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+    mainButton: {
+        flexDirection: 'row', backgroundColor: '#00C853', height: hp(56), borderRadius: wp(12),
+        justifyContent: 'center', alignItems: 'center', marginBottom: hp(8),
+        shadowColor: '#00C853', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    },
+    mainButtonText: { color: '#fff', fontSize: fp(18), fontWeight: 'bold' },
 });
