@@ -28,7 +28,7 @@ export default function EmptyCart({ onBrowseFood }: EmptyCartProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: theme.colors.background,
     borderRadius: theme.radius.md,
     justifyContent: "center",
     alignItems: "center",
