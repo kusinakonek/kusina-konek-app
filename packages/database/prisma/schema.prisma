@@ -48,6 +48,9 @@ model User {
   // Feedback relations
   givenFeedback   Feedback[] @relation("DonorFeedbacks")
   receivedFeedback Feedback[] @relation("RecipientFeedbacks")
+  
+  @@index([emailHash])
+  @@index([phoneNoHash])
 }
 
 
@@ -116,8 +119,14 @@ model Distribution {
   scheduledTime DateTime
   actualTime    DateTime?
   timestamp     DateTime @default(now())
+  claimedAt     DateTime?
   
   feedbacks     Feedback[]
+  
+  @@index([donorID, status])
+  @@index([recipientID, claimedAt])
+  @@index([status, recipientID])
+  @@index([timestamp])
 }
 
 model Feedback {
@@ -129,6 +138,9 @@ model Feedback {
   disID         String
   distribution  Distribution @relation(fields: [disID], references: [disID])
   ratingScore   Int
+  
+  @@index([donorID])
+  @@index([disID])
   comments      String?
   timestamp     DateTime @default(now())
   updatedAt     DateTime @updatedAt
