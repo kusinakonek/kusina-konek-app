@@ -8,6 +8,8 @@ export { default as FoodCard } from "./FoodCard";
 export { default as BrowseFoodCard } from "./BrowseFoodCard";
 export { default as SearchBar } from "./SearchBar";
 export { default as EmptyCart } from "./EmptyCart";
+export { default as EmptyRecentFood } from "./EmptyRecentFood";
 export { default as CartHeader } from "./CartHeader";
 export { default as CartBottomBar } from "./CartBottomBar";
 export { default as CartItemCard } from "./CartItemCard";
+export { default as ClaimsConfirmedModal } from "./ClaimsConfirmedModal";
