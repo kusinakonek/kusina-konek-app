@@ -81,7 +81,7 @@ export default function RecipientHome() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerLeft}
-          onPress={() => router.push("/browse-food")}>
+          onPress={() => router.push("/(recipient)/browse-food")}>
           <Image
             source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
@@ -166,7 +166,7 @@ export default function RecipientHome() {
         {/* Browse Food Button */}
         <TouchableOpacity
           style={styles.mainButton}
-          onPress={() => router.push("/browse-food")}>
+          onPress={() => router.push("/(recipient)/browse-food")}>
           <Search size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
           <Text style={styles.mainButtonText}>Browse Food</Text>
         </TouchableOpacity>

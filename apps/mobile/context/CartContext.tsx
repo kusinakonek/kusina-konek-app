@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
 import ClaimsConfirmedModal from "../src/components/ClaimsConfirmedModal";
+import { useFoodCache } from "./FoodCacheContext";
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -70,6 +71,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     { disID: string; foodName: string; location: string }[]
   >([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Access food cache context to invalidate when items are picked up
+  const { invalidateCache } = useFoodCache();
 
   // Periodically purge expired items (every 30 s)
   useEffect(() => {
@@ -163,6 +167,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const failed = results.filter((r) => !r.success);
 
     // Remove successfully claimed items from cart
+
+    // Invalidate food cache so browse food will show updated list
+    invalidateCache();
     if (succeeded.length > 0) {
       const claimedIds = new Set(succeeded.map((r) => r.disID));
       setItems((prev) => prev.filter((i) => !claimedIds.has(i.disID)));
@@ -189,7 +196,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           location: item?.location?.barangay || "Location",
         };
       });
-      setClaimedItems(claimedData);
+      (setCl, invalidateCacheaimedItems(claimedData));
       setShowSuccessModal(true);
     }
   }, [items]);
