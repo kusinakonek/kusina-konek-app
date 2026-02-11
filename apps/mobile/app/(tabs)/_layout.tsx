@@ -1,8 +1,9 @@
 import { Tabs, router } from "expo-router";
 import { Home, ShoppingCart, User, Utensils } from "lucide-react-native";
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { wp, hp, fp } from "../../src/utils/responsive";
 
 function CartIcon({
   color,
@@ -14,7 +15,7 @@ function CartIcon({
   badgeCount?: number;
 }) {
   return (
-    <View>
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <ShoppingCart size={size} color={color} />
       {badgeCount != null && badgeCount > 0 && (
         <View style={styles.badge}>
@@ -31,7 +32,7 @@ function FloatingActionButton() {
   return (
     <View style={styles.fabContainer} pointerEvents="none">
       <View style={styles.fab}>
-        <Utensils size={28} color="#fff" />
+        <Utensils size={wp(28)} color="#fff" />
       </View>
     </View>
   );
@@ -51,9 +52,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#999",
         tabBarStyle: {
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
-          paddingTop: 8,
+          height: Platform.OS === 'ios' ? hp(85) : hp(65),
+          paddingBottom: Platform.OS === 'ios' ? hp(25) : hp(8),
+          paddingTop: hp(8),
           backgroundColor: '#fff',
           elevation: 12,
           shadowColor: '#000',
@@ -62,7 +63,7 @@ export default function TabLayout() {
           shadowRadius: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: fp(11),
           fontWeight: '600',
         },
       }}>
@@ -76,17 +77,30 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="action"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push('/(donor)/donate');
-          },
-        }}
         options={{
           title: "",
-          href: isDonor ? "/(tabs)/action" : null,
-          tabBarIcon: () => <FloatingActionButton />,
-          tabBarLabel: () => null,
+          ...(isDonor
+            ? {
+              tabBarButton: (props) => {
+                // Only extract necessary props to avoid type mismatches with spread
+                const { accessibilityState, accessibilityLabel, testID } = props;
+                return (
+                  <TouchableOpacity
+                    style={styles.fabContainer}
+                    onPress={() => router.push('/donate')}
+                    activeOpacity={0.8}
+                    accessibilityState={accessibilityState}
+                    accessibilityLabel={accessibilityLabel}
+                    testID={testID}
+                  >
+                    <View style={styles.fab}>
+                      <Utensils size={wp(28)} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              },
+            }
+            : { href: null }),
         }}
       />
 
@@ -108,6 +122,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
+
+      {/* Hidden screens — accessible via navigation but not in tab bar */}
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          title: "Edit Profile",
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
@@ -115,14 +138,16 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
-    top: -28,
+    top: wp(-28),
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: wp(56),
+    height: wp(56),
+    borderRadius: wp(28),
     backgroundColor: '#00C853',
     justifyContent: 'center',
     alignItems: 'center',
@@ -137,16 +162,16 @@ const styles = StyleSheet.create({
     top: -4,
     right: -8,
     backgroundColor: "#D32F2F",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: wp(10),
+    minWidth: wp(18),
+    height: wp(18),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: wp(4),
   },
   badgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: fp(10),
     fontWeight: "700",
   },
 });

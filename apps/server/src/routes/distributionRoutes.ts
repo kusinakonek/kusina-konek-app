@@ -12,8 +12,8 @@ import { distributionController } from "../controllers/distributionController";
 
 export const distributionRouter = Router();
 
-// Get available distributions (public - no auth required)
-distributionRouter.get("/available", distributionController.listAvailable);
+// Get available distributions (authenticated - excludes user's own donations)
+distributionRouter.get("/available", authMiddleware, distributionController.listAvailable);
 
 // Create distribution
 distributionRouter.post(
