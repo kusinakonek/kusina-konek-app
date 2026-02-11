@@ -90,9 +90,11 @@ export default function CartItemCard({
           </View>
 
           {/* Quantity */}
-          <View style={styles.metaRow}>
-            <Clock size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText}>Quantity / Serving(s): </Text>
+          <View style={styles.quantityContainer}>
+            <View style={styles.quantityLabelRow}>
+              <Clock size={14} color={theme.colors.mutedText} />
+              <Text style={styles.metaText}>Quantity / Serving(s):</Text>
+            </View>
             <View style={styles.quantityBadge}>
               <Text style={styles.quantityText}>
                 {quantity} {unit}
@@ -215,13 +217,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.mutedText,
   },
+  quantityContainer: {
+    marginBottom: 6,
+  },
+  quantityLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
   quantityBadge: {
     backgroundColor: "#E8F5E9",
     borderWidth: 1,
     borderColor: "#C8E6C9",
     borderRadius: 4,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
+    marginLeft: 18,
   },
   quantityText: {
     fontSize: 12,

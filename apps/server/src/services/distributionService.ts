@@ -21,55 +21,75 @@ const ensureProfile = async (userID: string) => {
   return profile;
 };
 
-// Helper to decrypt user data (each field independent)
+// Helper to decrypt user data (only decrypt fields that exist)
 const decryptUser = (user: any) => {
   if (!user) return null;
-  return {
-    ...user,
-    firstName: safeDecrypt(user.firstName),
-    middleName: safeDecrypt(user.middleName),
-    lastName: safeDecrypt(user.lastName),
-    suffix: safeDecrypt(user.suffix),
-    phoneNo: safeDecrypt(user.phoneNo),
-    email: safeDecrypt(user.email),
-    orgName: safeDecrypt(user.orgName),
-  };
+  const decrypted: any = { ...user };
+  if (user.firstName) decrypted.firstName = safeDecrypt(user.firstName);
+  if (user.middleName) decrypted.middleName = safeDecrypt(user.middleName);
+  if (user.lastName) decrypted.lastName = safeDecrypt(user.lastName);
+  if (user.suffix) decrypted.suffix = safeDecrypt(user.suffix);
+  if (user.phoneNo) decrypted.phoneNo = safeDecrypt(user.phoneNo);
+  if (user.email) decrypted.email = safeDecrypt(user.email);
+  if (user.orgName) decrypted.orgName = safeDecrypt(user.orgName);
+  return decrypted;
 };
 
-// Helper to decrypt location data (each field independent)
+// Helper to decrypt location data (only decrypt fields that exist)
 const decryptLocation = (location: any) => {
   if (!location) return null;
-  return {
-    ...location,
-    streetAddress: safeDecrypt(location.streetAddress),
-    barangay: safeDecrypt(location.barangay),
-  };
+  const decrypted: any = { ...location };
+  if (location.streetAddress)
+    decrypted.streetAddress = safeDecrypt(location.streetAddress);
+  if (location.barangay) decrypted.barangay = safeDecrypt(location.barangay);
+  return decrypted;
 };
 
-// Helper to decrypt distribution data (each section independent)
+// Helper to decrypt distribution data (optimized)
 const decryptDistribution = (distribution: any) => {
-  return {
-    ...distribution,
-    photoProof: safeDecrypt(distribution.photoProof),
-    donor: decryptUser(distribution.donor),
-    recipient: decryptUser(distribution.recipient),
-    location: decryptLocation(distribution.location),
-    food: distribution.food
-      ? {
-          ...distribution.food,
-          foodName: safeDecrypt(distribution.food.foodName),
-          description: safeDecrypt(distribution.food.description),
-          image: safeDecrypt(distribution.food.image),
-          user: decryptUser(distribution.food.user),
-        }
-      : null,
-    feedbacks:
-      distribution.feedbacks?.map((feedback: any) => ({
-        ...feedback,
-        donor: decryptUser(feedback.donor),
-        recipient: decryptUser(feedback.recipient),
-      })) || [],
-  };
+  const decrypted: any = { ...distribution };
+
+  if (distribution.photoProof) {
+    decrypted.photoProof = safeDecrypt(distribution.photoProof);
+  }
+
+  if (distribution.donor) {
+    decrypted.donor = decryptUser(distribution.donor);
+  }
+
+  if (distribution.recipient) {
+    decrypted.recipient = decryptUser(distribution.recipient);
+  }
+
+  if (distribution.location) {
+    decrypted.location = decryptLocation(distribution.location);
+  }
+
+  if (distribution.food) {
+    decrypted.food = {
+      ...distribution.food,
+      foodName: safeDecrypt(distribution.food.foodName),
+      description: distribution.food.description
+        ? safeDecrypt(distribution.food.description)
+        : null,
+      image: distribution.food.image
+        ? safeDecrypt(distribution.food.image)
+        : null,
+    };
+    if (distribution.food.user) {
+      decrypted.food.user = decryptUser(distribution.food.user);
+    }
+  }
+
+  if (distribution.feedbacks?.length) {
+    decrypted.feedbacks = distribution.feedbacks.map((feedback: any) => ({
+      ...feedback,
+      donor: decryptUser(feedback.donor),
+      recipient: decryptUser(feedback.recipient),
+    }));
+  }
+
+  return decrypted;
 };
 
 export const distributionService = {
@@ -141,9 +161,10 @@ export const distributionService = {
     return { distributions: decryptedDistributions };
   },
 
-  async listAvailableDistributions() {
-    // No auth required - public endpoint for browsing available distributions
-    const distributions = await distributionRepository.listAvailable();
+  async listAvailableDistributions(excludeDonorID?: string) {
+    // Exclude the donor's own distributions to prevent self-claiming (anti-cheat)
+    const distributions =
+      await distributionRepository.listAvailable(excludeDonorID);
     const decryptedDistributions = distributions.map(decryptDistribution);
     return { distributions: decryptedDistributions };
   },
@@ -300,6 +321,7 @@ export const distributionService = {
     const updated = await distributionRepository.update(params.disID, {
       recipient: { connect: { userID: params.userID } },
       status: "CLAIMED",
+      claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
             scheduledTime: new Date(params.input.scheduledTime),

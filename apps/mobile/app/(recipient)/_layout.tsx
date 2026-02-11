@@ -6,8 +6,14 @@ export default function RecipientLayout() {
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
+        animationDuration: 300,
       }}>
-      <Stack.Screen name="browse-food" />
+      <Stack.Screen
+        name="browse-food"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
     </Stack>
   );
 }
