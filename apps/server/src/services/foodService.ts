@@ -62,21 +62,21 @@ const decryptDistribution = (distribution: any) => {
     recipient: decryptUser(distribution.recipient),
     location: distribution.location
       ? {
-        ...distribution.location,
-        streetAddress: safeDecrypt(distribution.location.streetAddress),
-        barangay: distribution.location.barangay
-          ? safeDecrypt(distribution.location.barangay)
-          : null,
-      }
+          ...distribution.location,
+          streetAddress: safeDecrypt(distribution.location.streetAddress),
+          barangay: distribution.location.barangay
+            ? safeDecrypt(distribution.location.barangay)
+            : null,
+        }
       : null,
     food: distribution.food
       ? {
-        ...distribution.food,
-        foodName: distribution.food.foodName,
-        description: distribution.food.description,
-        image: distribution.food.image,
-        user: decryptUser(distribution.food.user),
-      }
+          ...distribution.food,
+          foodName: distribution.food.foodName,
+          description: distribution.food.description,
+          image: distribution.food.image,
+          user: decryptUser(distribution.food.user),
+        }
       : null,
   };
 };
@@ -87,7 +87,9 @@ export const foodService = {
 
     const created = await foodRepository.create(params.userID, {
       foodName: params.input.foodName,
-      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
+      dateCooked: params.input.dateCooked
+        ? new Date(params.input.dateCooked)
+        : null,
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
@@ -177,7 +179,9 @@ export const foodService = {
     // Encrypt sensitive data before storing
     const encryptedFoodData = {
       foodName: params.input.foodName,
-      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
+      dateCooked: params.input.dateCooked
+        ? new Date(params.input.dateCooked)
+        : null,
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
@@ -412,7 +416,7 @@ export const foodService = {
       recipient: { connect: { userID: params.recipientID } },
       scheduledTime: new Date(params.input.scheduledTime),
       photoProof: params.input.photoProof,
-      status: "CLAIMED",
+      status: "ON_THE_WAY",
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
