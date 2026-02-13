@@ -349,7 +349,7 @@ export default function LocationScreen() {
         onClose={() => {
           setShowSuccessModal(false);
           resetForm();
-          router.replace("/(donor)");
+          router.replace("/(tabs)");
         }}
       />
     </SafeAreaView>
