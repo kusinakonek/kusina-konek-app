@@ -30,12 +30,14 @@ import LocationPicker from "../../../src/components/LocationPicker";
 import axiosClient from "../../../src/api/axiosClient";
 import { API_ENDPOINTS } from "../../../src/api/endpoints";
 import { useFoodCache } from "../../../context/FoodCacheContext";
+import SuccessModal from "../../../src/components/SuccessModal";
 
 export default function LocationScreen() {
   const router = useRouter();
   const { formData, updateFormData, resetForm } = useDonation();
   const { invalidateCache } = useFoodCache();
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleSelectBarangay = (barangay: BarangayHall) => {
     updateFormData({
@@ -107,19 +109,7 @@ export default function LocationScreen() {
       // Invalidate food cache so browse food list updates
       invalidateCache();
 
-      Alert.alert(
-        "Donation Submitted! 🎉",
-        "Thank you for your generosity! Please drop off your donation within 2 hours.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              resetForm();
-              router.replace("/(donor)");
-            },
-          },
-        ],
-      );
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error("Donation submission error:", error);
       const errorMessage =
@@ -161,7 +151,7 @@ export default function LocationScreen() {
               style={[
                 styles.toggleButton,
                 formData.locationType === "barangay" &&
-                  styles.toggleButtonActive,
+                styles.toggleButtonActive,
               ]}
               onPress={() => updateFormData({ locationType: "barangay" })}>
               <MapPin
@@ -172,7 +162,7 @@ export default function LocationScreen() {
                 style={[
                   styles.toggleText,
                   formData.locationType === "barangay" &&
-                    styles.toggleTextActive,
+                  styles.toggleTextActive,
                 ]}>
                 Barangay Hall
               </Text>
@@ -213,7 +203,7 @@ export default function LocationScreen() {
                       style={[
                         styles.hallIcon,
                         selectedLocation?.id === hall.id &&
-                          styles.hallIconSelected,
+                        styles.hallIconSelected,
                       ]}>
                       <MapPin
                         size={20}
@@ -334,7 +324,7 @@ export default function LocationScreen() {
             (submitting ||
               (!formData.selectedBarangay &&
                 formData.locationType === "barangay")) &&
-              styles.submitButtonDisabled,
+            styles.submitButtonDisabled,
           ]}
           onPress={handleSubmitDonation}
           disabled={
@@ -350,6 +340,18 @@ export default function LocationScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Donation Submitted! 🎉"
+        message="Thank you for your generosity! Please drop off your donation within 2 hours."
+        buttonText="Back to Dashboard"
+        onClose={() => {
+          setShowSuccessModal(false);
+          resetForm();
+          router.replace("/(donor)");
+        }}
+      />
     </SafeAreaView>
   );
 }

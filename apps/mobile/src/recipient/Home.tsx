@@ -19,6 +19,7 @@ import EmptyRecentFood from "../components/EmptyRecentFood";
 import { Package, MapPin, Utensils, Search } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
+import LoadingScreen from "../components/LoadingScreen";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -75,6 +76,10 @@ export default function RecipientHome() {
     user?.user_metadata?.full_name?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
     "there";
+
+  if (loading && !refreshing) {
+    return <LoadingScreen message="Loading dashboard..." />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -176,13 +181,13 @@ export default function RecipientHome() {
           <RecentItemsList
             items={getRecentItems()}
             role="RECIPIENT"
-            onSeeAll={() => {}}
+            onSeeAll={() => { }}
           />
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Recent Food</Text>
-              <TouchableOpacity onPress={() => {}}>
+              <TouchableOpacity onPress={() => { }}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>

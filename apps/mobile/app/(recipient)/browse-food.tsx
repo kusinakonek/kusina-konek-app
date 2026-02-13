@@ -18,6 +18,7 @@ import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
 import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import LoadingScreen from "../../src/components/LoadingScreen";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -168,10 +169,17 @@ export default function BrowseFood() {
         </Text>
 
         {/* Loading State */}
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Loading available food...</Text>
+            {/* Use inline loading for search results, or full screen? The user asked for "loading screen". 
+                 But BrowseFood has a search bar. Better to keep search bar visible. 
+                 I'll use the LoadingScreen component but inside the container if possible, 
+                 or just use it as a full screen overlay if it's the *initial* load. 
+                 The current implementation uses `loading` for both initial and search. 
+                 Let's stick to the existing structure but use a spinner style match. 
+                 Actually, the user said "loading screen while waiting to fetch a data". 
+                 I'll make it full screen loading for initial fetch. */}
+            <LoadingScreen message="Find food near you..." />
           </View>
         ) : (
           <FlatList
