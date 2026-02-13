@@ -14,7 +14,7 @@ import { locationService } from "./locationService";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile before creating donations. Go to Profile > Edit Profile.");
   return profile;
 };
 
@@ -62,21 +62,21 @@ const decryptDistribution = (distribution: any) => {
     recipient: decryptUser(distribution.recipient),
     location: distribution.location
       ? {
-          ...distribution.location,
-          streetAddress: safeDecrypt(distribution.location.streetAddress),
-          barangay: distribution.location.barangay
-            ? safeDecrypt(distribution.location.barangay)
-            : null,
-        }
+        ...distribution.location,
+        streetAddress: safeDecrypt(distribution.location.streetAddress),
+        barangay: distribution.location.barangay
+          ? safeDecrypt(distribution.location.barangay)
+          : null,
+      }
       : null,
     food: distribution.food
       ? {
-          ...distribution.food,
-          foodName: distribution.food.foodName,
-          description: distribution.food.description,
-          image: distribution.food.image,
-          user: decryptUser(distribution.food.user),
-        }
+        ...distribution.food,
+        foodName: distribution.food.foodName,
+        description: distribution.food.description,
+        image: distribution.food.image,
+        user: decryptUser(distribution.food.user),
+      }
       : null,
   };
 };

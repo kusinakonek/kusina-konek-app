@@ -167,12 +167,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const failed = results.filter((r) => !r.success);
 
     // Remove successfully claimed items from cart
-
-    // Invalidate food cache so browse food will show updated list
-    invalidateCache();
     if (succeeded.length > 0) {
       const claimedIds = new Set(succeeded.map((r) => r.disID));
       setItems((prev) => prev.filter((i) => !claimedIds.has(i.disID)));
+
+      // Invalidate food cache so browse food will show updated list
+      invalidateCache();
     }
 
     if (failed.length > 0 && succeeded.length > 0) {
@@ -187,7 +187,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         `Could not claim items: ${failed.map((f) => f.error).join(", ")}`,
       );
     } else {
-      // Show success modal with claimed items
+      // All items claimed successfully — show success modal
       const claimedData = succeeded.map((result) => {
         const item = validItems.find((i) => i.disID === result.disID);
         return {
@@ -196,10 +196,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           location: item?.location?.barangay || "Location",
         };
       });
-      (setCl, invalidateCacheaimedItems(claimedData));
+      setClaimedItems(claimedData);
       setShowSuccessModal(true);
     }
-  }, [items]);
+  }, [items, invalidateCache]);
 
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
