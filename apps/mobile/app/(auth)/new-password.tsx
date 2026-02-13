@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
+import SuccessModal from '../../src/components/SuccessModal';
 
 export default function NewPassword() {
     const router = useRouter();
@@ -25,6 +26,7 @@ export default function NewPassword() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleUpdatePassword = async () => {
@@ -46,12 +48,8 @@ export default function NewPassword() {
         setLoading(true);
         try {
             await updatePassword(password);
-            Alert.alert('Success', 'Your password has been updated successfully', [
-                {
-                    text: 'Login Now',
-                    onPress: () => router.replace('/(auth)/login'),
-                },
-            ]);
+            await updatePassword(password);
+            setShowSuccessModal(true);
         } catch (error: any) {
             console.error(error);
             Alert.alert('Error', error.message || 'Failed to update password');
@@ -140,6 +138,18 @@ export default function NewPassword() {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+
+            <SuccessModal
+                visible={showSuccessModal}
+                title="Password Updated"
+                message="Your password has been updated successfully."
+                buttonText="Login Now"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    router.replace('/(auth)/login');
+                }}
+            />
         </SafeAreaView>
     );
 }

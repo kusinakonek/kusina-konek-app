@@ -18,6 +18,7 @@ import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import { Heart, Package, Star, Plus, Utensils } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
+import LoadingScreen from "../components/LoadingScreen";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -97,6 +98,10 @@ export default function DonorHome() {
     }));
   };
 
+  if (loading && !refreshing) {
+    return <LoadingScreen message="Loading dashboard..." />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.header}>
@@ -155,7 +160,7 @@ export default function DonorHome() {
         <RecentItemsList
           items={getRecentItems()}
           role="DONOR"
-          onSeeAll={() => {}}
+          onSeeAll={() => { }}
         />
 
         <View style={{ height: hp(20) }} />

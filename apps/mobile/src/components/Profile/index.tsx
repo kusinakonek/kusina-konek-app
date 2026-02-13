@@ -35,6 +35,7 @@ import { useRouter } from "expo-router";
 import axiosClient from "../../api/axiosClient";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { wp, hp, fp, isTablet } from "../../utils/responsive";
+import LoadingScreen from "../LoadingScreen";
 
 export default function Profile() {
   const { user, signOut, role, setRole } = useAuth();
@@ -129,10 +130,10 @@ export default function Profile() {
 
   const displayName = profileData?.profile
     ? `${profileData.profile.firstName || ""} ${profileData.profile.lastName || ""}`.trim() ||
-      profileData?.user?.displayName ||
-      user?.user_metadata?.full_name ||
-      user?.email?.split("@")[0] ||
-      "User"
+    profileData?.user?.displayName ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User"
     : user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayEmail = profileData?.user?.email || user?.email || "";
   const displayPhone =
@@ -143,9 +144,9 @@ export default function Profile() {
     "Not set";
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      })
+      month: "long",
+      year: "numeric",
+    })
     : "N/A";
   const needsProfileUpdate = profileData?.needsProfileUpdate === true;
 
