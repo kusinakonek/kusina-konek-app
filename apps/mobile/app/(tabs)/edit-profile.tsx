@@ -9,11 +9,14 @@ import { useRouter } from 'expo-router';
 import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { wp, hp, fp } from '../../src/utils/responsive';
+import LoadingScreen from '../../src/components/LoadingScreen';
+import SuccessModal from '../../src/components/SuccessModal';
 
 export default function EditProfile() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Form fields
     const [firstName, setFirstName] = useState('');
@@ -92,9 +95,7 @@ export default function EditProfile() {
             }
 
             await axiosClient.put(API_ENDPOINTS.USER.UPDATE_PROFILE, payload);
-            Alert.alert('Success', 'Profile updated successfully!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            setShowSuccessModal(true);
         } catch (error: any) {
             console.error('Error updating profile:', error);
             const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update profile.';
@@ -282,6 +283,17 @@ export default function EditProfile() {
                     <View style={{ height: hp(40) }} />
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <SuccessModal
+                visible={showSuccessModal}
+                title="Profile Updated"
+                message="Your profile changes have been saved successfully."
+                buttonText="Go Back"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    router.back();
+                }}
+            />
         </SafeAreaView>
     );
 }
