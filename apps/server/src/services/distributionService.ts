@@ -17,7 +17,7 @@ import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile first. Go to Profile > Edit Profile.");
   return profile;
 };
 
@@ -324,13 +324,13 @@ export const distributionService = {
       claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
-            scheduledTime: new Date(params.input.scheduledTime),
-          }
+          scheduledTime: new Date(params.input.scheduledTime),
+        }
         : {}),
       ...(params.input.photoProof
         ? {
-            photoProof: params.input.photoProof,
-          }
+          photoProof: params.input.photoProof,
+        }
         : {}),
     });
 
