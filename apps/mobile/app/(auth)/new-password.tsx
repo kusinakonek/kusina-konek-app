@@ -48,7 +48,6 @@ export default function NewPassword() {
         setLoading(true);
         try {
             await updatePassword(password);
-            await updatePassword(password);
             setShowSuccessModal(true);
         } catch (error: any) {
             console.error(error);
