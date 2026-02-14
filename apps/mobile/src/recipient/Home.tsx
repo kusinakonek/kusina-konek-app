@@ -162,7 +162,7 @@ export default function RecipientHome() {
               <Text style={styles.recipientStatsMetaDot}>•</Text>
               <Utensils size={wp(12)} color="#2962FF" />
               <Text style={styles.recipientStatsMetaText}>
-                {dashboardData?.stats?.totalServings || 0}+ servings
+                {`${dashboardData?.stats?.totalServings || 0}+ servings`}
               </Text>
             </View>
           </View>
@@ -181,13 +181,13 @@ export default function RecipientHome() {
           <RecentItemsList
             items={getRecentItems()}
             role="RECIPIENT"
-            onSeeAll={() => { }}
+            onSeeAll={() => {}}
           />
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Recent Food</Text>
-              <TouchableOpacity onPress={() => { }}>
+              <TouchableOpacity onPress={() => {}}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
