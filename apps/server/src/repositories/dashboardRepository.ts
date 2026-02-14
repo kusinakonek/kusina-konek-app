@@ -64,11 +64,11 @@ export const dashboardRepository = {
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
     const [totalDonated, availableItems, avgRating] = await Promise.all([
-      // Count completed distributions (donations that were delivered)
+      // Count distributions that have been claimed by a recipient
       prisma.distribution.count({
         where: {
           donorID: userID,
-          status: { in: ["DELIVERED", "COMPLETED"] },
+          status: "CLAIMED",
         },
       }),
 
