@@ -18,7 +18,10 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
+      }
     },
     "android": {
       "usesCleartextTraffic": true,
@@ -26,6 +29,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
+        }
+      }
       "package": "com.kusinakonek.kusinakonek"
     },
     "web": {
