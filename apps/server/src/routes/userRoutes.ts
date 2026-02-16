@@ -16,3 +16,11 @@ usersRouter.put(
   validateRequest(completeUserProfileSchema),
   userController.completeProfile
 );
+
+
+// PUT - Update Push Token
+usersRouter.put(
+  "/push-token",
+  authMiddleware,
+  userController.updatePushToken
+);

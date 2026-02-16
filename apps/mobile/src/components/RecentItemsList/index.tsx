@@ -19,9 +19,10 @@ interface RecentItemsListProps {
     items: RecentItem[];
     role: 'DONOR' | 'RECIPIENT';
     onSeeAll?: () => void;
+    onConfirm?: (id: string) => void;
 }
 
-export const RecentItemsList = ({ items, role, onSeeAll }: RecentItemsListProps) => {
+export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItemsListProps) => {
     const renderItem = ({ item }: { item: RecentItem }) => (
         <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -65,6 +66,15 @@ export const RecentItemsList = ({ items, role, onSeeAll }: RecentItemsListProps)
             {role === 'RECIPIENT' && item.showFeedback && (
                 <TouchableOpacity style={styles.feedbackButton}>
                     <Text style={styles.feedbackButtonText}>Give Feedback</Text>
+                </TouchableOpacity>
+            )}
+
+            {role === 'DONOR' && item.status === 'on-the-way' && onConfirm && (
+                <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => onConfirm(item.id)}
+                >
+                    <Text style={styles.confirmButtonText}>Confirm Received</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -217,4 +227,17 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-}) as any; // Using any to avoid strict typing on dynamic status styles for now
+    confirmButton: {
+        marginTop: 12,
+        backgroundColor: '#2196F3',
+        height: 44,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    confirmButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});
