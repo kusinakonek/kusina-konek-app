@@ -232,5 +232,12 @@ export const userService = {
 
       throw error;
     }
+  },
+
+  async updatePushToken(userID: string, pushToken: string) {
+    return await prisma.user.update({
+      where: { userID },
+      data: { pushToken }
+    });
   }
 };
