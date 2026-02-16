@@ -420,6 +420,73 @@ export const foodService = {
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
+
+    // Notify Donor
+    try {
+      const recipientName = (await userRepository.getByUserId(params.recipientID))?.firstName || "A recipient";
+      // Need to decrypt recipient name properly? userRepo returns encrypted... 
+      // ensuring we get decrypted Profile helpful?
+      // actually foodService.ensureProfile calls userRepo.getByUserId which returns encrypted. 
+      // We should use userService.getProfile properly? 
+      // For speed, I will just say "Someone" or use the ID if we can't easily decrypt here without importing userService (circular dependency risk?)
+      // actually we can import specific utils. 
+      // Let's keep it simple for now: "Your donation has been claimed!"
+
+      const donorID = existing.donorID;
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "Food Claimed!",
+          "Your donation is now marked as On The Way.",
+          "CLAIM",
+          { screen: "DonorHome", disID: distribution.disID }, // Deep linking data
+          distribution.disID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send notification", error);
+    }
+
     return { distribution: decryptedDistribution };
+  },
+
+  async confirmDonation(params: { userID: string; foodID: string }) {
+    await ensureProfile(params.userID);
+
+    // Check if distribution exists for this food
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    if (!distribution) throw new HttpError(404, "Distribution not found");
+
+    // Check if the user is the RECIPIENT (not the donor)
+    if (distribution.recipientID !== params.userID) {
+      throw new HttpError(403, "Forbidden: Only the recipient can confirm receipt");
+    }
+
+    if (distribution.status !== "ON_THE_WAY") throw new HttpError(400, "Donation cannot be confirmed yet");
+
+    const updated = await distributionRepository.update(distribution.disID, {
+      status: "COMPLETED",
+      claimedAt: new Date()
+    });
+
+    // Notify Donor
+    try {
+      const donorID = distribution.donorID;
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "Donation Completed!",
+          "The recipient has confirmed receipt of your donation.",
+          "CONFIRM",
+          { screen: "History", disID: distribution.disID },
+          distribution.disID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send notification to donor", error);
+    }
+
+    return { distribution: decryptDistribution(updated) };
   },
 };
