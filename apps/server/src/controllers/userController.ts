@@ -15,7 +15,7 @@ export const userController = {
 
       const result = await userService.getProfile({
         authUserId: req.user.id,
-        authEmail: req.user.email,
+        authEmail: req.user.email
       });
 
       return res.status(200).json(result);
@@ -40,7 +40,7 @@ export const userController = {
         authUserId: req.user.id,
         authEmail: req.user.email,
         authRole: req.user.role,
-        input,
+        input
       });
 
       return res.status(200).json(result);
