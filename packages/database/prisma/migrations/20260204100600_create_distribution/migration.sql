@@ -10,6 +10,7 @@ CREATE TABLE "Distribution" (
     "scheduledTime" TIMESTAMP(3) NOT NULL,
     "actualTime" TIMESTAMP(3),
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "claimedAt" TIMESTAMP(3),
 
     CONSTRAINT "Distribution_pkey" PRIMARY KEY ("disID")
 );

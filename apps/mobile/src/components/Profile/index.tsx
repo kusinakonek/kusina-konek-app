@@ -35,6 +35,7 @@ import { useRouter } from "expo-router";
 import axiosClient from "../../api/axiosClient";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { wp, hp, fp, isTablet } from "../../utils/responsive";
+import LoadingScreen from "../LoadingScreen";
 
 export default function Profile() {
   const { user, signOut, role, setRole } = useAuth();
@@ -150,11 +151,12 @@ export default function Profile() {
   const needsProfileUpdate = profileData?.needsProfileUpdate === true;
 
   // Check if user has any donor history worth showing
-  const hasDonorHistory =
+  const hasDonorHistory = !!(
     donorHistoryStats &&
     ((donorHistoryStats.totalDonated && donorHistoryStats.totalDonated > 0) ||
       (donorHistoryStats.availableItems &&
-        donorHistoryStats.availableItems > 0));
+        donorHistoryStats.availableItems > 0))
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

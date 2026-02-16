@@ -1,4 +1,3 @@
-import { HttpError } from "../middlewares/errorHandler";
 import { dashboardRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
 
@@ -6,12 +5,17 @@ import { sha256Hex } from "../utils/hash";
 // Helper Functions
 // ============================================================
 
-const ensureProfile = async (email: string) => {
+/**
+ * Find a user's profile by email. Returns null if not found (no error thrown).
+ */
+const findProfile = async (email: string) => {
     const emailHash = sha256Hex(email.toLowerCase());
-    const profile = await userRepository.getByEmailHash(emailHash);
-    if (!profile) throw new HttpError(400, "Complete your profile first");
-    return profile;
+    return await userRepository.getByEmailHash(emailHash);
 };
+
+/** Empty stats returned when user has no profile yet */
+const EMPTY_DONOR_STATS = { totalDonated: 0, availableItems: 0, averageRating: "N/A" };
+const EMPTY_RECIPIENT_STATS = { availableFoods: 0, locations: 0, totalServings: 0 };
 
 /**
  * Calculate relative time string (e.g., "1 day ago", "2 hours ago")
@@ -38,10 +42,16 @@ const getTimeAgo = (date: Date): string => {
 export const dashboardService = {
     /**
      * Get Donor Dashboard data
-     * Returns stats and recent donations for the donor home page
+     * Returns stats and recent donations for the donor home page.
+     * If the user has no profile yet, returns zeroed-out stats and empty lists.
      */
     async getDonorDashboard(email: string) {
-        const profile = await ensureProfile(email);
+        const profile = await findProfile(email);
+
+        if (!profile) {
+            return { stats: EMPTY_DONOR_STATS, recentDonations: [], profileCompleted: false };
+        }
+
         const userID = profile.userID;
 
         const [stats, recentDonations] = await Promise.all([
@@ -58,16 +68,23 @@ export const dashboardService = {
             recentDonations: recentDonations.map((donation) => ({
                 ...donation,
                 timeAgo: getTimeAgo(donation.timestamp)
-            }))
+            })),
+            profileCompleted: true
         };
     },
 
     /**
      * Get Recipient Dashboard data
-     * Returns stats and recent foods for the recipient home page
+     * Returns stats and recent foods for the recipient home page.
+     * If the user has no profile yet, returns zeroed-out stats and empty lists.
      */
     async getRecipientDashboard(email: string) {
-        const profile = await ensureProfile(email);
+        const profile = await findProfile(email);
+
+        if (!profile) {
+            return { stats: EMPTY_RECIPIENT_STATS, recentFoods: [], profileCompleted: false };
+        }
+
         const userID = profile.userID;
 
         const [stats, recentFoods] = await Promise.all([
@@ -84,7 +101,8 @@ export const dashboardService = {
             recentFoods: recentFoods.map((food) => ({
                 ...food,
                 timeAgo: getTimeAgo(food.timestamp)
-            }))
+            })),
+            profileCompleted: true
         };
     },
 
