@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { ArrowLeft, ShoppingCart } from "lucide-react-native";
 import { Pressable } from "react-native";
+import * as Location from "expo-location";
 import SearchBar from "../../src/components/SearchBar";
 import BrowseFoodCard from "../../src/components/BrowseFoodCard";
 import { theme } from "../../src/constants/theme";
@@ -48,10 +49,38 @@ export default function BrowseFood() {
   const { distributions, loading, error, fetchDistributions, isCached } =
     useFoodCache();
 
-  // Fetch distributions on mount (only if not cached)
+  // Store user location for fetching nearest distributions
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Get user location and fetch distributions on mount
   useEffect(() => {
-    fetchDistributions();
-  }, [fetchDistributions]);
+    const init = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          userLocationRef.current = {
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+          };
+        }
+      } catch (e) {
+        // Location not available — we'll fetch without it
+        console.log("Could not get user location:", e);
+      }
+
+      // Fetch with location if available
+      fetchDistributions(
+        false,
+        userLocationRef.current?.lat,
+        userLocationRef.current?.lng,
+      );
+    };
+
+    init();
+  }, []);
 
   // Filter distributions based on search query
   useEffect(() => {
@@ -76,7 +105,11 @@ export default function BrowseFood() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchDistributions(true); // Force refresh
+    await fetchDistributions(
+      true,
+      userLocationRef.current?.lat,
+      userLocationRef.current?.lng,
+    ); // Force refresh with location
     setRefreshing(false);
   }, [fetchDistributions]);
 
@@ -101,6 +134,7 @@ export default function BrowseFood() {
       servings={item.quantity}
       barangay={item.location?.barangay ?? "Unknown Location"}
       timeAgo={timeAgo(item.timestamp)}
+      distanceKm={item.distanceKm ?? null}
       onRequest={() => handleRequest(item)}
     />
   );

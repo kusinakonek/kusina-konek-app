@@ -15,7 +15,7 @@ export const userController = {
 
       const result = await userService.getProfile({
         authUserId: req.user.id,
-        authEmail: req.user.email
+        authEmail: req.user.email,
       });
 
       return res.status(200).json(result);
@@ -40,12 +40,34 @@ export const userController = {
         authUserId: req.user.id,
         authEmail: req.user.email,
         authRole: req.user.role,
-        input
+        input,
       });
 
       return res.status(200).json(result);
     } catch (error) {
       next(error);
     }
-  }
+  },
+
+  /**
+   * PUT /api/users/push-token
+   * Register or update the user's Expo push token
+   */
+  async updatePushToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { expoPushToken } = req.body;
+      if (!expoPushToken || typeof expoPushToken !== "string") {
+        return res.status(400).json({ error: "expoPushToken is required" });
+      }
+
+      await userService.updatePushToken(req.user.id, expoPushToken);
+      return res.status(200).json({ message: "Push token updated" });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

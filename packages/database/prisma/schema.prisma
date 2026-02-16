@@ -34,6 +34,7 @@ model User {
   isOrg       Boolean  @default(false)
   orgName     String?
   password    String
+  expoPushToken String?
   DateAdded   DateTime @default(now())
 
   // Relations

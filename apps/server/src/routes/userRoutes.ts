@@ -14,5 +14,8 @@ usersRouter.put(
   "/profile",
   authMiddleware,
   validateRequest(completeUserProfileSchema),
-  userController.completeProfile
+  userController.completeProfile,
 );
+
+// PUT - Register/update Expo push token
+usersRouter.put("/push-token", authMiddleware, userController.updatePushToken);
