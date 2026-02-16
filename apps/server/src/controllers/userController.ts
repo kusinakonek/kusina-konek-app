@@ -48,26 +48,4 @@ export const userController = {
       next(error);
     }
   },
-
-  /**
-   * PUT /api/users/push-token
-   * Register or update the user's Expo push token
-   */
-  async updatePushToken(req: Request, res: Response, next: NextFunction) {
-    try {
-      if (!req.user?.id) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      const { expoPushToken } = req.body;
-      if (!expoPushToken || typeof expoPushToken !== "string") {
-        return res.status(400).json({ error: "expoPushToken is required" });
-      }
-
-      await userService.updatePushToken(req.user.id, expoPushToken);
-      return res.status(200).json({ message: "Push token updated" });
-    } catch (error) {
-      next(error);
-    }
-  },
 };

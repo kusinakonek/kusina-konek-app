@@ -64,31 +64,4 @@ export const userRepository = {
       include: defaultUserInclude,
     });
   },
-
-  /**
-   * Get a user's Expo push token (raw, unencrypted field).
-   */
-  async getPushToken(userID: string): Promise<string | null> {
-    const user = await prisma.user.findUnique({
-      where: { userID },
-      select: { expoPushToken: true },
-    });
-    return user?.expoPushToken ?? null;
-  },
-
-  /**
-   * Get Expo push tokens for all users with a given role name.
-   */
-  async getPushTokensByRole(roleName: string): Promise<string[]> {
-    const users = await prisma.user.findMany({
-      where: {
-        role: { roleName },
-        expoPushToken: { not: null },
-      },
-      select: { expoPushToken: true },
-    });
-    return users
-      .map((u) => u.expoPushToken)
-      .filter((t): t is string => t !== null);
-  },
 };

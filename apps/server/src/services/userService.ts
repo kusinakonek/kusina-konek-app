@@ -257,11 +257,4 @@ export const userService = {
       throw error;
     }
   },
-
-  /**
-   * Store or update the user's Expo push token
-   */
-  async updatePushToken(userID: string, expoPushToken: string) {
-    await userRepository.update(userID, { expoPushToken });
-  },
 };

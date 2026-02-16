@@ -13,7 +13,6 @@ CREATE TABLE "User" (
     "isOrg" BOOLEAN NOT NULL DEFAULT false,
     "orgName" TEXT,
     "password" TEXT NOT NULL,
-    "expoPushToken" TEXT,
     "DateAdded" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("userID")

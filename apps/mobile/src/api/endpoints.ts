@@ -13,7 +13,6 @@ export const API_ENDPOINTS = {
   USER: {
     GET_PROFILE: "/users/profile",
     UPDATE_PROFILE: "/users/profile",
-    UPDATE_PUSH_TOKEN: "/users/push-token",
   },
   FOOD: {
     LIST_MINE: "/foods/mine",
