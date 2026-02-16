@@ -59,31 +59,7 @@ export default function DonorHome() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleConfirmDonation = async (id: string) => {
-    Alert.alert(
-      "Confirm Receipt",
-      "Has the recipient successfully received this donation?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, Confirm",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await axiosClient.post(`/donations/${id}/confirm`);
-              fetchDashboardData();
-              Alert.alert("Success", "Donation marked as completed!");
-            } catch (error) {
-              console.error("Failed to confirm donation", error);
-              Alert.alert("Error", "Failed to confirm donation. Please try again.");
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
-  };
+
 
   const getStats = () => {
     if (!dashboardData?.stats) return [];
@@ -188,7 +164,6 @@ export default function DonorHome() {
           items={getRecentItems()}
           role="DONOR"
           onSeeAll={() => { }}
-          onConfirm={handleConfirmDonation}
         />
 
         <View style={{ height: hp(20) }} />

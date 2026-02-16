@@ -69,7 +69,7 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItem
                 </TouchableOpacity>
             )}
 
-            {role === 'DONOR' && item.status === 'on-the-way' && onConfirm && (
+            {role === 'RECIPIENT' && item.status === 'on-the-way' && onConfirm && (
                 <TouchableOpacity
                     style={styles.confirmButton}
                     onPress={() => onConfirm(item.id)}

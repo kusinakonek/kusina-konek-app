@@ -457,13 +457,35 @@ export const foodService = {
     const distribution = await distributionRepository.getByFoodId(params.foodID);
 
     if (!distribution) throw new HttpError(404, "Distribution not found");
-    if (distribution.donorID !== params.userID) throw new HttpError(403, "Forbidden");
+
+    // Check if the user is the RECIPIENT (not the donor)
+    if (distribution.recipientID !== params.userID) {
+      throw new HttpError(403, "Forbidden: Only the recipient can confirm receipt");
+    }
+
     if (distribution.status !== "ON_THE_WAY") throw new HttpError(400, "Donation cannot be confirmed yet");
 
     const updated = await distributionRepository.update(distribution.disID, {
       status: "COMPLETED",
       claimedAt: new Date()
     });
+
+    // Notify Donor
+    try {
+      const donorID = distribution.donorID;
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "Donation Completed!",
+          "The recipient has confirmed receipt of your donation.",
+          "CONFIRM",
+          { screen: "History", disID: distribution.disID },
+          distribution.disID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send notification to donor", error);
+    }
 
     return { distribution: decryptDistribution(updated) };
   },

@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -80,6 +81,32 @@ export default function RecipientHome() {
   if (loading && !refreshing) {
     return <LoadingScreen message="Loading dashboard..." />;
   }
+
+  const handleConfirmDonation = async (id: string) => {
+    Alert.alert(
+      "Confirm Receipt",
+      "Have you successfully received this food?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Confirm",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await axiosClient.post(`/donations/${id}/confirm`);
+              fetchDashboardData();
+              Alert.alert("Success", "Donation marked as received!");
+            } catch (error) {
+              console.error("Failed to confirm donation", error);
+              Alert.alert("Error", "Failed to confirm donation. Please try again.");
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -182,6 +209,7 @@ export default function RecipientHome() {
             items={getRecentItems()}
             role="RECIPIENT"
             onSeeAll={() => { }}
+            onConfirm={handleConfirmDonation}
           />
         ) : (
           <View style={styles.recentSection}>
