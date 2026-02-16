@@ -14,5 +14,5 @@ usersRouter.put(
   "/profile",
   authMiddleware,
   validateRequest(completeUserProfileSchema),
-  userController.completeProfile,
+  userController.completeProfile
 );
