@@ -8,6 +8,7 @@ import {
   ImageBackground,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -57,6 +58,8 @@ export default function DonorHome() {
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+
 
   const getStats = () => {
     if (!dashboardData?.stats) return [];

@@ -1,117 +1,160 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
-import { theme } from "../../constants/theme";
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
+import { theme } from '../../constants/theme';
+import { wp, hp, fp } from '../../utils/responsive';
 
 /**
- * A single pulsing skeleton placeholder bar.
+ * Animated shimmer block used as a placeholder while content loads.
  */
-function SkeletonBlock({
-  width,
-  height,
-  borderRadius = theme.radius.sm,
-  style,
+const ShimmerBlock = ({
+    width,
+    height,
+    borderRadius = 8,
+    style,
 }: {
-  width: number | string;
-  height: number;
-  borderRadius?: number;
-  style?: object;
-}) {
-  const opacity = useRef(new Animated.Value(0.3)).current;
+    width: number | string;
+    height: number;
+    borderRadius?: number;
+    style?: any;
+}) => {
+    const opacity = useRef(new Animated.Value(0.3)).current;
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, {
+                    toValue: 1,
+                    duration: 800,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(opacity, {
+                    toValue: 0.3,
+                    duration: 800,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ]),
+        ).start();
+    }, []);
+
+    return (
+        <Animated.View
+            style={[
+                {
+                    width: width as any,
+                    height,
+                    borderRadius,
+                    backgroundColor: '#E8E8E8',
+                    opacity,
+                },
+                style,
+            ]}
+        />
     );
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: width as any,
-          height,
-          borderRadius,
-          backgroundColor: theme.colors.border,
-          opacity,
-        },
-        style,
-      ]}
-    />
-  );
-}
+};
 
 /**
- * Skeleton placeholder that mimics a BrowseFoodCard layout.
+ * Skeleton card that mimics a BrowseFoodCard while data is loading.
  */
-function BrowseFoodCardSkeleton() {
-  return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        {/* Image placeholder */}
-        <SkeletonBlock width={90} height={90} borderRadius={theme.radius.sm} />
+export const FoodCardSkeleton = () => {
+    const { width } = useWindowDimensions();
+    const cardPadding = wp(16);
 
-        {/* Text placeholders */}
-        <View style={styles.info}>
-          <SkeletonBlock width="70%" height={16} />
-          <SkeletonBlock width="90%" height={12} style={{ marginTop: 6 }} />
-          <SkeletonBlock width="50%" height={12} style={{ marginTop: 6 }} />
-          <View style={styles.bottomRow}>
-            <SkeletonBlock width="30%" height={10} />
-            <SkeletonBlock width={72} height={28} borderRadius={20} />
-          </View>
+    return (
+        <View style={skeletonStyles.card}>
+            {/* Image placeholder */}
+            <ShimmerBlock width="100%" height={width * 0.35} borderRadius={wp(12)} />
+
+            <View style={{ padding: cardPadding, gap: hp(8) }}>
+                {/* Title */}
+                <ShimmerBlock width="65%" height={hp(18)} borderRadius={4} />
+                {/* Description */}
+                <ShimmerBlock width="90%" height={hp(14)} borderRadius={4} />
+                {/* Meta row */}
+                <View style={{ flexDirection: 'row', gap: wp(12), marginTop: hp(4) }}>
+                    <ShimmerBlock width={wp(80)} height={hp(14)} borderRadius={4} />
+                    <ShimmerBlock width={wp(70)} height={hp(14)} borderRadius={4} />
+                </View>
+                {/* Button */}
+                <ShimmerBlock
+                    width="100%"
+                    height={hp(42)}
+                    borderRadius={wp(10)}
+                    style={{ marginTop: hp(8) }}
+                />
+            </View>
         </View>
-      </View>
-    </View>
-  );
-}
+    );
+};
 
 /**
- * Renders `count` skeleton food cards as a loading placeholder.
+ * Shows multiple skeleton cards as a loading placeholder for browse food list.
  */
-export function BrowseFoodSkeleton({ count = 3 }: { count?: number }) {
-  return (
-    <View>
-      {Array.from({ length: count }).map((_, i) => (
-        <BrowseFoodCardSkeleton key={i} />
-      ))}
-    </View>
-  );
-}
+export const BrowseFoodSkeleton = ({ count = 3 }: { count?: number }) => {
+    return (
+        <View style={skeletonStyles.container}>
+            {Array.from({ length: count }).map((_, i) => (
+                <FoodCardSkeleton key={i} />
+            ))}
+        </View>
+    );
+};
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  row: {
-    flexDirection: "row",
-  },
-  info: {
-    flex: 1,
-    marginLeft: theme.spacing.md,
-    justifyContent: "space-between",
-  },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
+/**
+ * Generic stat card skeleton for dashboard stats.
+ */
+export const DashboardStatsSkeleton = ({ count = 3 }: { count?: number }) => {
+    return (
+        <View style={skeletonStyles.statsRow}>
+            {Array.from({ length: count }).map((_, i) => (
+                <View key={i} style={skeletonStyles.statCard}>
+                    <ShimmerBlock width={wp(48)} height={wp(48)} borderRadius={wp(16)} />
+                    <ShimmerBlock width={wp(40)} height={hp(20)} borderRadius={4} style={{ marginTop: hp(12) }} />
+                    <ShimmerBlock width={wp(55)} height={hp(12)} borderRadius={4} style={{ marginTop: hp(6) }} />
+                </View>
+            ))}
+        </View>
+    );
+};
+
+const skeletonStyles = StyleSheet.create({
+    container: {
+        gap: hp(16),
+        paddingBottom: hp(24),
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: wp(16),
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+    },
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: wp(12),
+        marginBottom: hp(24),
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#fff',
+        padding: wp(16),
+        borderRadius: wp(16),
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+    },
 });
+
+export { ShimmerBlock };

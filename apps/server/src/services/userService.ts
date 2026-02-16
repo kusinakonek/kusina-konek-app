@@ -3,12 +3,7 @@ import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex } from "../utils/hash";
-import {
-  encrypt,
-  decrypt,
-  safeDecrypt,
-  safeDecryptAsync,
-} from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt, safeDecryptAsync } from "../utils/encryption";
 
 const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
 
@@ -34,7 +29,7 @@ export const userService = {
     const emailHash = sha256Hex(authEmail.toLowerCase());
     const user = await prisma.user.findUnique({
       where: { emailHash },
-      include: { role: true, userAddress: true },
+      include: { role: true, userAddress: true }
     });
 
     if (!user) {
@@ -43,21 +38,19 @@ export const userService = {
         user: {
           id: authUserId,
           email: authEmail,
-          displayName: authEmail?.split("@")[0] || "User",
-          role: null,
+          displayName: authEmail?.split('@')[0] || 'User',
+          role: null
         },
         profile: null,
         needsProfileUpdate: true,
-        profileCompleted: false,
+        profileCompleted: false
       };
     }
 
     // Decrypt PII fields using async decryption (handles both AES and PGP)
     const firstName = await safeDecryptAsync(user.firstName);
     const lastName = await safeDecryptAsync(user.lastName);
-    const middleName = user.middleName
-      ? await safeDecryptAsync(user.middleName)
-      : null;
+    const middleName = user.middleName ? await safeDecryptAsync(user.middleName) : null;
     const suffix = user.suffix ? await safeDecryptAsync(user.suffix) : null;
     const phoneNo = user.phoneNo ? await safeDecryptAsync(user.phoneNo) : null;
     const orgName = user.orgName ? await safeDecryptAsync(user.orgName) : null;
@@ -65,11 +58,11 @@ export const userService = {
     // Decrypt address fields if address exists
     const address = user.userAddress
       ? {
-          latitude: user.userAddress.latitude,
-          longitude: user.userAddress.longitude,
-          streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
-          barangay: await safeDecryptAsync(user.userAddress.barangay),
-        }
+        latitude: user.userAddress.latitude,
+        longitude: user.userAddress.longitude,
+        streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
+        barangay: await safeDecryptAsync(user.userAddress.barangay)
+      }
       : null;
 
     // Detect if essential fields are empty/missing after decryption
@@ -80,23 +73,20 @@ export const userService = {
       user: {
         id: user.userID,
         email: authEmail,
-        displayName:
-          firstName && lastName
-            ? `${firstName} ${lastName}`.trim()
-            : authEmail?.split("@")[0] || "User",
-        role: user.role?.roleName as Role,
+        displayName: (firstName && lastName) ? `${firstName} ${lastName}`.trim() : (authEmail?.split('@')[0] || 'User'),
+        role: user.role?.roleName as Role
       },
       profile: {
-        firstName: firstName || "",
+        firstName: firstName || '',
         middleName,
-        lastName: lastName || "",
+        lastName: lastName || '',
         suffix,
-        phoneNo: phoneNo || "",
+        phoneNo: phoneNo || '',
         isOrg: user.isOrg,
         orgName,
-        address,
+        address
       },
-      needsProfileUpdate,
+      needsProfileUpdate
     };
   },
 
@@ -118,18 +108,12 @@ export const userService = {
     const roleName = roleFromToken || roleFromInput;
 
     if (!roleName) {
-      throw new HttpError(
-        400,
-        "User role is missing or invalid. Please provide 'role' as 'DONOR' or 'RECIPIENT'.",
-      );
+      throw new HttpError(400, "User role is missing or invalid. Please provide 'role' as 'DONOR' or 'RECIPIENT'.");
     }
 
     const role = await roleRepository.getByName(roleName);
     if (!role) {
-      throw new HttpError(
-        500,
-        `Role '${roleName}' not found in database. Run seed/migrations.`,
-      );
+      throw new HttpError(500, `Role '${roleName}' not found in database. Run seed/migrations.`);
     }
 
     // Hash for indexed lookups
@@ -139,9 +123,7 @@ export const userService = {
     // Encrypt PII with AES-256-GCM
     const encryptedEmail = encrypt(authEmail);
     const encryptedFirstName = encrypt(input.firstName);
-    const encryptedMiddleName = input.middleName
-      ? encrypt(input.middleName)
-      : null;
+    const encryptedMiddleName = input.middleName ? encrypt(input.middleName) : null;
     const encryptedLastName = encrypt(input.lastName);
     const encryptedSuffix = input.suffix ? encrypt(input.suffix) : null;
     const encryptedPhoneNo = encrypt(input.phoneNo);
@@ -166,16 +148,16 @@ export const userService = {
           password: SUPABASE_MANAGED_PASSWORD,
           ...(input.address
             ? {
-                userAddress: {
-                  create: {
-                    latitude: input.address.latitude,
-                    longitude: input.address.longitude,
-                    streetAddress: input.address.streetAddress,
-                    barangay: input.address.barangay,
-                  },
-                },
+              userAddress: {
+                create: {
+                  latitude: input.address.latitude,
+                  longitude: input.address.longitude,
+                  streetAddress: input.address.streetAddress,
+                  barangay: input.address.barangay
+                }
               }
-            : {}),
+            }
+            : {})
         },
         update: {
           roleID: role.roleID,
@@ -191,26 +173,26 @@ export const userService = {
           orgName: encryptedOrgName,
           ...(input.address
             ? {
-                userAddress: {
-                  upsert: {
-                    create: {
-                      latitude: input.address.latitude,
-                      longitude: input.address.longitude,
-                      streetAddress: input.address.streetAddress,
-                      barangay: input.address.barangay,
-                    },
-                    update: {
-                      latitude: input.address.latitude,
-                      longitude: input.address.longitude,
-                      streetAddress: input.address.streetAddress,
-                      barangay: input.address.barangay,
-                    },
+              userAddress: {
+                upsert: {
+                  create: {
+                    latitude: input.address.latitude,
+                    longitude: input.address.longitude,
+                    streetAddress: input.address.streetAddress,
+                    barangay: input.address.barangay
                   },
-                },
+                  update: {
+                    latitude: input.address.latitude,
+                    longitude: input.address.longitude,
+                    streetAddress: input.address.streetAddress,
+                    barangay: input.address.barangay
+                  }
+                }
               }
-            : {}),
+            }
+            : {})
         },
-        include: { role: true, userAddress: true },
+        include: { role: true, userAddress: true }
       });
 
       // Decrypt for response
@@ -220,7 +202,7 @@ export const userService = {
           id: user.userID,
           email: authEmail, // Return plain email
           displayName: `${input.firstName} ${input.lastName}`.trim(),
-          role: user.role?.roleName as Role,
+          role: user.role?.roleName as Role
         },
         profile: {
           firstName: input.firstName,
@@ -232,36 +214,30 @@ export const userService = {
           orgName: input.orgName || null,
           address: user.userAddress
             ? {
-                latitude: user.userAddress.latitude,
-                longitude: user.userAddress.longitude,
-                streetAddress: user.userAddress.streetAddress,
-                barangay: user.userAddress.barangay,
-              }
-            : null,
-        },
+              latitude: user.userAddress.latitude,
+              longitude: user.userAddress.longitude,
+              streetAddress: user.userAddress.streetAddress,
+              barangay: user.userAddress.barangay
+            }
+            : null
+        }
       };
     } catch (error: any) {
-      const message =
-        typeof error?.message === "string"
-          ? error.message
-          : "Failed to complete profile";
+      const message = typeof error?.message === "string" ? error.message : "Failed to complete profile";
 
       // Common unique constraint conflicts
       if (message.includes("phoneNoHash") || message.includes("emailHash")) {
-        throw new HttpError(
-          409,
-          "A profile with the same email/phone already exists",
-        );
+        throw new HttpError(409, "A profile with the same email/phone already exists");
       }
 
       throw error;
     }
   },
 
-  /**
-   * Store or update the user's Expo push token
-   */
-  async updatePushToken(userID: string, expoPushToken: string) {
-    await userRepository.update(userID, { expoPushToken });
-  },
+  async updatePushToken(userID: string, pushToken: string) {
+    return await prisma.user.update({
+      where: { userID },
+      data: { pushToken }
+    });
+  }
 };
