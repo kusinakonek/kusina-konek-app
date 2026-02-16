@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "kusinakonek",
+    "slug": "kusinakonek",
     "scheme": "kusinakonek",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -34,12 +34,18 @@
           "apiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
         }
       }
+      "package": "com.kusinakonek.kusinakonek"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ee40562e-14ee-424d-99a5-ef030cfce6be"
+      }
+    }
   }
 }

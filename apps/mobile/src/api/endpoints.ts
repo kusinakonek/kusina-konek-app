@@ -13,13 +13,15 @@ export const API_ENDPOINTS = {
   USER: {
     GET_PROFILE: "/users/profile",
     UPDATE_PROFILE: "/users/profile",
+    UPDATE_PUSH_TOKEN: "/users/push-token",
   },
   FOOD: {
     LIST_MINE: "/foods/mine",
     CREATE_DONATION: "/foods/donations",
     GET_ALL_DONATIONS: "/foods/donations",
     GET_DONATION_BY_ID: (foodID: string) => `/foods/donations/${foodID}`,
-    GET_DONATIONS_BY_USER: (userID: string) => `/foods/donations/user/${userID}`,
+    GET_DONATIONS_BY_USER: (userID: string) =>
+      `/foods/donations/user/${userID}`,
     UPDATE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
     DELETE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
     REQUEST_DONATION: "/foods/donations/request",
@@ -38,6 +40,7 @@ export const API_ENDPOINTS = {
     GET_ALL: "/distributions",
     GET_MINE: "/distributions/mine",
     GET_AVAILABLE: "/distributions/available",
+    CLAIM_LIMITS: "/distributions/claim-limits",
     GET_BY_ID: (disID: string) => `/distributions/${disID}`,
     UPDATE: (disID: string) => `/distributions/${disID}`,
     UPDATE_STATUS: (disID: string) => `/distributions/${disID}/status`,

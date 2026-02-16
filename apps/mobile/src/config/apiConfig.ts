@@ -60,6 +60,12 @@ const getApiBaseUrl = (): string => {
 
   // --- DEVELOPMENT ---
 
+  // Priority 0: Explicit Override (e.g. for Ngrok)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    console.log(`📡 API URL (override): ${process.env.EXPO_PUBLIC_API_URL}`);
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
   // Priority 1: Auto-detect from Expo's dev server (RECOMMENDED — zero config!)
   // Expo knows the machine's IP because it serves the JS bundle over it.
   // This always gives the CURRENT correct IP, even if .env is stale/cached.
