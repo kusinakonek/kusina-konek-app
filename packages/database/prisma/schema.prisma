@@ -34,6 +34,7 @@ model User {
   isOrg       Boolean  @default(false)
   orgName     String?
   password    String
+  pushToken   String?  // Expo Push Token
   DateAdded   DateTime @default(now())
 
   // Relations
@@ -49,8 +50,26 @@ model User {
   givenFeedback   Feedback[] @relation("DonorFeedbacks")
   receivedFeedback Feedback[] @relation("RecipientFeedbacks")
   
+  // Notification relations
+  notifications   Notification[]
+
   @@index([emailHash])
   @@index([phoneNoHash])
+}
+
+model Notification {
+  notificationID String   @id @default(uuid())
+  userID         String
+  user           User     @relation(fields: [userID], references: [userID])
+  type           String   // e.g., "CLAIM_ALERT"
+  title          String
+  message        String
+  isRead         Boolean  @default(false)
+  entityID       String?  // e.g. disID or foodID
+  createdAt      DateTime @default(now())
+  
+  @@index([userID])
+  @@index([isRead])
 }
 
 

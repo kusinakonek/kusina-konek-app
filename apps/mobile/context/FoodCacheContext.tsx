@@ -20,6 +20,8 @@ export type Distribution = {
   scheduledTime: string;
   actualTime: string | null;
   timestamp: string;
+  /** Distance in km from user's current location (set by server when lat/lng provided) */
+  distanceKm: number | null;
   food: {
     foodID: string;
     foodName: string;
@@ -47,7 +49,11 @@ interface FoodCacheContextType {
   distributions: Distribution[];
   loading: boolean;
   error: string | null;
-  fetchDistributions: (forceRefresh?: boolean) => Promise<void>;
+  fetchDistributions: (
+    forceRefresh?: boolean,
+    lat?: number,
+    lng?: number,
+  ) => Promise<void>;
   invalidateCache: () => void;
   isCached: boolean;
 }
@@ -63,7 +69,7 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
   const [isCached, setIsCached] = useState(false);
 
   const fetchDistributions = useCallback(
-    async (forceRefresh: boolean = false) => {
+    async (forceRefresh: boolean = false, lat?: number, lng?: number) => {
       // If data is already cached and not forcing refresh, skip fetch
       if (isCached && !forceRefresh) {
         return;
@@ -73,8 +79,16 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       try {
+        // Build query params for location-based sorting
+        const params: Record<string, string> = {};
+        if (lat !== undefined && lng !== undefined) {
+          params.lat = lat.toString();
+          params.lng = lng.toString();
+        }
+
         const response = await axiosClient.get(
           API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE,
+          { params },
         );
         const data = response.data?.distributions ?? [];
         setDistributions(data);

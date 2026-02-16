@@ -47,5 +47,28 @@ export const userController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * PUT /api/users/push-token
+   * Update the authenticated user's Expo Push Token
+   */
+  async updatePushToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { pushToken } = req.body;
+      if (!pushToken) {
+        return res.status(400).json({ error: "Push token is required" });
+      }
+
+      await userService.updatePushToken(req.user.id, pushToken);
+
+      return res.status(200).json({ message: "Push token updated" });
+    } catch (error) {
+      next(error);
+    }
   }
 };
