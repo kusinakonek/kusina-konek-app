@@ -13,4 +13,5 @@ export { default as CartHeader } from "./CartHeader";
 export { default as CartBottomBar } from "./CartBottomBar";
 export { default as CartItemCard } from "./CartItemCard";
 export { default as ClaimsConfirmedModal } from "./ClaimsConfirmedModal";
+export { default as DisclaimerModal } from "./DisclaimerModal";
 export * from "./SkeletonLoader";
