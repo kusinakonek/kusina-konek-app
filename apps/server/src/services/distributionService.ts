@@ -317,10 +317,10 @@ export const distributionService = {
       throw new HttpError(409, "Distribution already has a recipient");
     }
 
-    // Update distribution with recipient and change status to ON_THE_WAY
+    // Update distribution with recipient and change status to CLAIMED
     const updated = await distributionRepository.update(params.disID, {
       recipient: { connect: { userID: params.userID } },
-      status: "ON_THE_WAY",
+      status: "CLAIMED",
       claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
