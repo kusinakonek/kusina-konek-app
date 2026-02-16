@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -18,7 +20,9 @@ import {
   Phone,
   CheckCircle,
   Navigation,
+  Navigation2,
   Map,
+  ExternalLink,
 } from "lucide-react-native";
 import {
   useDonation,
@@ -38,6 +42,34 @@ export default function LocationScreen() {
   const { invalidateCache } = useFoodCache();
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const openGoogleMapsNavigation = (lat: number, lng: number, label?: string) => {
+    const destination = `${lat},${lng}`;
+    const encodedLabel = encodeURIComponent(label || 'Destination');
+
+    // Try Google Maps app first, fall back to web
+    const googleMapsAppUrl = Platform.select({
+      android: `google.navigation:q=${destination}&mode=d`,
+      ios: `comgooglemaps://?daddr=${destination}&directionsmode=driving`,
+    });
+
+    const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=&travelmode=driving`;
+
+    if (googleMapsAppUrl) {
+      Linking.canOpenURL(googleMapsAppUrl)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(googleMapsAppUrl);
+          } else {
+            // Fall back to web URL (opens in browser or Google Maps)
+            Linking.openURL(googleMapsWebUrl);
+          }
+        })
+        .catch(() => Linking.openURL(googleMapsWebUrl));
+    } else {
+      Linking.openURL(googleMapsWebUrl);
+    }
+  };
 
   const handleSelectBarangay = (barangay: BarangayHall) => {
     updateFormData({
@@ -98,7 +130,7 @@ export default function LocationScreen() {
             barangay:
               formData.locationType === "barangay"
                 ? formData.selectedBarangay!.name
-                : undefined,
+                : formData.customLocation?.barangay || undefined,
           },
         ],
         scheduledTime: new Date(Date.now() + 3600 * 1000).toISOString(), // Default 1 hour from now
@@ -304,6 +336,23 @@ export default function LocationScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Navigate with Google Maps Button */}
+            <TouchableOpacity
+              style={styles.navigateButton}
+              onPress={() =>
+                openGoogleMapsNavigation(
+                  selectedLocation.latitude,
+                  selectedLocation.longitude,
+                  selectedLocation.name
+                )
+              }>
+              <Navigation2 size={18} color="#fff" />
+              <Text style={styles.navigateButtonText}>
+                Navigate with Google Maps
+              </Text>
+              <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
 
             <View style={styles.noteBox}>
               <Text style={styles.noteLabel}>Note:</Text>
@@ -527,6 +576,27 @@ const styles = StyleSheet.create({
   locationInfoText: {
     fontSize: 13,
     color: "#666",
+  },
+  navigateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#4285F4",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 16,
+    shadowColor: "#4285F4",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  navigateButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   noteBox: {
     backgroundColor: "#FFF3E0",
