@@ -5,6 +5,9 @@
         "projectId": "6a2f5ed2-73f4-47cc-b874-fae39698337d"
       }
     },
-    "owner": "kusinakonek"
+    "owner": "kusinakonek",
+    "android": {
+      "package": "com.kusinakonek.kusinakonek"
+    }
   }
 }
