@@ -130,10 +130,10 @@ export default function Profile() {
 
   const displayName = profileData?.profile
     ? `${profileData.profile.firstName || ""} ${profileData.profile.lastName || ""}`.trim() ||
-    profileData?.user?.displayName ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User"
+      profileData?.user?.displayName ||
+      user?.user_metadata?.full_name ||
+      user?.email?.split("@")[0] ||
+      "User"
     : user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayEmail = profileData?.user?.email || user?.email || "";
   const displayPhone =
@@ -144,18 +144,19 @@ export default function Profile() {
     "Not set";
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    })
+        month: "long",
+        year: "numeric",
+      })
     : "N/A";
   const needsProfileUpdate = profileData?.needsProfileUpdate === true;
 
   // Check if user has any donor history worth showing
-  const hasDonorHistory =
+  const hasDonorHistory = !!(
     donorHistoryStats &&
     ((donorHistoryStats.totalDonated && donorHistoryStats.totalDonated > 0) ||
       (donorHistoryStats.availableItems &&
-        donorHistoryStats.availableItems > 0));
+        donorHistoryStats.availableItems > 0))
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

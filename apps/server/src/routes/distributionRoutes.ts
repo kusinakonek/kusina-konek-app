@@ -13,7 +13,11 @@ import { distributionController } from "../controllers/distributionController";
 export const distributionRouter = Router();
 
 // Get available distributions (authenticated - excludes user's own donations)
-distributionRouter.get("/available", authMiddleware, distributionController.listAvailable);
+distributionRouter.get(
+  "/available",
+  authMiddleware,
+  distributionController.listAvailable,
+);
 
 // Create distribution
 distributionRouter.post(
@@ -31,6 +35,13 @@ distributionRouter.get(
   "/mine",
   authMiddleware,
   distributionController.listMine,
+);
+
+// Get claim limits for current user
+distributionRouter.get(
+  "/claim-limits",
+  authMiddleware,
+  distributionController.claimLimits,
 );
 
 // Get distribution by ID

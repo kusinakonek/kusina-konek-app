@@ -1,6 +1,13 @@
 import { Tabs, router } from "expo-router";
 import { Home, ShoppingCart, User, Utensils } from "lucide-react-native";
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
@@ -15,7 +22,7 @@ function CartIcon({
   badgeCount?: number;
 }) {
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
       <ShoppingCart size={size} color={color} />
       {badgeCount != null && badgeCount > 0 && (
         <View style={styles.badge}>
@@ -41,6 +48,7 @@ function FloatingActionButton() {
 export default function TabLayout() {
   const { role } = useAuth();
   const { items: cartItems } = useCart();
+  const insets = useSafeAreaInsets();
   const isDonor = role === "DONOR";
   const isRecipient = role === "RECIPIENT";
 
@@ -52,19 +60,25 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#999",
         tabBarStyle: {
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? hp(85) : hp(65),
-          paddingBottom: Platform.OS === 'ios' ? hp(25) : hp(8),
+          height:
+            Platform.OS === "ios"
+              ? hp(85) + insets.bottom
+              : hp(65) + insets.bottom,
+          paddingBottom:
+            Platform.OS === "ios"
+              ? hp(25) + insets.bottom
+              : hp(8) + insets.bottom,
           paddingTop: hp(8),
-          backgroundColor: '#fff',
+          backgroundColor: "#fff",
           elevation: 12,
-          shadowColor: '#000',
+          shadowColor: "#000",
           shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.1,
           shadowRadius: 8,
         },
         tabBarLabelStyle: {
           fontSize: fp(11),
-          fontWeight: '600',
+          fontWeight: "600",
         },
       }}>
       <Tabs.Screen
@@ -81,25 +95,25 @@ export default function TabLayout() {
           title: "",
           ...(isDonor
             ? {
-              tabBarButton: (props) => {
-                // Only extract necessary props to avoid type mismatches with spread
-                const { accessibilityState, accessibilityLabel, testID } = props;
-                return (
-                  <TouchableOpacity
-                    style={styles.fabContainer}
-                    onPress={() => router.push('/donate')}
-                    activeOpacity={0.8}
-                    accessibilityState={accessibilityState}
-                    accessibilityLabel={accessibilityLabel}
-                    testID={testID}
-                  >
-                    <View style={styles.fab}>
-                      <Utensils size={wp(28)} color="#fff" />
-                    </View>
-                  </TouchableOpacity>
-                );
-              },
-            }
+                tabBarButton: (props) => {
+                  // Only extract necessary props to avoid type mismatches with spread
+                  const { accessibilityState, accessibilityLabel, testID } =
+                    props;
+                  return (
+                    <TouchableOpacity
+                      style={styles.fabContainer}
+                      onPress={() => router.push("/donate")}
+                      activeOpacity={0.8}
+                      accessibilityState={accessibilityState}
+                      accessibilityLabel={accessibilityLabel}
+                      testID={testID}>
+                      <View style={styles.fab}>
+                        <Utensils size={wp(28)} color="#fff" />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                },
+              }
             : { href: null }),
         }}
       />
@@ -137,22 +151,22 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   fabContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: wp(-28),
     left: 0,
     right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   fab: {
     width: wp(56),
     height: wp(56),
     borderRadius: wp(28),
-    backgroundColor: '#00C853',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#00C853",
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 8,
-    shadowColor: '#00C853',
+    shadowColor: "#00C853",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

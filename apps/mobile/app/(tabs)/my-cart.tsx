@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
   View,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -12,14 +13,60 @@ import CartHeader from "../../src/components/CartHeader";
 import CartBottomBar from "../../src/components/CartBottomBar";
 import CartItemCard from "../../src/components/CartItemCard";
 import EmptyCart from "../../src/components/EmptyCart";
+import ClaimLimitModal from "../../src/components/ClaimLimitModal";
 import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
+import axiosClient from "../../src/api/axiosClient";
+import { API_ENDPOINTS } from "../../src/api/endpoints";
+
+interface ClaimLimitsResponse {
+  dailyClaims: number;
+  weeklyClaims: number;
+  monthlyClaims: number;
+  maxDaily: number;
+  maxWeekly: number;
+  maxMonthly: number;
+  canClaim: boolean;
+}
 
 export default function CartTab() {
   const { items, removeItem, pickUpAll, isPickingUp } = useCart();
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [claimLimits, setClaimLimits] = useState<ClaimLimitsResponse | null>(
+    null,
+  );
+  const [isCheckingLimits, setIsCheckingLimits] = useState(false);
 
   const handleBrowseFood = () => {
     router.push("/(recipient)/browse-food");
+  };
+
+  /**
+   * When "Pick up Ulam(s)" is pressed, first check claim limits,
+   * then proceed with pickup.
+   */
+  const handlePickUpPress = async () => {
+    setIsCheckingLimits(true);
+    try {
+      const response = await axiosClient.get<ClaimLimitsResponse>(
+        API_ENDPOINTS.DISTRIBUTION.CLAIM_LIMITS,
+      );
+      const limits = response.data;
+      setClaimLimits(limits);
+
+      if (!limits.canClaim) {
+        // Show limit exceeded modal
+        setShowLimitModal(true);
+      } else {
+        pickUpAll();
+      }
+    } catch (err: any) {
+      // If the limit check fails, still proceed
+      // (server will enforce limits on the actual request)
+      pickUpAll();
+    } finally {
+      setIsCheckingLimits(false);
+    }
   };
 
   return (
@@ -59,18 +106,31 @@ export default function CartTab() {
         )}
       </View>
 
-      {isPickingUp ? (
+      {isPickingUp || isCheckingLimits ? (
         <View style={styles.loadingBar}>
           <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Claiming your food...</Text>
+          <Text style={styles.loadingText}>
+            {isCheckingLimits
+              ? "Checking claim limits..."
+              : "Claiming your food..."}
+          </Text>
         </View>
       ) : (
         <CartBottomBar
           disabled={items.length === 0}
-          onPickUp={pickUpAll}
+          onPickUp={handlePickUpPress}
           message="Please select a pickup point for each item"
         />
       )}
+
+      {/* Claim Limit Modal */}
+      <ClaimLimitModal
+        visible={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        dailyClaims={claimLimits?.dailyClaims ?? 0}
+        weeklyClaims={claimLimits?.weeklyClaims ?? 0}
+        monthlyClaims={claimLimits?.monthlyClaims ?? 0}
+      />
     </SafeAreaView>
   );
 }
