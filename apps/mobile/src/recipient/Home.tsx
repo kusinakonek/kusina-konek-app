@@ -19,6 +19,7 @@ import EmptyRecentFood from "../components/EmptyRecentFood";
 import { Package, MapPin, Utensils, Search } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
+import LoadingScreen from "../components/LoadingScreen";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -75,6 +76,10 @@ export default function RecipientHome() {
     user?.user_metadata?.full_name?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
     "there";
+
+  if (loading && !refreshing) {
+    return <LoadingScreen message="Loading dashboard..." />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -157,7 +162,7 @@ export default function RecipientHome() {
               <Text style={styles.recipientStatsMetaDot}>•</Text>
               <Utensils size={wp(12)} color="#2962FF" />
               <Text style={styles.recipientStatsMetaText}>
-                {dashboardData?.stats?.totalServings || 0}+ servings
+                {`${dashboardData?.stats?.totalServings || 0}+ servings`}
               </Text>
             </View>
           </View>

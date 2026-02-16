@@ -18,6 +18,7 @@ import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
 import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import { BrowseFoodSkeleton } from "../../src/components/SkeletonLoader";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -168,10 +169,9 @@ export default function BrowseFood() {
         </Text>
 
         {/* Loading State */}
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.loadingText}>Loading available food...</Text>
+            <BrowseFoodSkeleton count={3} />
           </View>
         ) : (
           <FlatList
@@ -256,9 +256,8 @@ const styles = StyleSheet.create({
     paddingBottom: hp(theme.spacing.lg),
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingTop: hp(theme.spacing.sm),
+    paddingBottom: hp(theme.spacing.lg),
   },
   loadingText: {
     marginTop: hp(theme.spacing.sm),

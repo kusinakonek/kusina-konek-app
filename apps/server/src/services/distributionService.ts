@@ -17,7 +17,7 @@ import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile first. Go to Profile > Edit Profile.");
   return profile;
 };
 
@@ -317,20 +317,20 @@ export const distributionService = {
       throw new HttpError(409, "Distribution already has a recipient");
     }
 
-    // Update distribution with recipient and change status to ON_THE_WAY
+    // Update distribution with recipient and change status to CLAIMED
     const updated = await distributionRepository.update(params.disID, {
       recipient: { connect: { userID: params.userID } },
-      status: "ON_THE_WAY",
+      status: "CLAIMED",
       claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
-            scheduledTime: new Date(params.input.scheduledTime),
-          }
+          scheduledTime: new Date(params.input.scheduledTime),
+        }
         : {}),
       ...(params.input.photoProof
         ? {
-            photoProof: params.input.photoProof,
-          }
+          photoProof: params.input.photoProof,
+        }
         : {}),
     });
 

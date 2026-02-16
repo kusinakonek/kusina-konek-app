@@ -6,7 +6,7 @@ import { sha256Hex } from "../utils/hash";
 const ensureProfile = async (email: string) => {
   const emailHash = sha256Hex(email.toLowerCase());
   const profile = await userRepository.getByEmailHash(emailHash);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile first. Go to Profile > Edit Profile.");
   return profile;
 };
 

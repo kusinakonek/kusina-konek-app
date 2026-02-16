@@ -33,7 +33,18 @@ export const userService = {
     });
 
     if (!user) {
-      throw new HttpError(404, "Profile not found. Please complete your profile first.");
+      // No profile yet — return basic info from auth, signal profile incomplete
+      return {
+        user: {
+          id: authUserId,
+          email: authEmail,
+          displayName: authEmail?.split('@')[0] || 'User',
+          role: null
+        },
+        profile: null,
+        needsProfileUpdate: true,
+        profileCompleted: false
+      };
     }
 
     // Decrypt PII fields using async decryption (handles both AES and PGP)
@@ -47,11 +58,11 @@ export const userService = {
     // Decrypt address fields if address exists
     const address = user.userAddress
       ? {
-          latitude: user.userAddress.latitude,
-          longitude: user.userAddress.longitude,
-          streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
-          barangay: await safeDecryptAsync(user.userAddress.barangay)
-        }
+        latitude: user.userAddress.latitude,
+        longitude: user.userAddress.longitude,
+        streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
+        barangay: await safeDecryptAsync(user.userAddress.barangay)
+      }
       : null;
 
     // Detect if essential fields are empty/missing after decryption
