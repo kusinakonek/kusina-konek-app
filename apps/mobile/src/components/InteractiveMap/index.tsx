@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Maximize2, X, Check, Navigation2 } from 'lucide-react-native';
+import { Maximize2, X, Check, Navigation2, LocateFixed, Compass } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ===== Naga City Barangay Database for accurate detection =====
@@ -70,47 +70,77 @@ function isZoneLabel(str: string): boolean {
 }
 
 async function reverseGeocodeLocation(lat: number, lng: number) {
-    try {
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18`
-        );
-        const data = await response.json();
-        const addr = data.address || {};
+    const resolveBarangay = (candidates: string[]) => {
+        const cleanedCandidates = candidates
+            .map((candidate) => (candidate || '')
+                .replace(/^Brgy\.?\s*/i, '')
+                .replace(/^Barangay\s*/i, '')
+                .trim())
+            .filter((candidate) => candidate && !isZoneLabel(candidate));
 
-        // --- Barangay Detection ---
-        const rawBarangay = addr.suburb || addr.quarter || addr.neighbourhood || addr.village || '';
-        const cleanedBarangay = rawBarangay.replace(/^Brgy\.?\s*/i, '').replace(/^Barangay\s*/i, '').trim();
-
-        let barangay = '';
         if (isInNagaCity(lat, lng)) {
-            const nearest = findNearestBarangay(lat, lng);
-            const nominatimMatch = (cleanedBarangay && !isZoneLabel(cleanedBarangay))
-                ? NAGA_BARANGAYS.find(b => b.name.toLowerCase() === cleanedBarangay.toLowerCase()) || null
-                : null;
-
-            if (nominatimMatch) {
-                barangay = 'Barangay ' + nominatimMatch.name;
-            } else if (nearest && nearest.distance < 3.0) {
-                barangay = 'Barangay ' + nearest.barangay.name;
-            } else if (cleanedBarangay && !isZoneLabel(cleanedBarangay)) {
-                barangay = 'Barangay ' + cleanedBarangay;
+            for (const candidate of cleanedCandidates) {
+                const exactMatch = NAGA_BARANGAYS.find(
+                    (barangay) => barangay.name.toLowerCase() === candidate.toLowerCase()
+                );
+                if (exactMatch) {
+                    return `Barangay ${exactMatch.name}`;
+                }
             }
-        } else {
-            if (cleanedBarangay && !isZoneLabel(cleanedBarangay)) {
-                barangay = 'Barangay ' + cleanedBarangay;
+
+            const nearest = findNearestBarangay(lat, lng);
+            if (nearest.distance < 3) {
+                return `Barangay ${nearest.barangay.name}`;
             }
         }
 
-        // --- Landmark ---
+        if (cleanedCandidates.length > 0) {
+            return `Barangay ${cleanedCandidates[0]}`;
+        }
+
+        return '';
+    };
+
+    const dedupeAndJoinAddressParts = (parts: string[]) => {
+        const filteredParts = parts
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .filter((part, index, list) =>
+                list.findIndex((item) => item.toLowerCase() === part.toLowerCase()) === index
+            );
+
+        return filteredParts.join(', ');
+    };
+
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18&namedetails=1&accept-language=en`
+        );
+        if (!response.ok) {
+            throw new Error('Reverse geocode request failed');
+        }
+
+        const data = await response.json();
+        const addr = data.address || {};
+
+        const barangay = resolveBarangay([
+            addr.suburb,
+            addr.village,
+            addr.quarter,
+            addr.neighbourhood,
+            addr.hamlet,
+            addr.city_district,
+            addr.municipality,
+        ]);
+
         let landmark = '';
-        if (data.name && data.name !== rawBarangay && data.name !== addr.city && data.name !== addr.town) {
+        if (data.name && data.name !== addr.city && data.name !== addr.town && data.name !== barangay) {
             landmark = data.name;
         } else if (addr.amenity) landmark = addr.amenity;
         else if (addr.shop) landmark = addr.shop;
         else if (addr.building) landmark = addr.building;
         else if (addr.road) landmark = addr.road;
 
-        // --- Full structured address ---
         const parts: string[] = [];
         let streetPart = '';
         if (addr.house_number) streetPart += addr.house_number + ' ';
@@ -124,15 +154,74 @@ async function reverseGeocodeLocation(lat: number, lng: number) {
         if (addr.postcode) parts.push(addr.postcode);
         if (addr.country) parts.push(addr.country);
 
-        return {
-            address: data.display_name || parts.join(', '),
-            barangay,
-            landmark,
-            fullAddress: parts.join(', '),
-        };
+        const fullAddress = dedupeAndJoinAddressParts(parts);
+        const address = data.display_name || fullAddress;
+
+        if (address) {
+            return {
+                address,
+                barangay,
+                landmark,
+                fullAddress,
+            };
+        }
     } catch {
-        return { address: '', barangay: '', landmark: '', fullAddress: '' };
     }
+
+    try {
+        const geocoded = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+        if (geocoded.length > 0) {
+            const locationData = geocoded[0] as Location.LocationGeocodedAddress & {
+                district?: string;
+                cityDistrict?: string;
+            };
+
+            const barangay = resolveBarangay([
+                locationData.district || '',
+                locationData.cityDistrict || '',
+                locationData.subregion || '',
+                locationData.city || '',
+            ]);
+
+            const streetLine = [locationData.streetNumber, locationData.street]
+                .filter(Boolean)
+                .join(' ')
+                .trim();
+            const municipality = locationData.city || locationData.subregion || '';
+
+            const fullAddress = dedupeAndJoinAddressParts([
+                streetLine,
+                barangay,
+                municipality,
+                locationData.region || '',
+                locationData.postalCode || '',
+                locationData.country || '',
+            ]);
+
+            const address = fullAddress || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+            return {
+                address,
+                barangay,
+                landmark: locationData.name || locationData.street || '',
+                fullAddress: fullAddress || address,
+            };
+        }
+    } catch {
+    }
+
+    const nearest = isInNagaCity(lat, lng) ? findNearestBarangay(lat, lng) : null;
+    const fallbackBarangay = nearest && nearest.distance < 3
+        ? `Barangay ${nearest.barangay.name}`
+        : '';
+    const coordinateAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+    return {
+        address: coordinateAddress,
+        barangay: fallbackBarangay,
+        landmark: '',
+        fullAddress: coordinateAddress,
+    };
 }
 
 // ===== Component =====
@@ -172,6 +261,109 @@ export default function InteractiveMap({
     const insets = useSafeAreaInsets();
     const mapRef = useRef<MapView>(null);
     const fullscreenMapRef = useRef<MapView>(null);
+
+    const animateToLocation = (
+        mapTarget: React.RefObject<MapView | null>,
+        latitude: number,
+        longitude: number,
+        includeZoom = false
+    ) => {
+        const camera: {
+            center: { latitude: number; longitude: number };
+            heading: number;
+            pitch: number;
+            zoom?: number;
+        } = {
+            center: { latitude, longitude },
+            heading: 0,
+            pitch: 0,
+        };
+
+        if (includeZoom) {
+            camera.zoom = 16;
+        }
+
+        mapTarget.current?.animateCamera(camera, { duration: 450 });
+    };
+
+    const handleRecenter = async (fullscreen = false) => {
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                return;
+            }
+
+            const location = await Location.getCurrentPositionAsync({});
+            const nextLocation = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            };
+
+            setCurrentLocation(nextLocation);
+
+            if (fullscreen) {
+                setTempMarkerCoord(nextLocation);
+                setTempAddressInfo(null);
+                setGeocoding(true);
+                animateToLocation(fullscreenMapRef, nextLocation.latitude, nextLocation.longitude, true);
+
+                const geocoded = await reverseGeocodeLocation(nextLocation.latitude, nextLocation.longitude);
+                setTempAddressInfo(geocoded);
+                setGeocoding(false);
+            } else {
+                setMarkerCoord(nextLocation);
+                animateToLocation(mapRef, nextLocation.latitude, nextLocation.longitude, true);
+
+                onLocationSelect({
+                    latitude: nextLocation.latitude,
+                    longitude: nextLocation.longitude,
+                    address: '',
+                    barangay: '',
+                    landmark: '',
+                    fullAddress: '',
+                });
+
+                const geocoded = await reverseGeocodeLocation(nextLocation.latitude, nextLocation.longitude);
+                onLocationSelect({
+                    latitude: nextLocation.latitude,
+                    longitude: nextLocation.longitude,
+                    address: geocoded.address,
+                    barangay: geocoded.barangay,
+                    landmark: geocoded.landmark,
+                    fullAddress: geocoded.fullAddress,
+                });
+            }
+        } catch {
+            if (fullscreen) {
+                setGeocoding(false);
+            }
+        }
+    };
+
+    const handleResetNorth = async () => {
+        if (!fullscreenMapRef.current) {
+            return;
+        }
+
+        try {
+            const camera = await fullscreenMapRef.current.getCamera();
+            fullscreenMapRef.current.animateCamera(
+                {
+                    ...camera,
+                    heading: 0,
+                    pitch: 0,
+                },
+                { duration: 450 }
+            );
+        } catch {
+            const target = tempMarkerCoord || markerCoord || currentLocation;
+            if (!target) {
+                return;
+            }
+
+            animateToLocation(fullscreenMapRef, target.latitude, target.longitude);
+        }
+    };
 
     // Get initial location
     useEffect(() => {
@@ -342,6 +534,7 @@ export default function InteractiveMap({
                 onPress={handleMapPress}
                 showsUserLocation
                 showsMyLocationButton={false}
+                showsCompass={false}
                 toolbarEnabled={false}
                 scrollEnabled={false}
                 zoomEnabled={true}
@@ -387,6 +580,10 @@ export default function InteractiveMap({
                 <Text style={styles.enlargeText}>Enlarge Map</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.inlineLocateButton} onPress={() => handleRecenter(false)}>
+                <LocateFixed size={18} color="#fff" />
+            </TouchableOpacity>
+
             {/* Fullscreen Map Modal */}
             <Modal
                 visible={isFullscreen}
@@ -408,7 +605,9 @@ export default function InteractiveMap({
                         mapType={mapType}
                         onPress={handleFullscreenMapPress}
                         showsUserLocation
-                        showsMyLocationButton
+                        showsMyLocationButton={false}
+                        showsCompass={false}
+                        rotateEnabled
                     >
                         {tempMarkerCoord && (
                             <Marker
@@ -453,6 +652,15 @@ export default function InteractiveMap({
                             <Text style={[styles.mapTypeBtnText, mapType === 'hybrid' && styles.mapTypeBtnTextActive]}>
                                 Satellite
                             </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={[styles.fullscreenControlStack, { bottom: insets.bottom + 146 }]}>
+                        <TouchableOpacity style={styles.controlButton} onPress={() => handleRecenter(true)}>
+                            <LocateFixed size={18} color="#333" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.controlButton} onPress={handleResetNorth}>
+                            <Compass size={18} color="#333" />
                         </TouchableOpacity>
                     </View>
 
@@ -584,6 +792,17 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
     },
+    inlineLocateButton: {
+        position: 'absolute',
+        bottom: 12,
+        left: 12,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(0,0,0,0.72)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     modalContainer: {
         flex: 1,
         backgroundColor: '#000',
@@ -636,6 +855,25 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    fullscreenControlStack: {
+        position: 'absolute',
+        right: 12,
+        gap: 10,
+        zIndex: 10,
+    },
+    controlButton: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.22,
+        shadowRadius: 4,
+        elevation: 5,
     },
     locationPreview: {
         position: 'absolute',
