@@ -152,4 +152,16 @@ export const foodController = {
       next(error);
     }
   },
+
+  async confirmDonation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await foodService.confirmDonation({
+        userID: req.user!.id,
+        foodID: req.params.foodID,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

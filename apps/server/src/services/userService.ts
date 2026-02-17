@@ -232,5 +232,5 @@ export const userService = {
 
       throw error;
     }
-  }
+  },
 };
