@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 import { useDonation, PRESET_FOODS, FoodItem } from '../../../context/DonationContext';
+import DisclaimerModal from '../../../src/components/DisclaimerModal';
 
 // Food images using online URLs
 const foodImages: { [key: string]: string } = {
@@ -20,6 +21,16 @@ const foodImages: { [key: string]: string } = {
 export default function SelectFoodScreen() {
     const router = useRouter();
     const { formData, updateFormData, setCurrentStep } = useDonation();
+    const [showDisclaimer, setShowDisclaimer] = useState(true);
+
+    const handleAcceptDisclaimer = () => {
+        setShowDisclaimer(false);
+    };
+
+    const handleDeclineDisclaimer = () => {
+        setShowDisclaimer(false);
+        router.back();
+    };
 
     const handleSelectFood = (food: FoodItem) => {
         updateFormData({
@@ -45,6 +56,13 @@ export default function SelectFoodScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
+            {/* Disclaimer Modal */}
+            <DisclaimerModal
+                visible={showDisclaimer}
+                onAccept={handleAcceptDisclaimer}
+                onDecline={handleDeclineDisclaimer}
+            />
+
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
