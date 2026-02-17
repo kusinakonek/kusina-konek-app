@@ -47,5 +47,5 @@ export const userController = {
     } catch (error) {
       next(error);
     }
-  }
+  },
 };

@@ -1,6 +1,6 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { MapPin, Clock, Users } from "lucide-react-native";
+import { MapPin, Clock, Users, Navigation } from "lucide-react-native";
 import { theme } from "../../constants/theme";
 
 const DEFAULT_FOOD_IMAGE = require("../../../assets/KusinaKonek-Logo.png");
@@ -12,6 +12,7 @@ export type BrowseFoodCardProps = {
   servings: number;
   barangay: string;
   timeAgo: string;
+  distanceKm?: number | null;
   onRequest?: () => void;
 };
 
@@ -22,8 +23,15 @@ export default function BrowseFoodCard({
   servings,
   barangay,
   timeAgo,
+  distanceKm,
   onRequest,
 }: BrowseFoodCardProps) {
+  const distanceLabel =
+    distanceKm != null
+      ? distanceKm < 1
+        ? `${Math.round(distanceKm * 1000)}m away`
+        : `${distanceKm} km away`
+      : null;
   return (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -59,6 +67,15 @@ export default function BrowseFoodCard({
               {barangay}
             </Text>
           </View>
+
+          {distanceLabel ? (
+            <View style={styles.metaRow}>
+              <Navigation size={14} color={theme.colors.primary} />
+              <Text style={[styles.metaText, styles.distanceText]}>
+                {distanceLabel}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Bottom row: time + request button */}
           <View style={styles.bottomRow}>
@@ -141,6 +158,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.mutedText,
     flexShrink: 1,
+  },
+  distanceText: {
+    color: theme.colors.primary,
+    fontWeight: "600",
   },
   bottomRow: {
     flexDirection: "row",
