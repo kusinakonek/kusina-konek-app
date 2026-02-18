@@ -24,6 +24,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -43,7 +44,14 @@
       "expo-router",
       "expo-dev-client",
       "expo-location",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "android": {
+            "usesFCMV1": true
+          }
+        }
+      ],
       "expo-image-picker",
       [
         "expo-build-properties",

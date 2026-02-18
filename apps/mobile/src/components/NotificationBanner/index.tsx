@@ -1,111 +1,146 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Platform, SafeAreaView } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Bell } from 'lucide-react-native';
+import { wp, hp, fp } from '../../utils/responsive';
 
 interface NotificationBannerProps {
+    visible: boolean;
     title: string;
     message: string;
-    visible: boolean;
-    onPress?: () => void;
     onClose: () => void;
+    duration?: number;
 }
 
-export const NotificationBanner: React.FC<NotificationBannerProps> = ({
+export const NotificationBanner = ({
+    visible,
     title,
     message,
-    visible,
-    onPress,
     onClose,
-}) => {
-    const slideAnim = useRef(new Animated.Value(-200)).current;
+    duration = 5000,
+}: NotificationBannerProps) => {
+    const slideAnim = useRef(new Animated.Value(-100)).current;
+    const [isRendered, setIsRendered] = useState(visible);
 
     useEffect(() => {
         if (visible) {
+            setIsRendered(true);
+            // Slide down
             Animated.timing(slideAnim, {
                 toValue: 0,
-                duration: 400,
+                duration: 300,
                 useNativeDriver: true,
             }).start();
 
             // Auto hide
             const timer = setTimeout(() => {
                 handleClose();
-            }, 5000);
+            }, duration);
+
             return () => clearTimeout(timer);
+        } else {
+            // Slide up (hidden state)
+            Animated.timing(slideAnim, {
+                toValue: -100,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => {
+                setIsRendered(false);
+            });
         }
     }, [visible]);
 
     const handleClose = () => {
         Animated.timing(slideAnim, {
-            toValue: -200,
+            toValue: -100,
             duration: 300,
             useNativeDriver: true,
-        }).start(() => onClose());
+        }).start(() => {
+            setIsRendered(false);
+            onClose();
+        });
     };
 
-    if (!visible) return null;
+    if (!isRendered) return null;
 
     return (
-        <Animated.View style={[styles.wrapper, { transform: [{ translateY: slideAnim }] }]}>
-            <SafeAreaView>
-                <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.container}>
+        <Animated.View
+            style={[
+                styles.container,
+                { transform: [{ translateY: slideAnim }] },
+            ]}
+        >
+            <SafeAreaView edges={['top']} style={styles.safeArea}>
+                <View style={styles.content}>
                     <View style={styles.iconContainer}>
-                        <Bell size={24} color="#FFF" />
+                        <Bell size={wp(20)} color="#fff" />
                     </View>
-                    <View style={styles.contentContainer}>
-                        <Text style={styles.title}>{title}</Text>
-                        <Text style={styles.message} numberOfLines={2}>{message}</Text>
+                    <View style={styles.textContainer}>
+                        <Text style={styles.title} numberOfLines={1}>
+                            {title}
+                        </Text>
+                        <Text style={styles.message} numberOfLines={2}>
+                            {message}
+                        </Text>
                     </View>
-                </TouchableOpacity>
+                    <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+                        <X size={wp(20)} color="#fff" />
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
-    wrapper: {
+    container: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 9999,
-        paddingHorizontal: 16,
-        paddingTop: Platform.OS === 'android' ? 40 : 10,
+        backgroundColor: '#00C853',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
-    container: {
-        backgroundColor: 'rgba(32, 32, 32, 0.95)',
-        borderRadius: 16,
-        padding: 16,
+    safeArea: {
+        backgroundColor: 'transparent',
+    },
+    content: {
         flexDirection: 'row',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: wp(16),
+        paddingVertical: hp(12),
+        minHeight: hp(60),
     },
     iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#FF6F00', // Brand Accent
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
+        marginRight: wp(12),
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: wp(8),
+        borderRadius: wp(20),
     },
-    contentContainer: {
+    textContainer: {
         flex: 1,
+        marginRight: wp(8),
     },
     title: {
-        color: '#FFF',
-        fontSize: 16,
+        color: '#fff',
+        fontSize: fp(14),
         fontWeight: 'bold',
-        marginBottom: 2,
+        marginBottom: hp(2),
     },
     message: {
-        color: '#E0E0E0',
-        fontSize: 13,
+        color: '#fff',
+        fontSize: fp(12),
+        opacity: 0.9,
+    },
+    closeButton: {
+        padding: wp(4),
     },
 });
