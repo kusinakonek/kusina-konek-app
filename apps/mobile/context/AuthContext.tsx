@@ -215,12 +215,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const axiosClient = (await import('../src/api/axiosClient')).default;
+
+        const barangay = metadata?.barangay || '';
+
         const response = await axiosClient.put('/users/profile', {
             firstName,
             lastName: lastName || firstName,
             phoneNo: phone || `no-phone-${userId}`,
             role: selectedRole,
             isOrg: false,
+            password,
+            ...(barangay ? {
+                address: {
+                    latitude: 0,
+                    longitude: 0,
+                    streetAddress: '',
+                    barangay,
+                }
+            } : {}),
         });
 
         if (response.status !== 200) {
