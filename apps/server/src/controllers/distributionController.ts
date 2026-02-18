@@ -157,4 +157,16 @@ export const distributionController = {
       next(error);
     }
   },
+
+  async markOnTheWay(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await distributionService.markOnTheWay({
+        userID: req.user!.id,
+        disID: req.params.disID,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

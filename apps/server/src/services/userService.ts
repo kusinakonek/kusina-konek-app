@@ -233,4 +233,16 @@ export const userService = {
       throw error;
     }
   },
+
+  /**
+   * Save or update the Expo push token for a user.
+   * Called when the app registers for push notifications.
+   * Uses updateMany so it never throws if the user profile doesn't exist yet.
+   */
+  async updatePushToken(userID: string, pushToken: string) {
+    await prisma.user.updateMany({
+      where: { userID },
+      data: { pushToken },
+    });
+  },
 };
