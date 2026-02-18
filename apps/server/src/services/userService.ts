@@ -2,10 +2,11 @@ import { CompleteUserProfileInput, Role } from "@kusinakonek/common";
 import { prisma } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
-import { sha256Hex } from "../utils/hash";
+import { sha256Hex, hashPassword } from "../utils/hash";
 import { encrypt, decrypt, safeDecrypt, safeDecryptAsync } from "../utils/encryption";
+import crypto from "crypto";
 
-const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
+
 
 const normalizeRole = (value: unknown): Role | undefined => {
   if (typeof value !== "string") return undefined;
@@ -25,12 +26,34 @@ export const userService = {
       throw new HttpError(400, "Authenticated email is missing");
     }
 
-    // Lookup user by emailHash
+    // Primary lookup: by emailHash
     const emailHash = sha256Hex(authEmail.toLowerCase());
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { emailHash },
       include: { role: true, userAddress: true }
     });
+
+    // Fallback lookup: by userID (handles cases where emailHash doesn't match,
+    // e.g. user created via a different path or email casing mismatch)
+    if (!user && authUserId) {
+      user = await prisma.user.findUnique({
+        where: { userID: authUserId },
+        include: { role: true, userAddress: true }
+      });
+      if (user) {
+        console.log(`[getProfile] Found user by userID fallback (emailHash mismatch). Updating emailHash.`);
+        // Fix the emailHash so future lookups work correctly
+        try {
+          await prisma.user.update({
+            where: { userID: authUserId },
+            data: { emailHash }
+          });
+        } catch (e) {
+          // Non-fatal: another row may already have this emailHash
+          console.warn(`[getProfile] Could not update emailHash:`, e);
+        }
+      }
+    }
 
     if (!user) {
       // No profile yet — return basic info from auth, signal profile incomplete
@@ -129,6 +152,10 @@ export const userService = {
     const encryptedPhoneNo = encrypt(input.phoneNo);
     const encryptedOrgName = input.orgName ? encrypt(input.orgName) : null;
 
+    // Hash the password with bcrypt (use provided password or a secure random fallback)
+    const rawPassword = (input as any).password || crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await hashPassword(rawPassword);
+
     try {
       const user = await prisma.user.upsert({
         where: { emailHash },
@@ -145,7 +172,7 @@ export const userService = {
           emailHash,
           isOrg: input.isOrg ?? false,
           orgName: encryptedOrgName,
-          password: SUPABASE_MANAGED_PASSWORD,
+          password: hashedPassword,
           ...(input.address
             ? {
               userAddress: {

@@ -9,10 +9,22 @@ import { apiRouter } from "./routes";
 
 export const app = express();
 
+// Disable ETag so API responses always return 200 with a fresh body
+// (prevents React Native / OkHttp from serving stale 304 responses)
+app.set("etag", false);
+
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
+
+// Prevent HTTP caching for all /api responses
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
 
 app.get("/health", async (_req, res) => {
     try {

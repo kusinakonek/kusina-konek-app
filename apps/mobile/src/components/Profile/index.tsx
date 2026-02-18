@@ -49,13 +49,16 @@ export default function Profile() {
   const [switchingRole, setSwitchingRole] = useState(false);
 
   const fetchProfileData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
       setProfileData(profileRes.data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
+    } catch (error: any) {
+      console.error("Error fetching profile:", error?.response?.data || error?.message || error);
     }
 
     try {
@@ -64,8 +67,8 @@ export default function Profile() {
           ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
           : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setStatsData(dashboardRes.data?.stats || null);
-    } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
+    } catch (error: any) {
+      console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
     }
 
     // If current role is RECIPIENT, also fetch donor stats for history card
