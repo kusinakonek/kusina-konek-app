@@ -14,6 +14,7 @@ import {
   userRepository,
 } from "../repositories";
 import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
+import { notificationService } from "./notificationService";
 
 /**
  * Haversine formula: compute distance in km between two lat/lng points.
@@ -30,9 +31,9 @@ function haversineKm(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -159,6 +160,15 @@ export const distributionService = {
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
+
+    // Notify all recipients that new food is available
+    notificationService
+      .broadcastToRecipients(
+        "🍱 New Food Available!",
+        `${safeDecrypt(food.foodName) || "Food"} is now available near you.`,
+        { screen: "BrowseFood" },
+      )
+      .catch((e) => console.error("Broadcast error:", e));
 
     return { distribution: decryptedDistribution };
   },
@@ -336,6 +346,45 @@ export const distributionService = {
     return { distribution: decryptedDistribution };
   },
 
+  /**
+   * Recipient marks they are on the way to pick up the food.
+   * Changes status to ON_THE_WAY and notifies the donor.
+   */
+  async markOnTheWay(params: { userID: string; disID: string }) {
+    await ensureProfile(params.userID);
+
+    const existing = await distributionRepository.getById(params.disID);
+    if (!existing) throw new HttpError(404, "Distribution not found");
+
+    if (existing.recipientID !== params.userID) {
+      throw new HttpError(403, "Only the recipient can mark as on the way");
+    }
+
+    if (existing.status !== "CLAIMED") {
+      throw new HttpError(409, "Distribution must be in CLAIMED status");
+    }
+
+    const distribution = await distributionRepository.updateStatus(
+      params.disID,
+      "ON_THE_WAY",
+    );
+
+    // Notify donor
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "🚶 Recipient is on the way!",
+        "Someone is heading to pick up your food donation.",
+        "ON_THE_WAY",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
+
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
+  },
+
   async completeDistribution(params: {
     userID: string;
     disID: string;
@@ -360,6 +409,18 @@ export const distributionService = {
         : new Date(),
       status: "COMPLETED",
     });
+
+    // Notify donor that food was successfully received
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "✅ Food Delivered!",
+        "Your food donation has been successfully received by the recipient.",
+        "DELIVERY_CONFIRMED",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
 
     const decryptedDistribution = decryptDistribution(updated);
     return { distribution: decryptedDistribution };
@@ -457,17 +518,29 @@ export const distributionService = {
       claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
-            scheduledTime: new Date(params.input.scheduledTime),
-          }
+          scheduledTime: new Date(params.input.scheduledTime),
+        }
         : {}),
       ...(params.input.photoProof
         ? {
-            photoProof: params.input.photoProof,
-          }
+          photoProof: params.input.photoProof,
+        }
         : {}),
     });
 
     const decryptedDistribution = decryptDistribution(updated);
+
+    // Notify donor that their food was claimed
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "🎉 Your food was claimed!",
+        "Someone picked up your ulam. They will be on their way soon.",
+        "CLAIM_ALERT",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
 
     return { distribution: decryptedDistribution };
   },

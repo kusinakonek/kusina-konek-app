@@ -67,7 +67,17 @@ export default function RecipientHome() {
       quantity: `${f.quantity} servings`,
       location: f.location,
       time: f.timeAgo,
-      status: f.status?.toLowerCase(),
+      // Map API status values to UI status values
+      status: (() => {
+        switch (f.status?.toUpperCase()) {
+          case 'PENDING': return 'pending';
+          case 'CLAIMED': return 'claimed';
+          case 'ON_THE_WAY': return 'on-the-way';
+          case 'COMPLETED': return 'completed';
+          case 'DELIVERED': return 'completed';
+          default: return f.status?.toLowerCase();
+        }
+      })() as RecentItem['status'],
       rating: f.myRating,
       showFeedback: f.canGiveFeedback,
     }));
@@ -93,12 +103,38 @@ export default function RecipientHome() {
           onPress: async () => {
             setLoading(true);
             try {
-              await axiosClient.post(`/donations/${id}/confirm`);
+              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(id));
               fetchDashboardData();
-              Alert.alert("Success", "Donation marked as received!");
+              Alert.alert("Success", "Food marked as received! Thank you.");
             } catch (error) {
               console.error("Failed to confirm donation", error);
-              Alert.alert("Error", "Failed to confirm donation. Please try again.");
+              Alert.alert("Error", "Failed to confirm. Please try again.");
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleMarkOnTheWay = async (id: string) => {
+    Alert.alert(
+      "On the Way",
+      "Are you heading to pick up this food now?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, I'm On My Way",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
+              fetchDashboardData();
+              Alert.alert("Great!", "The donor has been notified you're on your way.");
+            } catch (error) {
+              console.error("Failed to mark on the way", error);
+              Alert.alert("Error", "Failed to update status. Please try again.");
             } finally {
               setLoading(false);
             }
@@ -210,6 +246,7 @@ export default function RecipientHome() {
             role="RECIPIENT"
             onSeeAll={() => { }}
             onConfirm={handleConfirmDonation}
+            onMarkOnTheWay={handleMarkOnTheWay}
           />
         ) : (
           <View style={styles.recentSection}>

@@ -9,7 +9,7 @@ export interface RecentItem {
     quantity: string;
     location: string;
     time: string;
-    status?: 'donated' | 'claimed' | 'on-the-way';
+    status?: 'pending' | 'donated' | 'claimed' | 'on-the-way' | 'completed';
     rating?: number;
     recipientName?: string; // For donors seeing who claimed
     showFeedback?: boolean; // Show feedback button for recipients
@@ -20,9 +20,10 @@ interface RecentItemsListProps {
     role: 'DONOR' | 'RECIPIENT';
     onSeeAll?: () => void;
     onConfirm?: (id: string) => void;
+    onMarkOnTheWay?: (id: string) => void;
 }
 
-export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItemsListProps) => {
+export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay }: RecentItemsListProps) => {
     const renderItem = ({ item }: { item: RecentItem }) => (
         <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -69,12 +70,23 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItem
                 </TouchableOpacity>
             )}
 
+            {/* Recipient claimed food — show 'I'm On My Way' button */}
+            {role === 'RECIPIENT' && item.status === 'claimed' && onMarkOnTheWay && (
+                <TouchableOpacity
+                    style={styles.onTheWayButton}
+                    onPress={() => onMarkOnTheWay(item.id)}
+                >
+                    <Text style={styles.onTheWayButtonText}>🚶 I'm On My Way</Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Recipient is on the way — show 'Confirm Received' button */}
             {role === 'RECIPIENT' && item.status === 'on-the-way' && onConfirm && (
                 <TouchableOpacity
                     style={styles.confirmButton}
                     onPress={() => onConfirm(item.id)}
                 >
-                    <Text style={styles.confirmButtonText}>Confirm Received</Text>
+                    <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -163,10 +175,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#E8F5E9',
     },
     status_claimed: {
-        backgroundColor: '#EEEEEE',
+        backgroundColor: '#FFF3E0',
     },
     'status_on-the-way': {
+        backgroundColor: '#E3F2FD',
+    },
+    status_completed: {
         backgroundColor: '#E8F5E9',
+    },
+    status_pending: {
+        backgroundColor: '#F5F5F5',
     },
     statusText: {
         fontSize: 12,
@@ -223,6 +241,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     feedbackButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    onTheWayButton: {
+        marginTop: 12,
+        backgroundColor: '#FF9800',
+        height: 44,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    onTheWayButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
