@@ -15,6 +15,9 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: "/users/profile",
     PUSH_TOKEN: "/users/push-token",
   },
+  NOTIFICATION: {
+    TEST: "/notifications/test",
+  },
   FOOD: {
     LIST_MINE: "/foods/mine",
     CREATE_DONATION: "/foods/donations",

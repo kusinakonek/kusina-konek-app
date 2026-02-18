@@ -16,7 +16,7 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
-import { Heart, Package, Star, Plus, Utensils } from "lucide-react-native";
+import { Heart, Package, Star, Plus, Utensils, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
@@ -122,6 +122,21 @@ export default function DonorHome() {
             <Text style={styles.dashboardTitle}>Donor Dashboard</Text>
           </View>
         </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                await axiosClient.post(API_ENDPOINTS.NOTIFICATION.TEST);
+                Alert.alert("Sent", "Test notification sent! Check your notification tray.");
+              } catch (e) {
+                Alert.alert("Error", "Failed to send test notification");
+                console.error(e);
+              }
+            }}
+          >
+            <Bell size={wp(24)} color="#00C853" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
