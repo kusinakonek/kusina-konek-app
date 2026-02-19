@@ -272,4 +272,39 @@ export const userService = {
       data: { pushToken },
     });
   },
+
+  /**
+   * Delete a user's account and all associated data.
+   * Uses a transaction to ensure atomicity.
+   */
+  async deleteAccount(userID: string) {
+    await prisma.$transaction(async (tx) => {
+      // Delete notifications
+      await tx.notification.deleteMany({ where: { userID } });
+
+      // Delete feedback (as donor or recipient)
+      await tx.feedback.deleteMany({
+        where: { OR: [{ donorID: userID }, { recipientID: userID }] },
+      });
+
+      // Clear recipient references on distributions and delete donor's distributions
+      await tx.distribution.updateMany({
+        where: { recipientID: userID },
+        data: { recipientID: null, status: "PENDING", claimedAt: null },
+      });
+      await tx.distribution.deleteMany({ where: { donorID: userID } });
+
+      // Delete food items
+      await tx.food.deleteMany({ where: { userID } });
+
+      // Delete drop-off locations
+      await tx.dropOffLocation.deleteMany({ where: { userID } });
+
+      // Delete address
+      await tx.address.deleteMany({ where: { UserID: userID } });
+
+      // Delete the user
+      await tx.user.delete({ where: { userID } });
+    });
+  },
 };

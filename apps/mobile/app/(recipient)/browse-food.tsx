@@ -20,6 +20,7 @@ import { useCart } from "../../context/CartContext";
 import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 import { BrowseFoodSkeleton } from "../../src/components/SkeletonLoader";
+import { useTheme } from "../../context/ThemeContext";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -48,6 +49,7 @@ export default function BrowseFood() {
   const { items: cartItems, addItem } = useCart();
   const { distributions, loading, error, fetchDistributions, isCached } =
     useFoodCache();
+  const { colors } = useTheme();
 
   // Store user location for fetching nearest distributions
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -143,7 +145,7 @@ export default function BrowseFood() {
     if (loading) return null;
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
           {error ? error : "No available food at the moment."}
         </Text>
       </View>
@@ -151,20 +153,20 @@ export default function BrowseFood() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
         <Pressable
           onPress={() => router.back()}
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Go back">
-          <ArrowLeft size={wp(24)} color={theme.colors.text} />
+          <ArrowLeft size={wp(24)} color={colors.text} />
         </Pressable>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Browse Food</Text>
-          <Text style={styles.headerSubtitle}>Available Foods</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Browse Food</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Available Foods</Text>
         </View>
 
         <Pressable
@@ -198,7 +200,7 @@ export default function BrowseFood() {
         />
 
         {/* Count */}
-        <Text style={styles.countText}>
+        <Text style={[styles.countText, { color: colors.text }]}>
           Available Foods ({filteredDistributions.length})
         </Text>
 

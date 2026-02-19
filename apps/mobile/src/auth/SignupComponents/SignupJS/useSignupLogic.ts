@@ -44,7 +44,7 @@ export const useSignupLogic = () => {
     const handleSignup = async () => {
         const { fullName, email, password, confirmPassword, barangay, phoneNo } = formData;
 
-        if (!fullName || !email || !password || !confirmPassword || !barangay) {
+        if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
             Alert.alert('Error', 'Please fill in all required fields');
             return;
         }

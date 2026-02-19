@@ -106,16 +106,23 @@ export const notificationService = {
     });
   },
 
+  async deleteNotification(notificationID: string) {
+    return await prisma.notification.delete({
+      where: { notificationID },
+    });
+  },
+
   async getUserNotifications(userID: string) {
     return await prisma.notification.findMany({
       where: { userID },
-      orderBy: { createdAt: "desc" },
-      take: 20,
+      orderBy: [{ isRead: "asc" }, { createdAt: "desc" }],
+      take: 50,
     });
   },
 
   /**
    * Broadcast a push notification to all recipients who have a push token.
+   * Also creates in-app notifications for each recipient.
    * Used when a new food donation is created.
    */
   async broadcastToRecipients(title: string, message: string, data: any = {}) {
@@ -123,15 +130,25 @@ export const notificationService = {
       // Find all users with RECIPIENT role who have a push token
       const recipients = await prisma.user.findMany({
         where: {
-          pushToken: { not: null },
           role: { roleName: "RECIPIENT" },
         },
         select: { userID: true, pushToken: true },
       });
 
+      // Create in-app notification for ALL recipients
+      for (const recipient of recipients) {
+        await this.createInAppNotification(
+          recipient.userID,
+          "NEW_FOOD",
+          title,
+          message,
+        );
+      }
+
+      // Send push to those with tokens
       const tokens = recipients
         .map((r) => r.pushToken!)
-        .filter((t) => Expo.isExpoPushToken(t));
+        .filter((t) => t && Expo.isExpoPushToken(t));
 
       if (tokens.length === 0) return;
 
@@ -140,7 +157,7 @@ export const notificationService = {
         sound: "default" as const,
         title,
         body: message,
-        data,
+        data: { ...data, type: "NEW_FOOD" },
       }));
 
       const chunks = expo.chunkPushNotifications(messages);

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
 import { Ban } from "lucide-react-native";
 import { wp, hp, fp } from "../../utils/responsive";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 interface ClaimLimitModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ export default function ClaimLimitModal({
   weeklyClaims,
   monthlyClaims,
 }: ClaimLimitModalProps) {
+  const { colors, isDark } = useTheme();
   const dailyExceeded = dailyClaims >= MAX_DAILY;
   const weeklyExceeded = weeklyClaims >= MAX_WEEKLY;
   const monthlyExceeded = monthlyClaims >= MAX_MONTHLY;
@@ -46,10 +48,10 @@ export default function ClaimLimitModal({
       animationType="fade"
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.card }]}>
           {/* Icon */}
           <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(211, 47, 47, 0.2)' : 'rgba(211, 47, 47, 0.1)' }]}>
               <Ban
                 size={fp(36)}
                 color={theme.colors.danger}
@@ -59,19 +61,20 @@ export default function ClaimLimitModal({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Claim Limit Reached</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Claim Limit Reached</Text>
 
           {/* Message */}
-          <Text style={styles.message}>{message}</Text>
+          <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
 
           {/* Usage Summary */}
           <View style={styles.usageSection}>
             <View
               style={[
                 styles.usageRow,
+                { backgroundColor: isDark ? colors.background : '#F8F9FA' },
                 dailyExceeded && styles.usageRowExceeded,
               ]}>
-              <Text style={styles.usageLabel}>Today</Text>
+              <Text style={[styles.usageLabel, { color: colors.text }]}>Today</Text>
               <Text
                 style={[
                   styles.usageValue,
@@ -83,9 +86,10 @@ export default function ClaimLimitModal({
             <View
               style={[
                 styles.usageRow,
+                { backgroundColor: isDark ? colors.background : '#F8F9FA' },
                 weeklyExceeded && styles.usageRowExceeded,
               ]}>
-              <Text style={styles.usageLabel}>This Week</Text>
+              <Text style={[styles.usageLabel, { color: colors.text }]}>This Week</Text>
               <Text
                 style={[
                   styles.usageValue,
@@ -97,9 +101,10 @@ export default function ClaimLimitModal({
             <View
               style={[
                 styles.usageRow,
+                { backgroundColor: isDark ? colors.background : '#F8F9FA' },
                 monthlyExceeded && styles.usageRowExceeded,
               ]}>
-              <Text style={styles.usageLabel}>This Month</Text>
+              <Text style={[styles.usageLabel, { color: colors.text }]}>This Month</Text>
               <Text
                 style={[
                   styles.usageValue,

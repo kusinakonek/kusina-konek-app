@@ -70,4 +70,22 @@ export const userController = {
       next(error);
     }
   },
+
+  /**
+   * DELETE /api/users/account
+   * Delete the authenticated user's account and all associated data
+   */
+  async deleteAccount(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      await userService.deleteAccount(req.user.id);
+      return res.status(200).json({ message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("[deleteAccount] Error:", error);
+      next(error);
+    }
+  },
 };

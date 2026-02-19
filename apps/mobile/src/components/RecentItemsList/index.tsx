@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { MapPin, Star } from 'lucide-react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 // Define a common interface for items (donations or claims)
 export interface RecentItem {
@@ -24,12 +25,14 @@ interface RecentItemsListProps {
 }
 
 export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay }: RecentItemsListProps) => {
+    const { colors, isDark } = useTheme();
+
     const renderItem = ({ item }: { item: RecentItem }) => (
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
                 <View>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <Text style={styles.itemQuantity}>{item.quantity}</Text>
+                    <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.itemQuantity, { color: colors.textSecondary }]}>{item.quantity}</Text>
                 </View>
                 {item.status && (
                     <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
@@ -39,16 +42,16 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheW
             </View>
 
             {role === 'DONOR' && item.recipientName && (
-                <Text style={styles.claimedBy}>Claimed: <Text style={styles.recipientName}>{item.recipientName}</Text></Text>
+                <Text style={[styles.claimedBy, { color: colors.textSecondary }]}>Claimed: <Text style={styles.recipientName}>{item.recipientName}</Text></Text>
             )}
 
             <View style={styles.locationContainer}>
-                <MapPin size={14} color="#666" style={styles.pinIcon} />
-                <Text style={styles.locationText}>{item.location}</Text>
+                <MapPin size={14} color={colors.textSecondary} style={styles.pinIcon} />
+                <Text style={[styles.locationText, { color: colors.textSecondary }]}>{item.location}</Text>
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.timeText}>{item.time}</Text>
+                <Text style={[styles.timeText, { color: colors.textTertiary }]}>{item.time}</Text>
                 {item.rating && (
                     <View style={styles.ratingContainer}>
                         {[...Array(5)].map((_, i) => (
@@ -59,7 +62,7 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheW
                                 fill={i < Math.floor(item.rating!) ? "#FFC107" : "transparent"}
                             />
                         ))}
-                        <Text style={styles.greatText}>Great!</Text>
+                        <Text style={[styles.greatText, { color: colors.text }]}>Great!</Text>
                     </View>
                 )}
             </View>
@@ -95,7 +98,7 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheW
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.sectionTitle}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
                     {role === 'DONOR' ? 'My Recent Donations' : 'My Recent Food'}
                 </Text>
                 <TouchableOpacity onPress={onSeeAll}>

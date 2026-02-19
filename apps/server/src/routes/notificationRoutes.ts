@@ -4,25 +4,50 @@ import { notificationService } from "../services/notificationService";
 
 export const notificationRouter = Router();
 
-// POST /api/notifications/test
-notificationRouter.post("/test", authMiddleware, async (req: Request, res: Response) => {
+// GET /api/notifications — list user's notifications (unread first)
+notificationRouter.get("/", authMiddleware, async (req: Request, res: Response) => {
     try {
         const userID = req.user?.id;
         if (!userID) {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        await notificationService.notifyUser(
-            userID,
-            "Test Notification",
-            "This is a test notification from the server! 🔔",
-            "TEST",
-            { screen: "Home" }
-        );
-
-        res.json({ message: "Test notification sent" });
+        const notifications = await notificationService.getUserNotifications(userID);
+        res.json({ notifications });
     } catch (error) {
-        console.error("Test notification error:", error);
-        res.status(500).json({ error: "Failed to send test notification" });
+        console.error("Get notifications error:", error);
+        res.status(500).json({ error: "Failed to get notifications" });
+    }
+});
+
+// PUT /api/notifications/:id/read — mark a notification as read
+notificationRouter.put("/:id/read", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userID = req.user?.id;
+        if (!userID) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const notification = await notificationService.markAsRead(req.params.id);
+        res.json({ notification });
+    } catch (error) {
+        console.error("Mark notification read error:", error);
+        res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+});
+
+// DELETE /api/notifications/:id — delete a notification
+notificationRouter.delete("/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+        const userID = req.user?.id;
+        if (!userID) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        await notificationService.deleteNotification(req.params.id);
+        res.json({ message: "Notification deleted" });
+    } catch (error) {
+        console.error("Delete notification error:", error);
+        res.status(500).json({ error: "Failed to delete notification" });
     }
 });

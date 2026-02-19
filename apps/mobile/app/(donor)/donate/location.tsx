@@ -35,9 +35,11 @@ import axiosClient from "../../../src/api/axiosClient";
 import { API_ENDPOINTS } from "../../../src/api/endpoints";
 import { useFoodCache } from "../../../context/FoodCacheContext";
 import SuccessModal from "../../../src/components/SuccessModal";
+import { useTheme } from "../../../context/ThemeContext";
 
 export default function LocationScreen() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const { formData, updateFormData, resetForm } = useDonation();
   const { invalidateCache } = useFoodCache();
   const [submitting, setSubmitting] = useState(false);
@@ -156,25 +158,25 @@ export default function LocationScreen() {
   const selectedLocation = formData.selectedBarangay;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}>
-          <ArrowLeft size={24} color="#333" />
+          <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>Donate Food</Text>
-          <Text style={styles.subtitle}>Step 3 of 3</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Donate Food</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Step 3 of 3</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
         {/* Location Type Toggle */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Select Drop-off Point</Text>
-          <Text style={styles.cardSubtitle}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Select Drop-off Point</Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
             Choose from barangay halls or set your own custom location
           </Text>
 
@@ -182,17 +184,19 @@ export default function LocationScreen() {
             <TouchableOpacity
               style={[
                 styles.toggleButton,
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
                 formData.locationType === "barangay" &&
                 styles.toggleButtonActive,
               ]}
               onPress={() => updateFormData({ locationType: "barangay" })}>
               <MapPin
                 size={16}
-                color={formData.locationType === "barangay" ? "#fff" : "#333"}
+                color={formData.locationType === "barangay" ? "#fff" : colors.text}
               />
               <Text
                 style={[
                   styles.toggleText,
+                  { color: colors.text },
                   formData.locationType === "barangay" &&
                   styles.toggleTextActive,
                 ]}>
@@ -202,16 +206,18 @@ export default function LocationScreen() {
             <TouchableOpacity
               style={[
                 styles.toggleButton,
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
                 formData.locationType === "custom" && styles.toggleButtonActive,
               ]}
               onPress={() => updateFormData({ locationType: "custom" })}>
               <Navigation
                 size={16}
-                color={formData.locationType === "custom" ? "#fff" : "#333"}
+                color={formData.locationType === "custom" ? "#fff" : colors.text}
               />
               <Text
                 style={[
                   styles.toggleText,
+                  { color: colors.text },
                   formData.locationType === "custom" && styles.toggleTextActive,
                 ]}>
                 Custom Location
@@ -227,38 +233,44 @@ export default function LocationScreen() {
                   key={hall.id}
                   style={[
                     styles.hallCard,
-                    selectedLocation?.id === hall.id && styles.hallCardSelected,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selectedLocation?.id === hall.id && {
+                      borderColor: '#00C853',
+                      backgroundColor: isDark ? '#003300' : '#F1FFF6'
+                    },
                   ]}
                   onPress={() => handleSelectBarangay(hall)}>
                   <View style={styles.hallHeader}>
                     <View
                       style={[
                         styles.hallIcon,
-                        selectedLocation?.id === hall.id &&
-                        styles.hallIconSelected,
+                        { backgroundColor: colors.inputBg },
+                        selectedLocation?.id === hall.id && {
+                          backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9'
+                        },
                       ]}>
                       <MapPin
                         size={20}
                         color={
-                          selectedLocation?.id === hall.id ? "#00C853" : "#666"
+                          selectedLocation?.id === hall.id ? "#00C853" : colors.textSecondary
                         }
                       />
                     </View>
                     <View style={styles.hallInfo}>
-                      <Text style={styles.hallName}>{hall.name}</Text>
+                      <Text style={[styles.hallName, { color: colors.text }]}>{hall.name}</Text>
                       <View style={styles.hallDetail}>
-                        <MapPin size={12} color="#666" />
-                        <Text style={styles.hallDetailText}>
+                        <MapPin size={12} color={colors.textSecondary} />
+                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>
                           {hall.address}
                         </Text>
                       </View>
                       <View style={styles.hallDetail}>
-                        <Clock size={12} color="#666" />
-                        <Text style={styles.hallDetailText}>{hall.hours}</Text>
+                        <Clock size={12} color={colors.textSecondary} />
+                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.hours}</Text>
                       </View>
                       <View style={styles.hallDetail}>
-                        <Phone size={12} color="#666" />
-                        <Text style={styles.hallDetailText}>{hall.phone}</Text>
+                        <Phone size={12} color={colors.textSecondary} />
+                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.phone}</Text>
                       </View>
                     </View>
                     {selectedLocation?.id === hall.id && (
@@ -283,10 +295,10 @@ export default function LocationScreen() {
 
         {/* Map Preview for Selected Barangay */}
         {formData.locationType === "barangay" && selectedLocation && (
-          <View style={styles.mapCard}>
+          <View style={[styles.mapCard, { backgroundColor: colors.card }]}>
             <View style={styles.mapHeader}>
-              <Map size={20} color="#333" />
-              <Text style={styles.mapTitle}>Drop-off Location Map</Text>
+              <Map size={20} color={colors.text} />
+              <Text style={[styles.mapTitle, { color: colors.text }]}>Drop-off Location Map</Text>
             </View>
 
             <MapPreview
@@ -298,25 +310,25 @@ export default function LocationScreen() {
 
             <View style={styles.locationDetails}>
               <Text style={styles.locationName}>{selectedLocation.name}</Text>
-              <Text style={styles.locationDesc}>
+              <Text style={[styles.locationDesc, { color: colors.textSecondary }]}>
                 {selectedLocation.description ||
                   `A community hall located in ${selectedLocation.address.split(",")[0]}.`}
               </Text>
               <View style={styles.locationInfo}>
-                <MapPin size={14} color="#666" />
-                <Text style={styles.locationInfoText}>
+                <MapPin size={14} color={colors.textSecondary} />
+                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
                   {selectedLocation.address}
                 </Text>
               </View>
               <View style={styles.locationInfo}>
-                <Clock size={14} color="#666" />
-                <Text style={styles.locationInfoText}>
+                <Clock size={14} color={colors.textSecondary} />
+                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
                   Operating Hours: {selectedLocation.hours}
                 </Text>
               </View>
               <View style={styles.locationInfo}>
-                <Phone size={14} color="#666" />
-                <Text style={styles.locationInfoText}>
+                <Phone size={14} color={colors.textSecondary} />
+                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
                   Contact: {selectedLocation.phone}
                 </Text>
               </View>
@@ -366,7 +378,7 @@ export default function LocationScreen() {
       </ScrollView>
 
       {/* Submit Button */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.headerBg, borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={[
             styles.submitButton,
@@ -408,7 +420,7 @@ export default function LocationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    // backgroundColor: "#F5F5F5",
   },
   header: {
     flexDirection: "row",

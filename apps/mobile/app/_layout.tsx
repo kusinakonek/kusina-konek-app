@@ -4,30 +4,50 @@ import { StatusBar } from "react-native";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { FoodCacheProvider } from "../context/FoodCacheContext";
+import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
-import { NotificationBanner } from "../src/components/NotificationBanner";
 import { PushTokenManager } from "../src/components/PushTokenManager";
+import { NotificationBanner } from "../src/components/NotificationBanner";
 
-export default function RootLayout() {
+function AppContent() {
   const { expoPushToken, notification, clearNotification } = usePushNotifications();
+  const { colors, isDark } = useTheme();
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
       <AuthProvider>
         <PushTokenManager token={expoPushToken} />
         <FoodCacheProvider>
           <CartProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            />
             <NotificationBanner
               visible={!!notification}
-              title={notification?.request.content.title || ''}
-              message={notification?.request.content.body || ''}
+              title={notification?.request?.content?.title || "Notification"}
+              message={notification?.request?.content?.body || ""}
               onClose={clearNotification}
             />
           </CartProvider>
         </FoodCacheProvider>
       </AuthProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
