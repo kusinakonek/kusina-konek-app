@@ -2,7 +2,7 @@ import { app } from "./app";
 import { env } from "./config/env";
 import { prisma } from "@kusinakonek/database";
 import { notificationService } from "./services/notificationService";
-import { scheduleAutoRevert } from "./services/cronService";
+
 import dns from "node:dns";
 
 // Force IPv4 to avoid Supabase connection timeouts (ConnectTimeoutError)
