@@ -51,7 +51,7 @@ export default function ClaimLimitModal({
         <View style={[styles.container, { backgroundColor: colors.card }]}>
           {/* Icon */}
           <View style={styles.iconContainer}>
-            <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(211, 47, 47, 0.2)' : 'rgba(211, 47, 47, 0.1)' }]}>
+            <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(229, 57, 53, 0.2)' : 'rgba(211, 47, 47, 0.1)' }]}>
               <Ban
                 size={fp(36)}
                 color={theme.colors.danger}

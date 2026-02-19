@@ -10,6 +10,7 @@ import {
 import { AlertTriangle, CheckSquare, Square } from 'lucide-react-native';
 import { wp, hp, fp } from '../../utils/responsive';
 import { theme } from '../../constants/theme';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface DisclaimerModalProps {
     visible: boolean;
@@ -23,6 +24,7 @@ export default function DisclaimerModal({
     onDecline,
 }: DisclaimerModalProps) {
     const [agreed, setAgreed] = useState(false);
+    const { colors, isDark } = useTheme();
 
     // Reset checkbox when modal visibility changes
     React.useEffect(() => {
@@ -39,10 +41,10 @@ export default function DisclaimerModal({
             onRequestClose={onDecline}
         >
             <View style={styles.overlay}>
-                <View style={styles.container}>
+                <View style={[styles.container, { backgroundColor: colors.card }]}>
                     {/* Icon */}
                     <View style={styles.iconContainer}>
-                        <View style={styles.iconCircle}>
+                        <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(255, 152, 0, 0.2)' : 'rgba(255, 152, 0, 0.12)' }]}>
                             <AlertTriangle
                                 size={fp(36)}
                                 color={theme.colors.secondary}
@@ -52,22 +54,22 @@ export default function DisclaimerModal({
                     </View>
 
                     {/* Title */}
-                    <Text style={styles.title}>KUSINAKONEK Disclaimer</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>KUSINAKONEK Disclaimer</Text>
 
                     <ScrollView
                         style={styles.scrollArea}
                         showsVerticalScrollIndicator={true}
                     >
                         {/* For Donors Section */}
-                        <Text style={styles.sectionTitle}>For Donors</Text>
-                        <Text style={styles.sectionIntro}>
+                        <Text style={[styles.sectionTitle, { color: colors.primary }]}>For Donors</Text>
+                        <Text style={[styles.sectionIntro, { color: colors.textSecondary }]}>
                             By uploading and sharing food through the KUSINAKONEK
                             application, you agree to the following:
                         </Text>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 You are responsible for ensuring that all donated food is
                                 clean, safe, and properly prepared in accordance with the
                                 Food and Drug Administration (FDA) regulations on food
@@ -76,8 +78,8 @@ export default function DisclaimerModal({
                         </View>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 You acknowledge that KUSINAKONEK and its owners/operators
                                 do not assume liability for any issues arising from the
                                 consumption of donated food, including but not limited to
@@ -87,37 +89,37 @@ export default function DisclaimerModal({
                         </View>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 You certify that the food you donate is given voluntarily
                                 and without expectation of compensation.
                             </Text>
                         </View>
 
                         {/* General Terms Section */}
-                        <Text style={[styles.sectionTitle, { marginTop: hp(16) }]}>
+                        <Text style={[styles.sectionTitle, { marginTop: hp(16), color: colors.primary }]}>
                             General Terms
                         </Text>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 Participation in the KUSINAKONEK food-sharing program is
                                 voluntary.
                             </Text>
                         </View>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 By using the application, both Donors and Recipients accept
                                 the risks associated with food donation and consumption.
                             </Text>
                         </View>
 
                         <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bulletText}>
+                            <Text style={[styles.bullet, { color: colors.text }]}>•</Text>
+                            <Text style={[styles.bulletText, { color: colors.textSecondary }]}>
                                 KUSINAKONEK serves solely as a platform to connect donors
                                 and recipients and does not guarantee the quality, safety,
                                 or suitability of donated food.
@@ -143,7 +145,7 @@ export default function DisclaimerModal({
                                     strokeWidth={2}
                                 />
                             )}
-                            <Text style={styles.checkboxText}>
+                            <Text style={[styles.checkboxText, { color: colors.text }]}>
                                 I have read and agree to the terms and conditions
                             </Text>
                         </TouchableOpacity>
@@ -152,7 +154,7 @@ export default function DisclaimerModal({
                     {/* Buttons */}
                     <View style={styles.buttonRow}>
                         <TouchableOpacity
-                            style={styles.declineButton}
+                            style={[styles.declineButton, { backgroundColor: colors.card, borderColor: theme.colors.danger }]}
                             onPress={onDecline}
                             activeOpacity={0.8}
                         >

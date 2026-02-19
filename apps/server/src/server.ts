@@ -2,6 +2,14 @@ import { app } from "./app";
 import { env } from "./config/env";
 import { prisma } from "@kusinakonek/database";
 import { notificationService } from "./services/notificationService";
+import { scheduleAutoRevert } from "./services/cronService";
+import dns from "node:dns";
+
+// Force IPv4 to avoid Supabase connection timeouts (ConnectTimeoutError)
+// caused by node preferring IPv6 on networks where it's unstable
+dns.setDefaultResultOrder("ipv4first");
+
+const PORT = env.PORT || 3000;
 
 /**
  * Auto-revert scheduler: every 15 minutes, check for distributions that have been
