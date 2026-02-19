@@ -19,7 +19,9 @@ export default function SignupView() {
         handleSignup,
         passwordStrength,
         role,
-        router
+        router,
+        emailError,
+        phoneError
     } = useSignupLogic();
 
     const { colors, isDark } = useTheme();
@@ -79,6 +81,8 @@ export default function SignupView() {
                                 placeholderTextColor={colors.textTertiary}
                             />
                         </View>
+                        {/* Error Message for Email */
+                            emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
                         <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
                             <MapPin size={20} color={colors.textSecondary} style={styles.inputIcon} />
@@ -102,6 +106,8 @@ export default function SignupView() {
                                 placeholderTextColor={colors.textTertiary}
                             />
                         </View>
+                        {/* Error Message for Phone */
+                            phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
 
                         <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
                             <Lock size={20} color={colors.textSecondary} style={styles.inputIcon} />

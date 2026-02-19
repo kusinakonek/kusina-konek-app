@@ -24,12 +24,18 @@ const resendVerificationSchema = z.object({
     email: z.string().email()
 });
 
+const availabilitySchema = z.object({
+    email: z.string().email().optional(),
+    phoneNo: z.string().optional()
+});
+
 // Public routes (no authentication required)
 authRouter.post("/signup", validateRequest(signUpSchema), authController.signUp);
 authRouter.post("/login", validateRequest(signInSchema), authController.signIn);
 authRouter.post("/forgot-password", validateRequest(forgotPasswordSchema), authController.forgotPassword);
 authRouter.post("/refresh", validateRequest(refreshTokenSchema), authController.refreshToken);
 authRouter.post("/resend-verification", validateRequest(resendVerificationSchema), authController.resendVerification);
+authRouter.post("/availability", validateRequest(availabilitySchema), authController.checkAvailability);
 
 // Protected routes (authentication required)
 authRouter.post("/logout", authController.signOut);
