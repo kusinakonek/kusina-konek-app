@@ -8,7 +8,6 @@ import {
   ImageBackground,
   TouchableOpacity,
   Image,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -20,10 +19,12 @@ import { Heart, Package, Star, Plus, Utensils, Bell } from "lucide-react-native"
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function DonorHome() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -106,37 +107,25 @@ export default function DonorHome() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => router.push("/donate")}
-          activeOpacity={0.7}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
+        <View style={styles.headerLeft}>
           <Image
             source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.appName}>KusinaKonek</Text>
-            <Text style={styles.dashboardTitle}>Donor Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>KusinaKonek</Text>
+            <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                await axiosClient.post(API_ENDPOINTS.NOTIFICATION.TEST);
-                Alert.alert("Sent", "Test notification sent! Check your notification tray.");
-              } catch (e) {
-                Alert.alert("Error", "Failed to send test notification");
-                console.error(e);
-              }
-            }}
-          >
-            <Bell size={wp(24)} color="#00C853" />
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/notifications')}
+          style={{ padding: 8 }}
+        >
+          <Bell size={wp(24)} color="#00C853" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView

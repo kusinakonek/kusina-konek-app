@@ -91,7 +91,7 @@ export default function SignupView() {
                             <Phone size={20} color="#666" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Phone Number (Optional)"
+                                placeholder="Phone Number *"
                                 value={formData.phoneNo}
                                 onChangeText={(text) => handleChange('phoneNo', text)}
                                 keyboardType="phone-pad"

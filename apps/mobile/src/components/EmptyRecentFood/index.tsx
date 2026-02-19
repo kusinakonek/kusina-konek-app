@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Package, Utensils } from "lucide-react-native";
 import { wp, hp, fp } from "../../utils/responsive";
+import { useTheme } from "../../../context/ThemeContext";
 
 type EmptyRecentFoodProps = {
   title?: string;
@@ -14,8 +15,10 @@ export default function EmptyRecentFood({
   message = "You haven't requested any food yet. Start browsing available food donations in your area!",
   icon = "package",
 }: EmptyRecentFoodProps) {
+  const { colors, isDark } = useTheme();
+
   const renderIcon = () => {
-    const iconProps = { size: wp(64), color: "#BDBDBD" };
+    const iconProps = { size: wp(64), color: colors.textTertiary };
     switch (icon) {
       case "utensils":
         return <Utensils {...iconProps} />;
@@ -26,11 +29,11 @@ export default function EmptyRecentFood({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>{renderIcon()}</View>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.card : '#F5F5F5', borderColor: colors.border }]}>
+      <View style={[styles.iconContainer, { backgroundColor: isDark ? '#3a3a3a' : '#EEEEEE' }]}>{renderIcon()}</View>
 
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
     </View>
   );
 }

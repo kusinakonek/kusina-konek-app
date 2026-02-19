@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 import { useDonation, PRESET_FOODS, FoodItem } from '../../../context/DonationContext';
 import DisclaimerModal from '../../../src/components/DisclaimerModal';
+import { useTheme } from '../../../context/ThemeContext';
 
 // Food images using online URLs
 const foodImages: { [key: string]: string } = {
@@ -20,6 +21,7 @@ const foodImages: { [key: string]: string } = {
 
 export default function SelectFoodScreen() {
     const router = useRouter();
+    const { colors, isDark } = useTheme();
     const { formData, updateFormData, setCurrentStep } = useDonation();
     const [showDisclaimer, setShowDisclaimer] = useState(true);
 
@@ -64,21 +66,21 @@ export default function SelectFoodScreen() {
             />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <ArrowLeft size={24} color="#333" />
+                    <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <View style={styles.headerTextContainer}>
-                    <Text style={styles.title}>Donate Food</Text>
-                    <Text style={styles.subtitle}>Step 1 of 3</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Donate Food</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Step 1 of 3</Text>
                 </View>
             </View>
 
-            <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
                 {/* Instruction Card */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Select Food Item</Text>
-                    <Text style={styles.cardSubtitle}>Choose from our menu or create a custom donation</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>Select Food Item</Text>
+                    <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Choose from our menu or create a custom donation</Text>
 
                     {/* Food Grid */}
                     <View style={styles.foodGrid}>
@@ -87,33 +89,44 @@ export default function SelectFoodScreen() {
                                 key={food.id}
                                 style={[
                                     styles.foodItem,
-                                    formData.selectedFood?.id === food.id && styles.foodItemSelected,
+                                    { backgroundColor: colors.card, borderColor: colors.border },
+                                    formData.selectedFood?.id === food.id && {
+                                        borderColor: '#00C853',
+                                        backgroundColor: isDark ? '#003300' : '#F1FFF6',
+                                    },
                                 ]}
                                 onPress={() => handleSelectFood(food)}
                             >
-                                <View style={styles.foodImageContainer}>
+                                <View style={[styles.foodImageContainer, { backgroundColor: colors.border }]}>
                                     <Image
                                         source={{ uri: foodImages[food.id] }}
                                         style={styles.foodImage}
                                         resizeMode="cover"
                                     />
                                 </View>
-                                <Text style={styles.foodName} numberOfLines={1}>{food.name}</Text>
-                                <Text style={styles.foodDesc} numberOfLines={2}>{food.description}</Text>
+                                <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
+                                <Text style={[styles.foodDesc, { color: colors.textSecondary }]} numberOfLines={2}>{food.description}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
 
                     {/* Custom Item */}
                     <TouchableOpacity
-                        style={[styles.customItem, formData.isCustomFood && styles.customItemSelected]}
+                        style={[
+                            styles.customItem,
+                            { backgroundColor: colors.card, borderColor: colors.border },
+                            formData.isCustomFood && {
+                                borderColor: '#00C853',
+                                backgroundColor: isDark ? '#003300' : '#F1FFF6',
+                            }
+                        ]}
                         onPress={handleCustomFood}
                     >
-                        <View style={styles.customIconContainer}>
+                        <View style={[styles.customIconContainer, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
                             <Plus size={32} color="#00C853" />
                         </View>
-                        <Text style={styles.customTitle}>Custom Item</Text>
-                        <Text style={styles.customDesc}>Add your own food</Text>
+                        <Text style={[styles.customTitle, { color: colors.text }]}>Custom Item</Text>
+                        <Text style={[styles.customDesc, { color: colors.textSecondary }]}>Add your own food</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -124,7 +137,7 @@ export default function SelectFoodScreen() {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        // backgroundColor: '#F5F5F5', // handled dynamically
     },
     header: {
         flexDirection: 'row',

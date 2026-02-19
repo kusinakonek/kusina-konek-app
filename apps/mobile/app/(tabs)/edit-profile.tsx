@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
     TextInput, ActivityIndicator, KeyboardAvoidingView, Platform
@@ -11,9 +11,11 @@ import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { wp, hp, fp } from '../../src/utils/responsive';
 import LoadingScreen from '../../src/components/LoadingScreen';
 import SuccessModal from '../../src/components/SuccessModal';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function EditProfile() {
     const router = useRouter();
+    const { colors, isDark } = useTheme();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -28,6 +30,25 @@ export default function EditProfile() {
     const [streetAddress, setStreetAddress] = useState('');
     const [isOrg, setIsOrg] = useState(false);
     const [orgName, setOrgName] = useState('');
+
+    // Track original profile values for dirty checking
+    const originalValues = useRef<Record<string, any>>({});
+
+    const isDirty = useMemo(() => {
+        const orig = originalValues.current;
+        if (!orig || Object.keys(orig).length === 0) return false;
+        return (
+            firstName !== orig.firstName ||
+            lastName !== orig.lastName ||
+            middleName !== orig.middleName ||
+            suffix !== orig.suffix ||
+            phoneNo !== orig.phoneNo ||
+            barangay !== orig.barangay ||
+            streetAddress !== orig.streetAddress ||
+            isOrg !== orig.isOrg ||
+            orgName !== orig.orgName
+        );
+    }, [firstName, lastName, middleName, suffix, phoneNo, barangay, streetAddress, isOrg, orgName]);
 
     // Fetch current profile data to pre-fill form
     const fetchProfile = useCallback(async () => {
@@ -44,6 +65,19 @@ export default function EditProfile() {
                 setStreetAddress(profile.address?.streetAddress || '');
                 setIsOrg(profile.isOrg || false);
                 setOrgName(profile.orgName || '');
+
+                // Store original values for dirty tracking
+                originalValues.current = {
+                    firstName: profile.firstName || '',
+                    lastName: profile.lastName || '',
+                    middleName: profile.middleName || '',
+                    suffix: profile.suffix || '',
+                    phoneNo: profile.phoneNo || '',
+                    barangay: profile.address?.barangay || '',
+                    streetAddress: profile.address?.streetAddress || '',
+                    isOrg: profile.isOrg || false,
+                    orgName: profile.orgName || '',
+                };
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -107,27 +141,27 @@ export default function EditProfile() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
+            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#00C853" />
-                    <Text style={styles.loadingText}>Loading profile...</Text>
+                    <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading profile...</Text>
                 </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-                    <ArrowLeft size={wp(22)} color="#333" />
+                    <ArrowLeft size={wp(22)} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Edit Profile</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
                 <TouchableOpacity
-                    style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                    style={[styles.saveBtn, (saving || !isDirty) && styles.saveBtnDisabled]}
                     onPress={handleSave}
-                    disabled={saving}
+                    disabled={saving || !isDirty}
                 >
                     {saving ? (
                         <ActivityIndicator size="small" color="#fff" />
@@ -146,113 +180,113 @@ export default function EditProfile() {
             >
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     {/* Personal Info Section */}
-                    <View style={styles.sectionCard}>
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
                         <View style={styles.sectionHeader}>
                             <User size={wp(20)} color="#2E7D32" />
-                            <Text style={styles.sectionTitle}>Personal Information</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>First Name *</Text>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>First Name *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                 value={firstName}
                                 onChangeText={setFirstName}
                                 placeholder="Enter first name"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Last Name *</Text>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Last Name *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                 value={lastName}
                                 onChangeText={setLastName}
                                 placeholder="Enter last name"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
 
                         <View style={styles.rowInputs}>
                             <View style={[styles.inputGroup, { flex: 1 }]}>
-                                <Text style={styles.inputLabel}>Middle Name</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Middle Name</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                     value={middleName}
                                     onChangeText={setMiddleName}
                                     placeholder="Middle name"
-                                    placeholderTextColor="#bbb"
+                                    placeholderTextColor={colors.textTertiary}
                                 />
                             </View>
                             <View style={[styles.inputGroup, { width: wp(100) }]}>
-                                <Text style={styles.inputLabel}>Suffix</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Suffix</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                     value={suffix}
                                     onChangeText={setSuffix}
                                     placeholder="Jr, Sr"
-                                    placeholderTextColor="#bbb"
+                                    placeholderTextColor={colors.textTertiary}
                                 />
                             </View>
                         </View>
                     </View>
 
                     {/* Contact Section */}
-                    <View style={styles.sectionCard}>
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
                         <View style={styles.sectionHeader}>
                             <Phone size={wp(20)} color="#1E88E5" />
-                            <Text style={styles.sectionTitle}>Contact Information</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Information</Text>
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Phone Number *</Text>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Phone Number *</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                 value={phoneNo}
                                 onChangeText={setPhoneNo}
                                 placeholder="Enter phone number"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor={colors.textTertiary}
                                 keyboardType="phone-pad"
                             />
                         </View>
                     </View>
 
                     {/* Address Section */}
-                    <View style={styles.sectionCard}>
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
                         <View style={styles.sectionHeader}>
                             <MapPin size={wp(20)} color="#E53935" />
-                            <Text style={styles.sectionTitle}>Address</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Address</Text>
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Barangay</Text>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Barangay</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                 value={barangay}
                                 onChangeText={setBarangay}
                                 placeholder="Enter barangay"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Street Address</Text>
+                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Street Address</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                 value={streetAddress}
                                 onChangeText={setStreetAddress}
                                 placeholder="Enter street address"
-                                placeholderTextColor="#bbb"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
                     </View>
 
                     {/* Organization Section */}
-                    <View style={styles.sectionCard}>
+                    <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
                         <View style={styles.sectionHeader}>
                             <Building2 size={wp(20)} color="#FF6F00" />
-                            <Text style={styles.sectionTitle}>Organization (Optional)</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Organization (Optional)</Text>
                         </View>
 
                         <TouchableOpacity
@@ -260,21 +294,21 @@ export default function EditProfile() {
                             onPress={() => setIsOrg(!isOrg)}
                             activeOpacity={0.7}
                         >
-                            <View style={[styles.toggleBox, isOrg && styles.toggleBoxActive]}>
+                            <View style={[styles.toggleBox, { borderColor: colors.border }, isOrg && styles.toggleBoxActive]}>
                                 {isOrg && <Text style={styles.toggleCheck}>✓</Text>}
                             </View>
-                            <Text style={styles.toggleLabel}>I represent an organization</Text>
+                            <Text style={[styles.toggleLabel, { color: colors.text }]}>I represent an organization</Text>
                         </TouchableOpacity>
 
                         {isOrg && (
                             <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Organization Name</Text>
+                                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Organization Name</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
                                     value={orgName}
                                     onChangeText={setOrgName}
                                     placeholder="Enter organization name"
-                                    placeholderTextColor="#bbb"
+                                    placeholderTextColor={colors.textTertiary}
                                 />
                             </View>
                         )}

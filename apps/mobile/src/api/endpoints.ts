@@ -14,9 +14,12 @@ export const API_ENDPOINTS = {
     GET_PROFILE: "/users/profile",
     UPDATE_PROFILE: "/users/profile",
     PUSH_TOKEN: "/users/push-token",
+    DELETE_ACCOUNT: "/users/account",
   },
   NOTIFICATION: {
-    TEST: "/notifications/test",
+    LIST: "/notifications",
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    DELETE: (id: string) => `/notifications/${id}`,
   },
   FOOD: {
     LIST_MINE: "/foods/mine",

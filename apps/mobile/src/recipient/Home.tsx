@@ -21,10 +21,12 @@ import { Package, MapPin, Utensils, Search, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -145,36 +147,25 @@ export default function RecipientHome() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => router.push("/(recipient)/browse-food")}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
+        <View style={styles.headerLeft}>
           <Image
             source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.appName}>KusinaKonek</Text>
-            <Text style={styles.dashboardTitle}>RECIPIENT Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>KusinaKonek</Text>
+            <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Recipient Dashboard</Text>
           </View>
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                await axiosClient.post(API_ENDPOINTS.NOTIFICATION.TEST);
-                Alert.alert("Sent", "Test notification sent! Check your notification tray.");
-              } catch (e) {
-                Alert.alert("Error", "Failed to send test notification");
-                console.error(e);
-              }
-            }}
-          >
-            <Bell size={wp(24)} color="#00C853" />
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/notifications')}
+          style={{ padding: 8 }}
+        >
+          <Bell size={wp(24)} color="#00C853" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -189,14 +180,14 @@ export default function RecipientHome() {
         }>
         {/* Greeting */}
         <View style={styles.greetingRow}>
-          <View style={styles.greetingAvatar}>
+          <View style={[styles.greetingAvatar, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
             <Text style={styles.greetingAvatarText}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={styles.greetingName}>Hi {userName}!</Text>
-            <Text style={styles.greetingSubtitle}>
+            <Text style={[styles.greetingName, { color: colors.text }]}>Hi {userName}!</Text>
+            <Text style={[styles.greetingSubtitle, { color: colors.textSecondary }]}>
               Discover bunch of different free{" "}
               <Text style={styles.greenText}>ULAM</Text>.
             </Text>
@@ -223,23 +214,23 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View style={styles.recipientStatsCard}>
+        <View style={[styles.recipientStatsCard, { backgroundColor: isDark ? '#1a2a3a' : '#E3F2FD', borderColor: isDark ? colors.border : '#BBDEFB' }]}>
           <View style={styles.recipientStatsIconContainer}>
             <Package size={wp(48)} color="#2962FF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.recipientStatsValue}>
+            <Text style={[styles.recipientStatsValue, { color: colors.text }]}>
               {dashboardData?.stats?.availableFoods || 0}
             </Text>
-            <Text style={styles.recipientStatsLabel}>Available Foods</Text>
+            <Text style={[styles.recipientStatsLabel, { color: colors.text }]}>Available Foods</Text>
             <View style={styles.recipientStatsMeta}>
               <MapPin size={wp(12)} color="#00C853" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
                 {dashboardData?.stats?.locations || 0} locations
               </Text>
-              <Text style={styles.recipientStatsMetaDot}>•</Text>
+              <Text style={[styles.recipientStatsMetaDot, { color: colors.textTertiary }]}>•</Text>
               <Utensils size={wp(12)} color="#2962FF" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
                 {dashboardData?.stats?.totalServings || 0}+ servings
               </Text>
             </View>
@@ -266,7 +257,7 @@ export default function RecipientHome() {
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Recent Food</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Recent Food</Text>
               <TouchableOpacity onPress={() => { }}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
