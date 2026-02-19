@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Platform,
   Switch,
+  TextInput,
 } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,7 +39,7 @@ import {
   BellOff,
   Bell,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import axiosClient from "../../api/axiosClient";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { wp, hp, fp, isTablet } from "../../utils/responsive";
@@ -46,7 +47,7 @@ import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
 
 export default function Profile() {
-  const { user, signOut, role, setRole } = useAuth();
+  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
   const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
   const [statsData, setStatsData] = useState<any>(null);
@@ -57,6 +58,12 @@ export default function Profile() {
   const [switchingRole, setSwitchingRole] = useState(false);
   const { isDark, colors, toggleTheme } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Logout/Delete states
+  const [isLoadingLogout, setIsLoadingLogout] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load preferences
   useEffect(() => {
@@ -105,9 +112,12 @@ export default function Profile() {
     setRefreshing(false);
   }, [role, user]);
 
-  useEffect(() => {
-    fetchProfileData();
-  }, [fetchProfileData]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchProfileData();
+    }, [fetchProfileData])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -138,6 +148,10 @@ export default function Profile() {
 
   const handleLogout = async () => {
     try {
+      setIsLoadingLogout(true);
+      // Small delay to let the UI update if needed, though state change should be immediate
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       setProfileData(null);
       setStatsData(null);
       setDonorHistoryStats(null);
@@ -145,6 +159,7 @@ export default function Profile() {
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Failed to logout");
+      setIsLoadingLogout(false);
     }
   };
 
@@ -160,25 +175,59 @@ export default function Profile() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure you want to delete your account? This action is permanent and cannot be undone.",
+      "Are you sure you want to delete your account? You will need to verify your email to confirm.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Send Code",
           style: "destructive",
           onPress: async () => {
             try {
-              await axiosClient.delete(API_ENDPOINTS.USER.DELETE_ACCOUNT);
-              await signOut();
-              Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+              if (user?.email) {
+                setLoading(true);
+                await sendDeleteAccountOtp(user.email);
+                setLoading(false);
+                setShowDeleteModal(true);
+              } else {
+                Alert.alert("Error", "No email found for this user.");
+              }
             } catch (error: any) {
-              console.error("Delete account error:", error);
-              Alert.alert("Error", "Failed to delete account. Please try again.");
+              setLoading(false);
+              console.error("Delete account OTP error:", error);
+              Alert.alert("Error", "Failed to send verification code. Please try again.");
             }
           },
         },
       ]
     );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteOtp || deleteOtp.length < 6) {
+      Alert.alert("Error", "Please enter a valid code (6-8 digits).");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      if (user?.email) {
+        // 1. Verify OTP
+        await verifyDeleteAccountOtp(user.email, deleteOtp);
+
+        // 2. Delete Account
+        await axiosClient.delete(API_ENDPOINTS.USER.DELETE_ACCOUNT);
+
+        // 3. Sign Out
+        await signOut();
+
+        setShowDeleteModal(false);
+        Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+      }
+    } catch (error: any) {
+      setIsDeleting(false);
+      console.error("Confirm delete error:", error);
+      Alert.alert("Error", "Failed to verify code or delete account. Please check the code and try again.");
+    }
   };
 
   const displayName = profileData?.profile
@@ -429,7 +478,7 @@ export default function Profile() {
             />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <View style={styles.settingsRow}>
             {notificationsEnabled
@@ -534,6 +583,70 @@ export default function Profile() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Delete Account OTP Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            // Do not close on outside click to ensure user consciously cancels
+            // if (!isDeleting) setShowDeleteModal(false);
+          }}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Verify Deletion</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Please enter the verification code sent to {user?.email}
+            </Text>
+
+            <TextInput
+              style={[
+                styles.otpInput,
+                {
+                  backgroundColor: isDark ? '#333' : '#F5F5F5',
+                  color: colors.text,
+                  borderColor: colors.border
+                }
+              ]}
+              placeholder="Enter verification code"
+              placeholderTextColor={colors.textTertiary}
+              value={deleteOtp}
+              onChangeText={setDeleteOtp}
+              keyboardType="number-pad"
+              maxLength={8}
+              editable={!isDeleting}
+            />
+
+            <TouchableOpacity
+              style={[styles.deleteConfirmBtn, isDeleting && styles.disabledBtn]}
+              onPress={handleConfirmDelete}
+              disabled={isDeleting}>
+              {isDeleting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.deleteConfirmText}>Verify & Delete</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowDeleteModal(false)}
+              disabled={isDeleting}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Logout Loading Overlay */}
+      {isLoadingLogout && (
+        <View style={StyleSheet.absoluteFill}>
+          <LoadingScreen message="Logging out..." />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -758,10 +871,10 @@ const styles = StyleSheet.create({
     padding: wp(16),
     borderRadius: wp(16),
     borderWidth: 2,
-    borderColor: "#f0f0f0",
+    borderColor: "transparent",
     marginBottom: hp(12),
   },
-  roleOptionActive: { borderColor: "#00C853", backgroundColor: "#F1F8E9" },
+  roleOptionActive: { borderColor: "#00C853", backgroundColor: "rgba(0, 200, 83, 0.1)" },
   roleOptionIcon: {
     width: wp(48),
     height: wp(48),
@@ -783,4 +896,28 @@ const styles = StyleSheet.create({
     marginTop: hp(4),
   },
   modalCancelText: { fontSize: fp(15), color: "#999", fontWeight: "600" },
+  otpInput: {
+    padding: wp(16),
+    borderRadius: wp(12),
+    borderWidth: 1,
+    fontSize: fp(20),
+    textAlign: "center",
+    marginBottom: hp(24),
+    letterSpacing: 4,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: "#E53935",
+    paddingVertical: hp(16),
+    borderRadius: wp(12),
+    alignItems: "center",
+    marginBottom: hp(8),
+  },
+  deleteConfirmText: {
+    color: "#fff",
+    fontSize: fp(16),
+    fontWeight: "bold",
+  },
+  disabledBtn: {
+    opacity: 0.7,
+  },
 });

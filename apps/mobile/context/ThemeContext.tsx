@@ -25,7 +25,7 @@ export const darkColors = {
     text: '#e0e0e0',
     textSecondary: '#aaaaaa',
     textTertiary: '#888888',
-    border: '#333333',
+    border: '#444444',
     headerBg: '#1e1e1e',
     primary: '#00C853',
     primaryLight: '#1b3a1b',
@@ -35,7 +35,7 @@ export const darkColors = {
     statusBar: 'light-content' as const,
 };
 
-export type ThemeColors = typeof lightColors;
+export type ThemeColors = Omit<typeof lightColors, 'statusBar'> & { statusBar: 'light-content' | 'dark-content' };
 
 interface ThemeContextType {
     isDark: boolean;
@@ -51,10 +51,12 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [isDark, setIsDark] = useState(false);
+    const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
     useEffect(() => {
         AsyncStorage.getItem('darkMode').then(val => {
             if (val === 'true') setIsDark(true);
+            setIsThemeLoaded(true);
         });
     }, []);
 
@@ -65,6 +67,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
 
     const colors = isDark ? darkColors : lightColors;
+
+    if (!isThemeLoaded) {
+        return null; // Or a minimal splash screen if needed, but null works to hold off rendering
+    }
 
     return (
         <ThemeContext.Provider value={{ isDark, colors, toggleTheme }}>

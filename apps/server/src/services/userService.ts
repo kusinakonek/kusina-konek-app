@@ -1,5 +1,5 @@
 import { CompleteUserProfileInput, Role } from "@kusinakonek/common";
-import { prisma } from "@kusinakonek/database";
+import { prisma, supabaseAdmin } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
 import { sha256Hex, hashPassword } from "../utils/hash";
@@ -278,6 +278,12 @@ export const userService = {
    * Uses a transaction to ensure atomicity.
    */
   async deleteAccount(userID: string) {
+    // 1. Delete from Supabase Auth (Identity Provider)
+    // We do this first or concurrently. If it fails, we shouldn't delete data?
+    // Or we delete data first? Usually better to delete data first so we don't have orphan data.
+    // However, if we delete data and auth deletion fails, the user is stuck without a profile.
+    // Let's delete data first (transaction), then auth user.
+
     await prisma.$transaction(async (tx) => {
       // Delete notifications
       await tx.notification.deleteMany({ where: { userID } });
@@ -306,5 +312,19 @@ export const userService = {
       // Delete the user
       await tx.user.delete({ where: { userID } });
     });
+
+    // 2. Delete from Supabase Auth
+    try {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userID);
+      if (error) {
+        console.error(`[deleteAccount] Failed to delete auth user ${userID}:`, error);
+        // We log it but don't throw, as the main data is already gone.
+        // It might be already deleted or have other issues.
+      } else {
+        console.log(`[deleteAccount] Deleted auth user ${userID}`);
+      }
+    } catch (e) {
+      console.error(`[deleteAccount] Exception deleting auth user:`, e);
+    }
   },
 };

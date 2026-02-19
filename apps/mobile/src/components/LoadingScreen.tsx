@@ -9,6 +9,7 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { theme } from '../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { fp } from '../utils/responsive';
 
 interface LoadingScreenProps {
@@ -73,8 +74,10 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
     const logoSize = isSmall ? width * 0.22 : isLandscape ? height * 0.18 : width * 0.24;
     const dotSize = isSmall ? 7 : 9;
 
+    const { colors, isDark } = useTheme();
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.content}>
                 <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                     <Image
@@ -83,6 +86,7 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
                             width: logoSize,
                             height: logoSize,
                             marginBottom: height * 0.025,
+                            tintColor: isDark ? undefined : undefined // Optional: if you have a white logo for dark mode
                         }}
                         resizeMode="contain"
                     />
@@ -100,13 +104,14 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
                                     height: dotSize,
                                     borderRadius: dotSize / 2,
                                     transform: [{ translateY: anim }],
+                                    backgroundColor: colors.primary
                                 },
                             ]}
                         />
                     ))}
                 </View>
 
-                <Text style={[styles.text, { fontSize: fp(isSmall ? 13 : 15) }]}>
+                <Text style={[styles.text, { fontSize: fp(isSmall ? 13 : 15), color: colors.textSecondary }]}>
                     {message}
                 </Text>
             </View>
@@ -117,7 +122,6 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -134,10 +138,9 @@ const styles = StyleSheet.create({
         height: 24,
     },
     dot: {
-        backgroundColor: theme.colors.primary,
+        // backgroundColor set dynamically
     },
     text: {
-        color: theme.colors.mutedText,
         fontWeight: '500',
         textAlign: 'center',
     },
