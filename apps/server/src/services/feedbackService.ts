@@ -28,7 +28,23 @@ export const feedbackService = {
       donor: { connect: { userID: distribution.donorID } },
       recipient: { connect: { userID: distribution.recipientID } },
       ratingScore: params.input.ratingScore,
-      comments: params.input.comments
+      comments: params.input.comments,
+      photoUrl: params.input.photoUrl
+    });
+
+    // --- Recalculate Donor's Average Rating ---
+    const donorID = distribution.donorID;
+
+    // Get all ratings for this donor
+    const aggregations = await feedbackRepository.listReceived(donorID);
+    const totalRating = aggregations.reduce((acc, curr) => acc + curr.ratingScore, 0);
+    const count = aggregations.length;
+    const newAverage = count > 0 ? totalRating / count : 0;
+
+    // Update User table
+    await userRepository.update(donorID, {
+      averageRating: newAverage,
+      ratingCount: count
     });
 
     return { feedback };
@@ -75,4 +91,3 @@ export const feedbackService = {
     return { feedbacks };
   }
 };
-

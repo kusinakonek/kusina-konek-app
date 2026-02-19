@@ -22,9 +22,10 @@ interface RecentItemsListProps {
     onSeeAll?: () => void;
     onConfirm?: (id: string) => void;
     onMarkOnTheWay?: (id: string) => void;
+    onFeedback?: (id: string) => void;
 }
 
-export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay }: RecentItemsListProps) => {
+export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay, onFeedback }: RecentItemsListProps) => {
     const { colors, isDark } = useTheme();
 
     const renderItem = ({ item }: { item: RecentItem }) => (
@@ -68,7 +69,10 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheW
             </View>
 
             {role === 'RECIPIENT' && item.showFeedback && (
-                <TouchableOpacity style={styles.feedbackButton}>
+                <TouchableOpacity
+                    style={styles.feedbackButton}
+                    onPress={() => onFeedback && onFeedback(item.id)}
+                >
                     <Text style={styles.feedbackButtonText}>Give Feedback</Text>
                 </TouchableOpacity>
             )}

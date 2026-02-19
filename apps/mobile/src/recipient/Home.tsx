@@ -22,6 +22,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
+import FeedbackModal from "../components/FeedbackModal";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -30,6 +31,11 @@ export default function RecipientHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+
+  // Feedback Modal State
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -106,18 +112,47 @@ export default function RecipientHome() {
             setLoading(true);
             try {
               await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(id));
-              fetchDashboardData();
-              Alert.alert("Success", "Food marked as received! Thank you.");
+              // Don't show success alert yet, show Feedback Modal instead
+              setSelectedDisID(id);
+              setFeedbackVisible(true);
             } catch (error) {
               console.error("Failed to confirm donation", error);
               Alert.alert("Error", "Failed to confirm. Please try again.");
+              setLoading(false);
             } finally {
+              // Only stop loading if we are NOT showing the modal (error case)
+              // If success, we keep loading state or just handle it?
+              // Actually, we want to hide global loading and show modal.
               setLoading(false);
             }
           }
         }
       ]
     );
+  };
+
+  const handleSubmitFeedback = async (rating: number, comment: string, photo: string) => {
+    if (!selectedDisID) return;
+
+    setSubmittingFeedback(true);
+    try {
+      await axiosClient.post(API_ENDPOINTS.FEEDBACK.CREATE, {
+        disID: selectedDisID,
+        ratingScore: rating,
+        comments: comment,
+        photoUrl: photo
+      });
+
+      setFeedbackVisible(false);
+      Alert.alert("Thank You!", "Your feedback has been submitted.");
+      fetchDashboardData();
+      setSelectedDisID(null);
+    } catch (error) {
+      console.error("Feedback submit error:", error);
+      Alert.alert("Error", "Failed to submit feedback. Please try again.");
+    } finally {
+      setSubmittingFeedback(false);
+    }
   };
 
   const handleMarkOnTheWay = async (id: string) => {
@@ -144,6 +179,11 @@ export default function RecipientHome() {
         }
       ]
     );
+  };
+
+  const handleFeedback = (id: string) => {
+    setSelectedDisID(id);
+    setFeedbackVisible(true);
   };
 
   return (
@@ -253,6 +293,7 @@ export default function RecipientHome() {
             onSeeAll={() => { }}
             onConfirm={handleConfirmDonation}
             onMarkOnTheWay={handleMarkOnTheWay}
+            onFeedback={handleFeedback}
           />
         ) : (
           <View style={styles.recentSection}>
@@ -272,6 +313,14 @@ export default function RecipientHome() {
 
         <View style={{ height: hp(20) }} />
       </ScrollView>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        onSubmit={handleSubmitFeedback}
+        isSubmitting={submittingFeedback}
+      />
     </SafeAreaView>
   );
 }
