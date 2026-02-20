@@ -21,6 +21,7 @@ import { Package, MapPin, Utensils, Search, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
+import { RecentFoodSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 
@@ -78,14 +79,20 @@ export default function RecipientHome() {
       // Map API status values to UI status values
       status: (() => {
         switch (f.status?.toUpperCase()) {
-          case 'PENDING': return 'pending';
-          case 'CLAIMED': return 'claimed';
-          case 'ON_THE_WAY': return 'on-the-way';
-          case 'COMPLETED': return 'completed';
-          case 'DELIVERED': return 'completed';
-          default: return f.status?.toLowerCase();
+          case "PENDING":
+            return "pending";
+          case "CLAIMED":
+            return "claimed";
+          case "ON_THE_WAY":
+            return "on-the-way";
+          case "COMPLETED":
+            return "completed";
+          case "DELIVERED":
+            return "completed";
+          default:
+            return f.status?.toLowerCase();
         }
-      })() as RecentItem['status'],
+      })() as RecentItem["status"],
       rating: f.myRating,
       showFeedback: f.canGiveFeedback,
     }));
@@ -125,13 +132,17 @@ export default function RecipientHome() {
               // Actually, we want to hide global loading and show modal.
               setLoading(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
-  const handleSubmitFeedback = async (rating: number, comment: string, photo: string) => {
+  const handleSubmitFeedback = async (
+    rating: number,
+    comment: string,
+    photo: string,
+  ) => {
     if (!selectedDisID) return;
 
     setSubmittingFeedback(true);
@@ -140,7 +151,7 @@ export default function RecipientHome() {
         disID: selectedDisID,
         ratingScore: rating,
         comments: comment,
-        photoUrl: photo
+        photoUrl: photo,
       });
 
       setFeedbackVisible(false);
@@ -156,29 +167,28 @@ export default function RecipientHome() {
   };
 
   const handleMarkOnTheWay = async (id: string) => {
-    Alert.alert(
-      "On the Way",
-      "Are you heading to pick up this food now?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, I'm On My Way",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
-              fetchDashboardData();
-              Alert.alert("Great!", "The donor has been notified you're on your way.");
-            } catch (error) {
-              console.error("Failed to mark on the way", error);
-              Alert.alert("Error", "Failed to update status. Please try again.");
-            } finally {
-              setLoading(false);
-            }
+    Alert.alert("On the Way", "Are you heading to pick up this food now?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, I'm On My Way",
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
+            fetchDashboardData();
+            Alert.alert(
+              "Great!",
+              "The donor has been notified you're on your way.",
+            );
+          } catch (error) {
+            console.error("Failed to mark on the way", error);
+            Alert.alert("Error", "Failed to update status. Please try again.");
+          } finally {
+            setLoading(false);
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   const handleFeedback = (id: string) => {
@@ -187,7 +197,9 @@ export default function RecipientHome() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["top"]}>
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <View style={styles.headerLeft}>
           <Image
@@ -196,14 +208,18 @@ export default function RecipientHome() {
             resizeMode="contain"
           />
           <View>
-            <Text style={[styles.appName, { color: colors.text }]}>KusinaKonek</Text>
-            <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Recipient Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>
+              KusinaKonek
+            </Text>
+            <Text
+              style={[styles.dashboardTitle, { color: colors.textSecondary }]}>
+              Recipient Dashboard
+            </Text>
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => router.push('/(tabs)/notifications')}
-          style={{ padding: 8 }}
-        >
+          onPress={() => router.push("/(tabs)/notifications")}
+          style={{ padding: 8 }}>
           <Bell size={wp(24)} color="#00C853" />
         </TouchableOpacity>
       </View>
@@ -220,14 +236,24 @@ export default function RecipientHome() {
         }>
         {/* Greeting */}
         <View style={styles.greetingRow}>
-          <View style={[styles.greetingAvatar, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
+          <View
+            style={[
+              styles.greetingAvatar,
+              { backgroundColor: isDark ? "#1a3a1a" : "#E8F5E9" },
+            ]}>
             <Text style={styles.greetingAvatarText}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={[styles.greetingName, { color: colors.text }]}>Hi {userName}!</Text>
-            <Text style={[styles.greetingSubtitle, { color: colors.textSecondary }]}>
+            <Text style={[styles.greetingName, { color: colors.text }]}>
+              Hi {userName}!
+            </Text>
+            <Text
+              style={[
+                styles.greetingSubtitle,
+                { color: colors.textSecondary },
+              ]}>
               Discover bunch of different free{" "}
               <Text style={styles.greenText}>ULAM</Text>.
             </Text>
@@ -254,23 +280,46 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View style={[styles.recipientStatsCard, { backgroundColor: isDark ? '#1a2a3a' : '#E3F2FD', borderColor: isDark ? colors.border : '#BBDEFB' }]}>
+        <View
+          style={[
+            styles.recipientStatsCard,
+            {
+              backgroundColor: colors.primaryLight,
+              borderColor: colors.border,
+            },
+          ]}>
           <View style={styles.recipientStatsIconContainer}>
-            <Package size={wp(48)} color="#2962FF" />
+            <Package size={wp(48)} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.recipientStatsValue, { color: colors.text }]}>
               {dashboardData?.stats?.availableFoods || 0}
             </Text>
-            <Text style={[styles.recipientStatsLabel, { color: colors.text }]}>Available Foods</Text>
+            <Text style={[styles.recipientStatsLabel, { color: colors.text }]}>
+              Available Foods
+            </Text>
             <View style={styles.recipientStatsMeta}>
               <MapPin size={wp(12)} color="#00C853" />
-              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.recipientStatsMetaText,
+                  { color: colors.textSecondary },
+                ]}>
                 {dashboardData?.stats?.locations || 0} locations
               </Text>
-              <Text style={[styles.recipientStatsMetaDot, { color: colors.textTertiary }]}>•</Text>
-              <Utensils size={wp(12)} color="#2962FF" />
-              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.recipientStatsMetaDot,
+                  { color: colors.textTertiary },
+                ]}>
+                •
+              </Text>
+              <Utensils size={wp(12)} color={colors.primary} />
+              <Text
+                style={[
+                  styles.recipientStatsMetaText,
+                  { color: colors.textSecondary },
+                ]}>
                 {dashboardData?.stats?.totalServings || 0}+ servings
               </Text>
             </View>
@@ -286,11 +335,13 @@ export default function RecipientHome() {
         </TouchableOpacity>
 
         {/* Recent Food */}
-        {getRecentItems().length > 0 ? (
+        {loading && !refreshing ? (
+          <RecentFoodSkeleton count={3} />
+        ) : getRecentItems().length > 0 ? (
           <RecentItemsList
-            items={getRecentItems()}
+            items={getRecentItems().slice(0, 4)}
             role="RECIPIENT"
-            onSeeAll={() => { }}
+            onSeeAll={() => router.push("/(recipient)/all-recent-foods")}
             onConfirm={handleConfirmDonation}
             onMarkOnTheWay={handleMarkOnTheWay}
             onFeedback={handleFeedback}
@@ -298,8 +349,11 @@ export default function RecipientHome() {
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Recent Food</Text>
-              <TouchableOpacity onPress={() => { }}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                My Recent Food
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(recipient)/all-recent-foods")}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>

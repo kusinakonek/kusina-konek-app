@@ -9,6 +9,7 @@ export { default as BrowseFoodCard } from "./BrowseFoodCard";
 export { default as SearchBar } from "./SearchBar";
 export { default as EmptyCart } from "./EmptyCart";
 export { default as EmptyRecentFood } from "./EmptyRecentFood";
+export { default as RecentFoodCard } from "./RecentFoodCard";
 export { default as CartHeader } from "./CartHeader";
 export { default as CartBottomBar } from "./CartBottomBar";
 export { default as CartItemCard } from "./CartItemCard";
