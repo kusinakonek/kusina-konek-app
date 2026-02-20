@@ -35,16 +35,40 @@ export const useSignupLogic = () => {
         phoneNo: '',
     });
 
+    const [emailError, setEmailError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
+
     const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password]);
 
     const handleChange = (key: string, value: string) => {
         setFormData(prev => ({ ...prev, [key]: value }));
+        // Clear errors when user types
+        if (key === 'email') setEmailError('');
+        if (key === 'phoneNo') setPhoneError('');
+    };
+
+    const checkAvailability = async (email: string, phoneNo: string) => {
+        try {
+            // Dynamic import to avoid circular dependencies if any, though likely not needed here -- fixed path
+            const axiosClient = (await import('../../../api/axiosClient')).default;
+
+            const response = await axiosClient.post('/auth/availability', {
+                email,
+                phoneNo
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('Availability check failed:', error);
+            // Default to true if check fails to not block signup (let backend handle final check)
+            return { emailAvailable: true, phoneAvailable: true };
+        }
     };
 
     const handleSignup = async () => {
         const { fullName, email, password, confirmPassword, barangay, phoneNo } = formData;
 
-        if (!fullName || !email || !password || !confirmPassword || !barangay) {
+        if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
             Alert.alert('Error', 'Please fill in all required fields');
             return;
         }
@@ -65,7 +89,28 @@ export const useSignupLogic = () => {
         }
 
         setLoading(true);
+        setEmailError('');
+        setPhoneError('');
+
         try {
+            // Pre-check availability
+            const availability = await checkAvailability(email.trim().toLowerCase(), phoneNo);
+
+            let hasError = false;
+            if (!availability.emailAvailable) {
+                setEmailError('Email is already in use');
+                hasError = true;
+            }
+            if (!availability.phoneAvailable) {
+                setPhoneError('Phone number is already in use');
+                hasError = true;
+            }
+
+            if (hasError) {
+                setLoading(false);
+                return;
+            }
+
             await signUp(email.trim().toLowerCase(), password, {
                 full_name: fullName,
                 display_name: fullName,
@@ -98,6 +143,8 @@ export const useSignupLogic = () => {
         handleSignup,
         passwordStrength,
         role,
-        router
+        router,
+        emailError,
+        phoneError
     };
 };

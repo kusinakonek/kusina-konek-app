@@ -5,6 +5,8 @@ import { Mail, Lock, User, MapPin, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-
 import { styles } from './SignupCSS/styles';
 import { useSignupLogic } from './SignupJS/useSignupLogic';
 
+import { useTheme } from '../../../context/ThemeContext';
+
 export default function SignupView() {
     const {
         formData,
@@ -17,26 +19,30 @@ export default function SignupView() {
         handleSignup,
         passwordStrength,
         role,
-        router
+        router,
+        emailError,
+        phoneError
     } = useSignupLogic();
 
+    const { colors, isDark } = useTheme();
+
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
             {/* Fixed Header */}
-            <View style={styles.fixedHeader}>
+            <View style={[styles.fixedHeader, { backgroundColor: colors.background }]}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
-                    <ArrowLeft size={24} color="#333" />
+                    <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
             </View>
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
+                style={[styles.container, { backgroundColor: colors.background }]}
             >
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     <View style={styles.header}>
@@ -45,116 +51,120 @@ export default function SignupView() {
                             style={styles.logoImage}
                             resizeMode="contain"
                         />
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>
+                        <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+                        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                             Join our food sharing community as a <Text style={styles.roleHighlight}>{role}</Text>
                         </Text>
                     </View>
 
                     <View style={styles.form}>
-                        <View style={styles.inputContainer}>
-                            <User size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <User size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Full Name"
                                 value={formData.fullName}
                                 onChangeText={(text) => handleChange('fullName', text)}
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Mail size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <Mail size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Email"
                                 value={formData.email}
                                 onChangeText={(text) => handleChange('email', text)}
                                 autoCapitalize="none"
                                 keyboardType="email-address"
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
+                        {/* Error Message for Email */
+                            emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
-                        <View style={styles.inputContainer}>
-                            <MapPin size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <MapPin size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Barangay e.g., Abella"
                                 value={formData.barangay}
                                 onChangeText={(text) => handleChange('barangay', text)}
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Phone size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <Phone size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
-                                placeholder="Phone Number (Optional)"
+                                style={[styles.input, { color: colors.text }]}
+                                placeholder="Phone Number *"
                                 value={formData.phoneNo}
                                 onChangeText={(text) => handleChange('phoneNo', text)}
                                 keyboardType="phone-pad"
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                         </View>
+                        {/* Error Message for Phone */
+                            phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
 
-                        <View style={styles.inputContainer}>
-                            <Lock size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <Lock size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Password"
                                 value={formData.password}
                                 onChangeText={(text) => handleChange('password', text)}
                                 secureTextEntry={!showPassword}
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                {showPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                                {showPassword ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
                             </TouchableOpacity>
                         </View>
 
                         {/* Password Strength Indicator */}
                         {formData.password.length > 0 && (
                             <View style={styles.strengthContainer}>
-                                <View style={styles.strengthBarBg}>
+                                <View style={[styles.strengthBarBg, { backgroundColor: isDark ? '#444' : '#E0E0E0' }]}>
                                     <View style={[styles.strengthBarFill, { width: `${passwordStrength.percent}%`, backgroundColor: passwordStrength.color }]} />
                                 </View>
                                 <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
                                     {passwordStrength.label}
                                 </Text>
                                 <View style={styles.strengthHints}>
-                                    <Text style={[styles.hintText, /[a-z]/.test(formData.password) && styles.hintMet]}>
+                                    <Text style={[styles.hintText, { color: colors.textTertiary }, /[a-z]/.test(formData.password) && styles.hintMet]}>
                                         {/[a-z]/.test(formData.password) ? '✓' : '○'} lowercase
                                     </Text>
-                                    <Text style={[styles.hintText, /[A-Z]/.test(formData.password) && styles.hintMet]}>
+                                    <Text style={[styles.hintText, { color: colors.textTertiary }, /[A-Z]/.test(formData.password) && styles.hintMet]}>
                                         {/[A-Z]/.test(formData.password) ? '✓' : '○'} UPPERCASE
                                     </Text>
-                                    <Text style={[styles.hintText, /[0-9]/.test(formData.password) && styles.hintMet]}>
+                                    <Text style={[styles.hintText, { color: colors.textTertiary }, /[0-9]/.test(formData.password) && styles.hintMet]}>
                                         {/[0-9]/.test(formData.password) ? '✓' : '○'} number
                                     </Text>
-                                    <Text style={[styles.hintText, /[^a-zA-Z0-9]/.test(formData.password) && styles.hintMet]}>
+                                    <Text style={[styles.hintText, { color: colors.textTertiary }, /[^a-zA-Z0-9]/.test(formData.password) && styles.hintMet]}>
                                         {/[^a-zA-Z0-9]/.test(formData.password) ? '✓' : '○'} symbol
                                     </Text>
-                                    <Text style={[styles.hintText, formData.password.length >= 8 && styles.hintMet]}>
+                                    <Text style={[styles.hintText, { color: colors.textTertiary }, formData.password.length >= 8 && styles.hintMet]}>
                                         {formData.password.length >= 8 ? '✓' : '○'} 8+ chars
                                     </Text>
                                 </View>
                             </View>
                         )}
 
-                        <View style={styles.inputContainer}>
-                            <Lock size={20} color="#666" style={styles.inputIcon} />
+                        <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                            <Lock size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: colors.text }]}
                                 placeholder="Confirm Password"
                                 value={formData.confirmPassword}
                                 onChangeText={(text) => handleChange('confirmPassword', text)}
                                 secureTextEntry={!showConfirmPassword}
-                                placeholderTextColor="#999"
+                                placeholderTextColor={colors.textTertiary}
                             />
                             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                                {showConfirmPassword ? <EyeOff size={20} color="#666" /> : <Eye size={20} color="#666" />}
+                                {showConfirmPassword ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
                             </TouchableOpacity>
                         </View>
 
@@ -172,7 +182,7 @@ export default function SignupView() {
                     </View>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Already have an account? </Text>
+                        <Text style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account? </Text>
                         <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
                             <Text style={styles.linkText}>Login</Text>
                         </TouchableOpacity>

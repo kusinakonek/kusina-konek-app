@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Modal as RNModal, StyleSheet, TouchableWithoutFeedback, ViewStyle } from 'react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface ModalProps {
     visible: boolean;
@@ -18,6 +19,8 @@ export const Modal: React.FC<ModalProps> = ({
     transparent = true,
     animationType = 'fade'
 }) => {
+    const { colors } = useTheme();
+
     return (
         <RNModal
             visible={visible}
@@ -28,7 +31,7 @@ export const Modal: React.FC<ModalProps> = ({
             <TouchableWithoutFeedback onPress={onClose}>
                 <View style={styles.overlay}>
                     <TouchableWithoutFeedback>
-                        <View style={[styles.content, style]}>
+                        <View style={[styles.content, { backgroundColor: colors.card }, style]}>
                             {children}
                         </View>
                     </TouchableWithoutFeedback>

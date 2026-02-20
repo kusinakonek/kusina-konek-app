@@ -17,17 +17,25 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import EmptyRecentFood from "../components/EmptyRecentFood";
-import { Package, MapPin, Utensils, Search } from "lucide-react-native";
+import { Package, MapPin, Utensils, Search, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
+import { useTheme } from "../../context/ThemeContext";
+import FeedbackModal from "../components/FeedbackModal";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+
+  // Feedback Modal State
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -67,7 +75,17 @@ export default function RecipientHome() {
       quantity: `${f.quantity} servings`,
       location: f.location,
       time: f.timeAgo,
-      status: f.status?.toLowerCase(),
+      // Map API status values to UI status values
+      status: (() => {
+        switch (f.status?.toUpperCase()) {
+          case 'PENDING': return 'pending';
+          case 'CLAIMED': return 'claimed';
+          case 'ON_THE_WAY': return 'on-the-way';
+          case 'COMPLETED': return 'completed';
+          case 'DELIVERED': return 'completed';
+          default: return f.status?.toLowerCase();
+        }
+      })() as RecentItem['status'],
       rating: f.myRating,
       showFeedback: f.canGiveFeedback,
     }));
@@ -93,12 +111,67 @@ export default function RecipientHome() {
           onPress: async () => {
             setLoading(true);
             try {
-              await axiosClient.post(`/donations/${id}/confirm`);
-              fetchDashboardData();
-              Alert.alert("Success", "Donation marked as received!");
+              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(id));
+              // Don't show success alert yet, show Feedback Modal instead
+              setSelectedDisID(id);
+              setFeedbackVisible(true);
             } catch (error) {
               console.error("Failed to confirm donation", error);
-              Alert.alert("Error", "Failed to confirm donation. Please try again.");
+              Alert.alert("Error", "Failed to confirm. Please try again.");
+              setLoading(false);
+            } finally {
+              // Only stop loading if we are NOT showing the modal (error case)
+              // If success, we keep loading state or just handle it?
+              // Actually, we want to hide global loading and show modal.
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSubmitFeedback = async (rating: number, comment: string, photo: string) => {
+    if (!selectedDisID) return;
+
+    setSubmittingFeedback(true);
+    try {
+      await axiosClient.post(API_ENDPOINTS.FEEDBACK.CREATE, {
+        disID: selectedDisID,
+        ratingScore: rating,
+        comments: comment,
+        photoUrl: photo
+      });
+
+      setFeedbackVisible(false);
+      Alert.alert("Thank You!", "Your feedback has been submitted.");
+      fetchDashboardData();
+      setSelectedDisID(null);
+    } catch (error) {
+      console.error("Feedback submit error:", error);
+      Alert.alert("Error", "Failed to submit feedback. Please try again.");
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleMarkOnTheWay = async (id: string) => {
+    Alert.alert(
+      "On the Way",
+      "Are you heading to pick up this food now?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, I'm On My Way",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
+              fetchDashboardData();
+              Alert.alert("Great!", "The donor has been notified you're on your way.");
+            } catch (error) {
+              console.error("Failed to mark on the way", error);
+              Alert.alert("Error", "Failed to update status. Please try again.");
             } finally {
               setLoading(false);
             }
@@ -108,21 +181,30 @@ export default function RecipientHome() {
     );
   };
 
+  const handleFeedback = (id: string) => {
+    setSelectedDisID(id);
+    setFeedbackVisible(true);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => router.push("/(recipient)/browse-food")}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
+        <View style={styles.headerLeft}>
           <Image
             source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.appName}>KusinaKonek</Text>
-            <Text style={styles.dashboardTitle}>RECIPIENT Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>KusinaKonek</Text>
+            <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Recipient Dashboard</Text>
           </View>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/notifications')}
+          style={{ padding: 8 }}
+        >
+          <Bell size={wp(24)} color="#00C853" />
         </TouchableOpacity>
       </View>
 
@@ -138,14 +220,14 @@ export default function RecipientHome() {
         }>
         {/* Greeting */}
         <View style={styles.greetingRow}>
-          <View style={styles.greetingAvatar}>
+          <View style={[styles.greetingAvatar, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
             <Text style={styles.greetingAvatarText}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={styles.greetingName}>Hi {userName}!</Text>
-            <Text style={styles.greetingSubtitle}>
+            <Text style={[styles.greetingName, { color: colors.text }]}>Hi {userName}!</Text>
+            <Text style={[styles.greetingSubtitle, { color: colors.textSecondary }]}>
               Discover bunch of different free{" "}
               <Text style={styles.greenText}>ULAM</Text>.
             </Text>
@@ -172,23 +254,23 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View style={styles.recipientStatsCard}>
+        <View style={[styles.recipientStatsCard, { backgroundColor: isDark ? '#1a2a3a' : '#E3F2FD', borderColor: isDark ? colors.border : '#BBDEFB' }]}>
           <View style={styles.recipientStatsIconContainer}>
             <Package size={wp(48)} color="#2962FF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.recipientStatsValue}>
+            <Text style={[styles.recipientStatsValue, { color: colors.text }]}>
               {dashboardData?.stats?.availableFoods || 0}
             </Text>
-            <Text style={styles.recipientStatsLabel}>Available Foods</Text>
+            <Text style={[styles.recipientStatsLabel, { color: colors.text }]}>Available Foods</Text>
             <View style={styles.recipientStatsMeta}>
               <MapPin size={wp(12)} color="#00C853" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
                 {dashboardData?.stats?.locations || 0} locations
               </Text>
-              <Text style={styles.recipientStatsMetaDot}>•</Text>
+              <Text style={[styles.recipientStatsMetaDot, { color: colors.textTertiary }]}>•</Text>
               <Utensils size={wp(12)} color="#2962FF" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text style={[styles.recipientStatsMetaText, { color: colors.textSecondary }]}>
                 {dashboardData?.stats?.totalServings || 0}+ servings
               </Text>
             </View>
@@ -210,11 +292,13 @@ export default function RecipientHome() {
             role="RECIPIENT"
             onSeeAll={() => { }}
             onConfirm={handleConfirmDonation}
+            onMarkOnTheWay={handleMarkOnTheWay}
+            onFeedback={handleFeedback}
           />
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Recent Food</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Recent Food</Text>
               <TouchableOpacity onPress={() => { }}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
@@ -229,6 +313,14 @@ export default function RecipientHome() {
 
         <View style={{ height: hp(20) }} />
       </ScrollView>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        onSubmit={handleSubmitFeedback}
+        isSubmitting={submittingFeedback}
+      />
     </SafeAreaView>
   );
 }

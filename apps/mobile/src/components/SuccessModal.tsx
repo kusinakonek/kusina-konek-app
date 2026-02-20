@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { CheckCircle } from 'lucide-react-native';
 import { wp, hp, fp } from '../utils/responsive';
 import { theme } from '../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface SuccessModalProps {
     visible: boolean;
@@ -19,6 +20,8 @@ export default function SuccessModal({
     buttonText = 'OK',
     onClose,
 }: SuccessModalProps) {
+    const { colors, isDark } = useTheme();
+
     return (
         <Modal
             visible={visible}
@@ -27,10 +30,10 @@ export default function SuccessModal({
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                <View style={styles.container}>
+                <View style={[styles.container, { backgroundColor: colors.card }]}>
                     {/* Success Icon */}
                     <View style={styles.iconContainer}>
-                        <View style={styles.iconCircle}>
+                        <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.1)' }]}>
                             <CheckCircle
                                 size={fp(40)}
                                 color={theme.colors.primary}
@@ -40,10 +43,10 @@ export default function SuccessModal({
                     </View>
 
                     {/* Title */}
-                    <Text style={styles.title}>{title}</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
 
                     {/* Message */}
-                    <Text style={styles.message}>{message}</Text>
+                    <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
 
                     {/* Button */}
                     <TouchableOpacity

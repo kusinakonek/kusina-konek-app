@@ -2,6 +2,7 @@ import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { MapPin, Clock, Users, Navigation } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 const DEFAULT_FOOD_IMAGE = require("../../../assets/KusinaKonek-Logo.png");
 
@@ -26,6 +27,8 @@ export default function BrowseFoodCard({
   distanceKm,
   onRequest,
 }: BrowseFoodCardProps) {
+  const { colors } = useTheme();
+
   const distanceLabel =
     distanceKm != null
       ? distanceKm < 1
@@ -33,7 +36,7 @@ export default function BrowseFoodCard({
         : `${distanceKm} km away`
       : null;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.row}>
         {/* Food Image */}
         <View style={styles.imageContainer}>
@@ -46,31 +49,31 @@ export default function BrowseFoodCard({
 
         {/* Food Info */}
         <View style={styles.info}>
-          <Text style={styles.foodName} numberOfLines={1}>
+          <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
             {foodName}
           </Text>
 
           {description ? (
-            <Text style={styles.description} numberOfLines={2}>
+            <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>
               {description}
             </Text>
           ) : null}
 
           <View style={styles.metaRow}>
-            <Users size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText}>{servings} servings</Text>
+            <Users size={14} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{servings} servings</Text>
           </View>
 
           <View style={styles.metaRow}>
-            <MapPin size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText} numberOfLines={1}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
               {barangay}
             </Text>
           </View>
 
           {distanceLabel ? (
             <View style={styles.metaRow}>
-              <Navigation size={14} color={theme.colors.primary} />
+              <Navigation size={14} color={colors.primary} />
               <Text style={[styles.metaText, styles.distanceText]}>
                 {distanceLabel}
               </Text>
@@ -80,8 +83,8 @@ export default function BrowseFoodCard({
           {/* Bottom row: time + request button */}
           <View style={styles.bottomRow}>
             <View style={styles.timeRow}>
-              <Clock size={12} color={theme.colors.mutedText} />
-              <Text style={styles.timeText}>{timeAgo}</Text>
+              <Clock size={12} color={colors.textTertiary} />
+              <Text style={[styles.timeText, { color: colors.textTertiary }]}>{timeAgo}</Text>
             </View>
 
             <Pressable

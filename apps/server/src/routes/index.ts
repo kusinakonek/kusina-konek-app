@@ -6,6 +6,7 @@ import { feedbackRouter } from "./feedbackRoutes";
 import { foodRouter } from "./foodRoutes";
 import { locationRouter } from "./locationRoutes";
 import { usersRouter } from "./userRoutes";
+import { notificationRouter } from "./notificationRoutes";
 
 export const apiRouter = Router();
 
@@ -16,3 +17,4 @@ apiRouter.use("/locations", locationRouter);
 apiRouter.use("/distributions", distributionRouter);
 apiRouter.use("/feedback", feedbackRouter);
 apiRouter.use("/users", usersRouter);
+apiRouter.use("/notifications", notificationRouter);

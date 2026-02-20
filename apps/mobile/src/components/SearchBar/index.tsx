@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, TextInput, View, Pressable } from "react-native";
 import { Search, SlidersHorizontal } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type SearchBarProps = {
   value: string;
@@ -16,14 +17,16 @@ export default function SearchBar({
   placeholder = "Search for food...",
   onFilterPress,
 }: SearchBarProps) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
-      <View style={styles.searchSection}>
-        <Search size={18} color={theme.colors.mutedText} style={styles.icon} />
+      <View style={[styles.searchSection, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+        <Search size={18} color={colors.textTertiary} style={styles.icon} />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text }]}
           placeholder={placeholder}
-          placeholderTextColor={theme.colors.mutedText}
+          placeholderTextColor={colors.textTertiary}
           value={value}
           onChangeText={onChangeText}
           autoCapitalize="none"
@@ -33,11 +36,11 @@ export default function SearchBar({
 
       {onFilterPress && (
         <Pressable
-          style={styles.filterButton}
+          style={[styles.filterButton, { borderColor: colors.border, backgroundColor: colors.inputBg }]}
           onPress={onFilterPress}
           accessibilityRole="button"
           accessibilityLabel="Filter">
-          <SlidersHorizontal size={20} color={theme.colors.mutedText} />
+          <SlidersHorizontal size={20} color={colors.textSecondary} />
         </Pressable>
       )}
     </View>

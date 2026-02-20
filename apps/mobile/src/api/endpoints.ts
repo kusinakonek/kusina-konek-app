@@ -13,6 +13,13 @@ export const API_ENDPOINTS = {
   USER: {
     GET_PROFILE: "/users/profile",
     UPDATE_PROFILE: "/users/profile",
+    PUSH_TOKEN: "/users/push-token",
+    DELETE_ACCOUNT: "/users/account",
+  },
+  NOTIFICATION: {
+    LIST: "/notifications",
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    DELETE: (id: string) => `/notifications/${id}`,
   },
   FOOD: {
     LIST_MINE: "/foods/mine",
@@ -45,6 +52,7 @@ export const API_ENDPOINTS = {
     UPDATE_STATUS: (disID: string) => `/distributions/${disID}/status`,
     COMPLETE: (disID: string) => `/distributions/${disID}/complete`,
     REQUEST: (disID: string) => `/distributions/${disID}/request`,
+    ON_THE_WAY: (disID: string) => `/distributions/${disID}/on-the-way`,
   },
   FEEDBACK: {
     CREATE: "/feedback",

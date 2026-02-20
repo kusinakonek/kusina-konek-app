@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { MapPin, Clock, Trash2, Timer } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 const RESERVATION_MS = 15 * 60 * 1000;
 
@@ -53,15 +54,17 @@ export default function CartItemCard({
   onRemove,
 }: CartItemCardProps) {
   const { label: timerLabel, isExpiring, isExpired } = useCountdown(addedAt);
+  const { colors, isDark } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.row}>
         {/* Food Image */}
         <View style={styles.imageContainer}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
-            <View style={[styles.image, styles.imagePlaceholder]}>
+            <View style={[styles.image, styles.imagePlaceholder, { backgroundColor: colors.border }]}>
               <Text style={styles.placeholderText}>No Image</Text>
             </View>
           )}
@@ -72,17 +75,17 @@ export default function CartItemCard({
           {/* Title row with delete */}
           <View style={styles.titleRow}>
             <View style={styles.titleGroup}>
-              <Text style={styles.foodName} numberOfLines={1}>
+              <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
                 {foodName}
               </Text>
-              <Text style={styles.donorName} numberOfLines={1}>
+              <Text style={[styles.donorName, { color: colors.textSecondary }]} numberOfLines={1}>
                 by {donorName}
               </Text>
             </View>
 
             <Pressable
               onPress={onRemove}
-              style={styles.removeButton}
+              style={[styles.removeButton, { backgroundColor: isDark ? '#3d0000' : '#FFF5F5', borderColor: isDark ? '#5c0000' : '#FFCDD2' }]}
               accessibilityRole="button"
               accessibilityLabel={`Remove ${foodName}`}>
               <Trash2 size={18} color={theme.colors.danger} />
@@ -92,10 +95,10 @@ export default function CartItemCard({
           {/* Quantity */}
           <View style={styles.quantityContainer}>
             <View style={styles.quantityLabelRow}>
-              <Clock size={14} color={theme.colors.mutedText} />
-              <Text style={styles.metaText}>Quantity / Serving(s):</Text>
+              <Clock size={14} color={colors.textSecondary} />
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>Quantity / Serving(s):</Text>
             </View>
-            <View style={styles.quantityBadge}>
+            <View style={[styles.quantityBadge, { backgroundColor: isDark ? '#1b3a1b' : '#E8F5E9', borderColor: isDark ? '#2e5d2e' : '#C8E6C9' }]}>
               <Text style={styles.quantityText}>
                 {quantity} {unit}
               </Text>
@@ -104,8 +107,8 @@ export default function CartItemCard({
 
           {/* Location */}
           <View style={styles.metaRow}>
-            <MapPin size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText} numberOfLines={1}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
               {barangay}
             </Text>
           </View>

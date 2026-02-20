@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "348148174592",
+    "project_id": "kusinakonek-1d6cf",
+    "storage_bucket": "kusinakonek-1d6cf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:348148174592:android:f6055e979717bb0fa06de5",
+        "android_client_info": {
+          "package_name": "com.kusinakonek.kusinakonek"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcgXXEfLKeMjNjkBgoOlcW_m8NBcf8iWo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

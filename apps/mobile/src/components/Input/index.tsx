@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, StyleProp, ViewStyle } from 'react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface InputProps extends TextInputProps {
     label?: string;
@@ -12,20 +13,28 @@ export default function Input({
     error,
     containerStyle,
     style,
-    placeholderTextColor = '#999',
+    placeholderTextColor,
     ...props
 }: InputProps) {
+    const { colors } = useTheme();
+    const defaultPlaceholderColor = colors.textTertiary;
+
     return (
         <View style={[styles.container, containerStyle]}>
-            {label && <Text style={styles.label}>{label}</Text>}
+            {label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
             <TextInput
                 style={[
                     styles.input,
+                    {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.border,
+                        color: colors.text
+                    },
                     props.multiline && styles.textArea,
-                    error && styles.inputError,
+                    error ? { borderColor: '#D32F2F', backgroundColor: '#FFEBEE' } : {},
                     style
                 ]}
-                placeholderTextColor={placeholderTextColor}
+                placeholderTextColor={placeholderTextColor || defaultPlaceholderColor}
                 textAlignVertical={props.multiline ? 'top' : 'center'}
                 {...props}
             />
@@ -57,10 +66,6 @@ const styles = StyleSheet.create({
     textArea: {
         minHeight: 100,
         paddingTop: 14,
-    },
-    inputError: {
-        borderColor: '#D32F2F',
-        backgroundColor: '#FFEBEE',
     },
     errorText: {
         color: '#D32F2F',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { MapPin, Star } from 'lucide-react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 // Define a common interface for items (donations or claims)
 export interface RecentItem {
@@ -9,10 +10,11 @@ export interface RecentItem {
     quantity: string;
     location: string;
     time: string;
-    status?: 'donated' | 'claimed' | 'on-the-way';
+    status?: 'pending' | 'donated' | 'claimed' | 'on-the-way' | 'completed';
     rating?: number;
     recipientName?: string; // For donors seeing who claimed
     showFeedback?: boolean; // Show feedback button for recipients
+    role?: 'DONOR' | 'RECIPIENT';
 }
 
 interface RecentItemsListProps {
@@ -20,15 +22,43 @@ interface RecentItemsListProps {
     role: 'DONOR' | 'RECIPIENT';
     onSeeAll?: () => void;
     onConfirm?: (id: string) => void;
+    onMarkOnTheWay?: (id: string) => void;
+    onFeedback?: (id: string) => void;
 }
 
-export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItemsListProps) => {
+export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay, onFeedback }: RecentItemsListProps) => {
+    const { colors, isDark } = useTheme();
+
+    const handleItemPress = (item: RecentItem) => {
+        // If item has a rating, it implies a completed distribution with feedback (usually).
+        // The user wants to click "food there that has a rating" to view details.
+        if (item.rating && item.role === 'DONOR') { // role check optional but safe
+            // Navigate to review details
+            // We need to pass the distribution ID so ReviewDetails can fetch it.
+            // RecentItem 'id' is mapped to 'disID' in Home.tsx. 
+            // "id: d.disID || d.id,"
+            if (onFeedback) {
+                onFeedback(item.id);
+            }
+        }
+    };
+
     const renderItem = ({ item }: { item: RecentItem }) => (
-        <View style={styles.card}>
+        <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={0.7}
+            disabled={!item.rating && !onSeeAll} // Only strictly disable if no action possible? User wants to see details.
+            // If item has rating, we go to details. 
+            // If not, maybe just do nothing or expand? 
+            // The requirement was specific to review details.
+            onPress={() => handleItemPress(item)}
+        >
             <View style={styles.cardHeader}>
-                <View>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <Text style={styles.itemQuantity}>{item.quantity}</Text>
+                <View style={{ flex: 1 }}>
+                    <View>
+                        <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+                        <Text style={[styles.itemQuantity, { color: colors.textSecondary }]}>{item.quantity}</Text>
+                    </View>
                 </View>
                 {item.status && (
                     <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
@@ -38,16 +68,16 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItem
             </View>
 
             {role === 'DONOR' && item.recipientName && (
-                <Text style={styles.claimedBy}>Claimed: <Text style={styles.recipientName}>{item.recipientName}</Text></Text>
+                <Text style={[styles.claimedBy, { color: colors.textSecondary }]}>Claimed: <Text style={styles.recipientName}>{item.recipientName}</Text></Text>
             )}
 
             <View style={styles.locationContainer}>
-                <MapPin size={14} color="#666" style={styles.pinIcon} />
-                <Text style={styles.locationText}>{item.location}</Text>
+                <MapPin size={14} color={colors.textSecondary} style={styles.pinIcon} />
+                <Text style={[styles.locationText, { color: colors.textSecondary }]}>{item.location}</Text>
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.timeText}>{item.time}</Text>
+                <Text style={[styles.timeText, { color: colors.textTertiary }]}>{item.time}</Text>
                 {item.rating && (
                     <View style={styles.ratingContainer}>
                         {[...Array(5)].map((_, i) => (
@@ -58,32 +88,46 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm }: RecentItem
                                 fill={i < Math.floor(item.rating!) ? "#FFC107" : "transparent"}
                             />
                         ))}
-                        <Text style={styles.greatText}>Great!</Text>
+                        <Text style={[styles.greatText, { color: colors.text }]}>Great!</Text>
                     </View>
                 )}
             </View>
 
             {role === 'RECIPIENT' && item.showFeedback && (
-                <TouchableOpacity style={styles.feedbackButton}>
+                <TouchableOpacity
+                    style={styles.feedbackButton}
+                    onPress={() => onFeedback && onFeedback(item.id)}
+                >
                     <Text style={styles.feedbackButtonText}>Give Feedback</Text>
                 </TouchableOpacity>
             )}
 
+            {/* Recipient claimed food — show 'I'm On My Way' button */}
+            {role === 'RECIPIENT' && item.status === 'claimed' && onMarkOnTheWay && (
+                <TouchableOpacity
+                    style={styles.onTheWayButton}
+                    onPress={() => onMarkOnTheWay(item.id)}
+                >
+                    <Text style={styles.onTheWayButtonText}>🚶 I'm On My Way</Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Recipient is on the way — show 'Confirm Received' button */}
             {role === 'RECIPIENT' && item.status === 'on-the-way' && onConfirm && (
                 <TouchableOpacity
                     style={styles.confirmButton}
                     onPress={() => onConfirm(item.id)}
                 >
-                    <Text style={styles.confirmButtonText}>Confirm Received</Text>
+                    <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
                 </TouchableOpacity>
             )}
-        </View>
+        </TouchableOpacity>
     );
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.sectionTitle}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
                     {role === 'DONOR' ? 'My Recent Donations' : 'My Recent Food'}
                 </Text>
                 <TouchableOpacity onPress={onSeeAll}>
@@ -163,10 +207,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#E8F5E9',
     },
     status_claimed: {
-        backgroundColor: '#EEEEEE',
+        backgroundColor: '#FFF3E0',
     },
     'status_on-the-way': {
+        backgroundColor: '#E3F2FD',
+    },
+    status_completed: {
         backgroundColor: '#E8F5E9',
+    },
+    status_pending: {
+        backgroundColor: '#F5F5F5',
     },
     statusText: {
         fontSize: 12,
@@ -223,6 +273,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     feedbackButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    onTheWayButton: {
+        marginTop: 12,
+        backgroundColor: '#FF9800',
+        height: 44,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    onTheWayButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',

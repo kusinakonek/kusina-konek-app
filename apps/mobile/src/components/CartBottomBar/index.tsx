@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type CartBottomBarProps = {
   disabled?: boolean;
@@ -13,8 +14,10 @@ export default function CartBottomBar({
   onPickUp,
   message = "Please select a pickup point for each item",
 }: CartBottomBarProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
       <Pressable
         style={[styles.pickUpButton, disabled && styles.pickUpButtonDisabled]}
         onPress={disabled ? undefined : onPickUp}
@@ -27,7 +30,7 @@ export default function CartBottomBar({
         </Text>
       </Pressable>
 
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
     </View>
   );
 }

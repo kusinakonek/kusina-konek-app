@@ -18,6 +18,7 @@ import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
 import axiosClient from "../../src/api/axiosClient";
 import { API_ENDPOINTS } from "../../src/api/endpoints";
+import { useTheme } from "../../context/ThemeContext";
 
 interface ClaimLimitsResponse {
   dailyClaims: number;
@@ -31,6 +32,7 @@ interface ClaimLimitsResponse {
 
 export default function CartTab() {
   const { items, removeItem, pickUpAll, isPickingUp } = useCart();
+  const { colors } = useTheme();
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [claimLimits, setClaimLimits] = useState<ClaimLimitsResponse | null>(
     null,
@@ -70,7 +72,7 @@ export default function CartTab() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       <CartHeader itemCount={items.length} onBack={() => router.back()} />
 
       <View style={styles.content}>
@@ -107,9 +109,9 @@ export default function CartTab() {
       </View>
 
       {isPickingUp || isCheckingLimits ? (
-        <View style={styles.loadingBar}>
+        <View style={[styles.loadingBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
             {isCheckingLimits
               ? "Checking claim limits..."
               : "Claiming your food..."}
@@ -138,7 +140,7 @@ export default function CartTab() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    // backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,

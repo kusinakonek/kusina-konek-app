@@ -63,7 +63,8 @@ export const dashboardService = {
             stats: {
                 totalDonated: stats.totalDonated,
                 availableItems: stats.availableItems,
-                averageRating: stats.averageRating
+                averageRating: stats.averageRating,
+                familiesHelped: stats.familiesHelped
             },
             recentDonations: recentDonations.map((donation) => ({
                 ...donation,
@@ -96,7 +97,9 @@ export const dashboardService = {
             stats: {
                 availableFoods: stats.availableFoods,
                 locations: stats.locations,
-                totalServings: stats.totalServings
+                totalServings: stats.totalServings,
+                totalReceived: stats.totalReceived,
+                activeNow: stats.activeNow,
             },
             recentFoods: recentFoods.map((food) => ({
                 ...food,
