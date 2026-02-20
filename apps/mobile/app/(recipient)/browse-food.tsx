@@ -10,7 +10,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowLeft, ShoppingCart } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ShoppingCart,
+  SearchX,
+  WifiOff,
+  RefreshCw,
+} from "lucide-react-native";
 import { Pressable } from "react-native";
 import * as Location from "expo-location";
 import SearchBar from "../../src/components/SearchBar";
@@ -45,11 +51,12 @@ export default function BrowseFood() {
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   const { items: cartItems, addItem } = useCart();
   const { distributions, loading, error, fetchDistributions, isCached } =
     useFoodCache();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   // Store user location for fetching nearest distributions
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -74,11 +81,12 @@ export default function BrowseFood() {
       }
 
       // Fetch with location if available
-      fetchDistributions(
+      await fetchDistributions(
         false,
         userLocationRef.current?.lat,
         userLocationRef.current?.lng,
       );
+      setInitializing(false);
     };
 
     init();
@@ -143,19 +151,104 @@ export default function BrowseFood() {
 
   const renderEmpty = () => {
     if (loading) return null;
+
+    if (error) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View
+            style={[
+              styles.emptyIconCircle,
+              { backgroundColor: isDark ? "#3a2020" : "#FEE2E2" },
+            ]}>
+            <WifiOff size={wp(32)} color="#EF4444" />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            Something went wrong
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {error}
+          </Text>
+          <Pressable
+            style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+            onPress={onRefresh}>
+            <RefreshCw size={wp(16)} color="#fff" />
+            <Text style={styles.emptyButtonText}>Try Again</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (searchQuery.trim()) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View
+            style={[
+              styles.emptyIconCircle,
+              { backgroundColor: isDark ? "#2a2a1a" : "#FEF3C7" },
+            ]}>
+            <SearchX size={wp(32)} color="#F59E0B" />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No results found
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No food matches &ldquo;{searchQuery}&rdquo;. Try a different search
+            term.
+          </Text>
+          <Pressable
+            style={[styles.emptyOutlineButton, { borderColor: colors.primary }]}
+            onPress={() => setSearchQuery("")}>
+            <Text
+              style={[
+                styles.emptyOutlineButtonText,
+                { color: colors.primary },
+              ]}>
+              Clear Search
+            </Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.emptyContainer}>
-        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-          {error ? error : "No available food at the moment."}
+        <View
+          style={[
+            styles.emptyIconCircle,
+            { backgroundColor: colors.primaryLight },
+          ]}>
+          <SearchX size={wp(32)} color={colors.primary} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          No food available
         </Text>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          There are no food donations available right now. Pull down to refresh
+          or check back later.
+        </Text>
+        <Pressable
+          style={[styles.emptyButton, { backgroundColor: colors.primary }]}
+          onPress={onRefresh}>
+          <RefreshCw size={wp(16)} color="#fff" />
+          <Text style={styles.emptyButtonText}>Refresh</Text>
+        </Pressable>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["top"]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.headerBg,
+            borderBottomColor: colors.border,
+          },
+        ]}>
         <Pressable
           onPress={() => router.back()}
           style={styles.backButton}
@@ -165,8 +258,13 @@ export default function BrowseFood() {
         </Pressable>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Browse Food</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Available Foods</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Browse Food
+          </Text>
+          <Text
+            style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Available Foods
+          </Text>
         </View>
 
         <Pressable
@@ -205,7 +303,7 @@ export default function BrowseFood() {
         </Text>
 
         {/* Loading State */}
-        {loading && !refreshing ? (
+        {(loading || initializing) && !refreshing ? (
           <View style={styles.loadingContainer}>
             <BrowseFoodSkeleton count={3} />
           </View>
@@ -303,11 +401,54 @@ const styles = StyleSheet.create({
   emptyContainer: {
     paddingVertical: hp(60),
     alignItems: "center",
+    paddingHorizontal: wp(32),
+  },
+  emptyIconCircle: {
+    width: wp(72),
+    height: wp(72),
+    borderRadius: wp(36),
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: hp(16),
+  },
+  emptyTitle: {
+    fontSize: fp(18),
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: hp(8),
   },
   emptyText: {
-    fontSize: fp(15),
+    fontSize: fp(14),
     color: theme.colors.mutedText,
     textAlign: "center",
+    lineHeight: fp(20),
+    marginBottom: hp(20),
+  },
+  emptyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wp(8),
+    paddingVertical: hp(12),
+    paddingHorizontal: wp(24),
+    borderRadius: wp(12),
+  },
+  emptyButtonText: {
+    color: "#fff",
+    fontSize: fp(15),
+    fontWeight: "600",
+  },
+  emptyOutlineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wp(8),
+    paddingVertical: hp(12),
+    paddingHorizontal: wp(24),
+    borderRadius: wp(12),
+    borderWidth: 1.5,
+  },
+  emptyOutlineButtonText: {
+    fontSize: fp(15),
+    fontWeight: "600",
   },
   cartBadge: {
     position: "absolute",

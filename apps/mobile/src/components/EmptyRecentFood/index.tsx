@@ -29,11 +29,26 @@ export default function EmptyRecentFood({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? colors.card : '#F5F5F5', borderColor: colors.border }]}>
-      <View style={[styles.iconContainer, { backgroundColor: isDark ? '#3a3a3a' : '#EEEEEE' }]}>{renderIcon()}</View>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? colors.card : "#F5F5F5",
+          borderColor: colors.border,
+        },
+      ]}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: isDark ? "#3a3a3a" : "#EEEEEE" },
+        ]}>
+        {renderIcon()}
+      </View>
 
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+      <Text style={[styles.message, { color: colors.textSecondary }]}>
+        {message}
+      </Text>
     </View>
   );
 }
@@ -45,7 +60,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: wp(24),
-    paddingVertical: hp(48),
+    paddingTop: hp(48),
+    paddingBottom: hp(24),
     marginTop: hp(8),
     borderWidth: 1,
     borderColor: "#E0E0E0",
@@ -71,7 +87,6 @@ const styles = StyleSheet.create({
     fontSize: fp(14),
     color: "#757575",
     textAlign: "center",
-    marginBottom: hp(16),
     lineHeight: fp(20),
     paddingHorizontal: wp(12),
   },
