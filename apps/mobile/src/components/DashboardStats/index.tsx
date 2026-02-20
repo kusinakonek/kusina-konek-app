@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -9,11 +9,12 @@ interface StatCardProps {
     label: string;
     color: string;
     bgColor: string;
+    onPress?: () => void;
 }
 
-export const StatCard = ({ icon: Icon, value, label, color, bgColor }: StatCardProps) => {
+export const StatCard = ({ icon: Icon, value, label, color, bgColor, onPress }: StatCardProps) => {
     const { colors } = useTheme();
-    return (
+    const CardContent = (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
                 <Icon size={24} color={color} />
@@ -22,6 +23,16 @@ export const StatCard = ({ icon: Icon, value, label, color, bgColor }: StatCardP
             <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
         </View>
     );
+
+    if (onPress) {
+        return (
+            <TouchableOpacity onPress={onPress} style={{ flex: 1 }}>
+                {CardContent}
+            </TouchableOpacity>
+        );
+    }
+
+    return <View style={{ flex: 1 }}>{CardContent}</View>;
 };
 
 interface DashboardStatsProps {
@@ -31,6 +42,7 @@ interface DashboardStatsProps {
         label: string;
         color: string;
         bgColor: string;
+        onPress?: () => void;
     }[];
 }
 
@@ -45,6 +57,7 @@ export const DashboardStats = ({ stats }: DashboardStatsProps) => {
                     label={stat.label}
                     color={stat.color}
                     bgColor={stat.bgColor}
+                    onPress={stat.onPress}
                 />
             ))}
         </View>

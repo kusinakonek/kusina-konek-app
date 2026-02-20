@@ -14,6 +14,7 @@ export interface RecentItem {
     rating?: number;
     recipientName?: string; // For donors seeing who claimed
     showFeedback?: boolean; // Show feedback button for recipients
+    role?: 'DONOR' | 'RECIPIENT';
 }
 
 interface RecentItemsListProps {
@@ -28,12 +29,36 @@ interface RecentItemsListProps {
 export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheWay, onFeedback }: RecentItemsListProps) => {
     const { colors, isDark } = useTheme();
 
+    const handleItemPress = (item: RecentItem) => {
+        // If item has a rating, it implies a completed distribution with feedback (usually).
+        // The user wants to click "food there that has a rating" to view details.
+        if (item.rating && item.role === 'DONOR') { // role check optional but safe
+            // Navigate to review details
+            // We need to pass the distribution ID so ReviewDetails can fetch it.
+            // RecentItem 'id' is mapped to 'disID' in Home.tsx. 
+            // "id: d.disID || d.id,"
+            if (onFeedback) {
+                onFeedback(item.id);
+            }
+        }
+    };
+
     const renderItem = ({ item }: { item: RecentItem }) => (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={0.7}
+            disabled={!item.rating && !onSeeAll} // Only strictly disable if no action possible? User wants to see details.
+            // If item has rating, we go to details. 
+            // If not, maybe just do nothing or expand? 
+            // The requirement was specific to review details.
+            onPress={() => handleItemPress(item)}
+        >
             <View style={styles.cardHeader}>
-                <View>
-                    <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
-                    <Text style={[styles.itemQuantity, { color: colors.textSecondary }]}>{item.quantity}</Text>
+                <View style={{ flex: 1 }}>
+                    <View>
+                        <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+                        <Text style={[styles.itemQuantity, { color: colors.textSecondary }]}>{item.quantity}</Text>
+                    </View>
                 </View>
                 {item.status && (
                     <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
@@ -96,7 +121,7 @@ export const RecentItemsList = ({ items, role, onSeeAll, onConfirm, onMarkOnTheW
                     <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
                 </TouchableOpacity>
             )}
-        </View>
+        </TouchableOpacity>
     );
 
     return (

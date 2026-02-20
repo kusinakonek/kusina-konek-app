@@ -6,6 +6,7 @@ import { ArrowLeft, Plus } from 'lucide-react-native';
 import { useDonation, PRESET_FOODS, FoodItem } from '../../../context/DonationContext';
 import DisclaimerModal from '../../../src/components/DisclaimerModal';
 import { useTheme } from '../../../context/ThemeContext';
+import LoadingScreen from '../../../src/components/LoadingScreen';
 
 // Food images using online URLs
 const foodImages: { [key: string]: string } = {
@@ -34,7 +35,10 @@ export default function SelectFoodScreen() {
         router.back();
     };
 
+    const [loading, setLoading] = useState(false);
+
     const handleSelectFood = (food: FoodItem) => {
+        setLoading(true);
         updateFormData({
             selectedFood: food,
             isCustomFood: false,
@@ -42,10 +46,14 @@ export default function SelectFoodScreen() {
             description: food.description,
         });
         setCurrentStep(2);
-        router.push('/(donor)/donate/details');
+        setTimeout(() => {
+            router.push('/(donor)/donate/details');
+            setLoading(false);
+        }, 100);
     };
 
     const handleCustomFood = () => {
+        setLoading(true);
         updateFormData({
             selectedFood: null,
             isCustomFood: true,
@@ -53,83 +61,91 @@ export default function SelectFoodScreen() {
             description: '',
         });
         setCurrentStep(2);
-        router.push('/(donor)/donate/details');
+        setTimeout(() => {
+            router.push('/(donor)/donate/details');
+            setLoading(false);
+        }, 100);
     };
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-            {/* Disclaimer Modal */}
-            <DisclaimerModal
-                visible={showDisclaimer}
-                onAccept={handleAcceptDisclaimer}
-                onDecline={handleDeclineDisclaimer}
-            />
+            {loading && <LoadingScreen message="Loading..." />}
+            {!loading && (
+                <>
+                    {/* Disclaimer Modal */}
+                    <DisclaimerModal
+                        visible={showDisclaimer}
+                        onAccept={handleAcceptDisclaimer}
+                        onDecline={handleDeclineDisclaimer}
+                    />
 
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <ArrowLeft size={24} color={colors.text} />
-                </TouchableOpacity>
-                <View style={styles.headerTextContainer}>
-                    <Text style={[styles.title, { color: colors.text }]}>Donate Food</Text>
-                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Step 1 of 3</Text>
-                </View>
-            </View>
-
-            <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-                {/* Instruction Card */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Select Food Item</Text>
-                    <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Choose from our menu or create a custom donation</Text>
-
-                    {/* Food Grid */}
-                    <View style={styles.foodGrid}>
-                        {PRESET_FOODS.map((food) => (
-                            <TouchableOpacity
-                                key={food.id}
-                                style={[
-                                    styles.foodItem,
-                                    { backgroundColor: colors.card, borderColor: colors.border },
-                                    formData.selectedFood?.id === food.id && {
-                                        borderColor: '#00C853',
-                                        backgroundColor: isDark ? '#003300' : '#F1FFF6',
-                                    },
-                                ]}
-                                onPress={() => handleSelectFood(food)}
-                            >
-                                <View style={[styles.foodImageContainer, { backgroundColor: colors.border }]}>
-                                    <Image
-                                        source={{ uri: foodImages[food.id] }}
-                                        style={styles.foodImage}
-                                        resizeMode="cover"
-                                    />
-                                </View>
-                                <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
-                                <Text style={[styles.foodDesc, { color: colors.textSecondary }]} numberOfLines={2}>{food.description}</Text>
-                            </TouchableOpacity>
-                        ))}
+                    {/* Header */}
+                    <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <ArrowLeft size={24} color={colors.text} />
+                        </TouchableOpacity>
+                        <View style={styles.headerTextContainer}>
+                            <Text style={[styles.title, { color: colors.text }]}>Donate Food</Text>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Step 1 of 3</Text>
+                        </View>
                     </View>
 
-                    {/* Custom Item */}
-                    <TouchableOpacity
-                        style={[
-                            styles.customItem,
-                            { backgroundColor: colors.card, borderColor: colors.border },
-                            formData.isCustomFood && {
-                                borderColor: '#00C853',
-                                backgroundColor: isDark ? '#003300' : '#F1FFF6',
-                            }
-                        ]}
-                        onPress={handleCustomFood}
-                    >
-                        <View style={[styles.customIconContainer, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
-                            <Plus size={32} color="#00C853" />
+                    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+                        {/* Instruction Card */}
+                        <View style={[styles.card, { backgroundColor: colors.card }]}>
+                            <Text style={[styles.cardTitle, { color: colors.text }]}>Select Food Item</Text>
+                            <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Choose from our menu or create a custom donation</Text>
+
+                            {/* Food Grid */}
+                            <View style={styles.foodGrid}>
+                                {PRESET_FOODS.map((food) => (
+                                    <TouchableOpacity
+                                        key={food.id}
+                                        style={[
+                                            styles.foodItem,
+                                            { backgroundColor: colors.card, borderColor: colors.border },
+                                            formData.selectedFood?.id === food.id && {
+                                                borderColor: '#00C853',
+                                                backgroundColor: isDark ? '#003300' : '#F1FFF6',
+                                            },
+                                        ]}
+                                        onPress={() => handleSelectFood(food)}
+                                    >
+                                        <View style={[styles.foodImageContainer, { backgroundColor: colors.border }]}>
+                                            <Image
+                                                source={{ uri: foodImages[food.id] }}
+                                                style={styles.foodImage}
+                                                resizeMode="cover"
+                                            />
+                                        </View>
+                                        <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
+                                        <Text style={[styles.foodDesc, { color: colors.textSecondary }]} numberOfLines={2}>{food.description}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Custom Item */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.customItem,
+                                    { backgroundColor: colors.card, borderColor: colors.border },
+                                    formData.isCustomFood && {
+                                        borderColor: '#00C853',
+                                        backgroundColor: isDark ? '#003300' : '#F1FFF6',
+                                    }
+                                ]}
+                                onPress={handleCustomFood}
+                            >
+                                <View style={[styles.customIconContainer, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
+                                    <Plus size={32} color="#00C853" />
+                                </View>
+                                <Text style={[styles.customTitle, { color: colors.text }]}>Custom Item</Text>
+                                <Text style={[styles.customDesc, { color: colors.textSecondary }]}>Add your own food</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text style={[styles.customTitle, { color: colors.text }]}>Custom Item</Text>
-                        <Text style={[styles.customDesc, { color: colors.textSecondary }]}>Add your own food</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+                    </ScrollView>
+                </>
+            )}
         </SafeAreaView>
     );
 }
