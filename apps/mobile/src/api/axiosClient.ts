@@ -36,6 +36,12 @@ axiosClient.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${session.access_token}`;
   }
 
+  // Disable HTTP caching for GET requests so profile/dashboard data is always fresh
+  if (!config.method || config.method.toLowerCase() === "get") {
+    config.headers["Cache-Control"] = "no-cache";
+    config.headers["Pragma"] = "no-cache";
+  }
+
   // Add current role from AsyncStorage to headers
   // This allows the backend to use the current role instead of the JWT metadata role
   try {

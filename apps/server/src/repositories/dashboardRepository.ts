@@ -9,12 +9,15 @@ export interface DonorStats {
   totalDonated: number;
   availableItems: number;
   averageRating: number;
+  familiesHelped: number;
 }
 
 export interface RecipientStats {
   availableFoods: number;
   locations: number;
   totalServings: number;
+  totalReceived: number;
+  activeNow: number;
 }
 
 export interface DonorDonationItem {
@@ -63,18 +66,21 @@ export const dashboardRepository = {
    * Counts: total donated, available items, average rating
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
-    const [totalDonated, availableItems, avgRating] = await Promise.all([
-      // Count distributions that have been claimed by a recipient
+    const [totalDonated, availableItems, avgRating, familiesHelped] = await Promise.all([
+      // Count distributions that have been claimed/on-the-way/completed
       prisma.distribution.count({
         where: {
           donorID: userID,
-          status: "CLAIMED",
+          status: { in: ["CLAIMED", "ON_THE_WAY", "COMPLETED"] },
         },
       }),
 
-      // Count food items the donor has available
-      prisma.food.count({
-        where: { userID: userID },
+      // Count distributions still available (PENDING)
+      prisma.distribution.count({
+        where: {
+          donorID: userID,
+          status: "PENDING",
+        },
       }),
 
       // Calculate average rating from feedback received
@@ -82,12 +88,23 @@ export const dashboardRepository = {
         where: { donorID: userID },
         _avg: { ratingScore: true },
       }),
+
+      // Count distinct recipients (families helped)
+      prisma.distribution.findMany({
+        where: {
+          donorID: userID,
+          recipientID: { not: null },
+        },
+        select: { recipientID: true },
+        distinct: ["recipientID"],
+      }),
     ]);
 
     return {
       totalDonated,
       availableItems,
       averageRating: Math.round((avgRating._avg.ratingScore ?? 0) * 10) / 10,
+      familiesHelped: familiesHelped.length,
     };
   },
 
@@ -172,10 +189,28 @@ export const dashboardRepository = {
       return sum + (isNaN(parsed) ? 0 : parsed);
     }, 0);
 
+    // Count completed distributions for this recipient (food received)
+    const totalReceived = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: "COMPLETED",
+      },
+    });
+
+    // Count active distributions for this recipient (claimed / on the way)
+    const activeNow = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: { in: ["CLAIMED", "ON_THE_WAY"] },
+      },
+    });
+
     return {
       availableFoods: availableCount,
       locations: locationCount,
       totalServings,
+      totalReceived,
+      activeNow,
     };
   },
 

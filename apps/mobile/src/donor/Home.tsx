@@ -8,7 +8,7 @@ import {
   ImageBackground,
   TouchableOpacity,
   Image,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -16,14 +16,16 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
-import { Heart, Package, Star, Plus, Utensils } from "lucide-react-native";
+import { Heart, Package, Star, Plus, Utensils, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function DonorHome() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -84,6 +86,13 @@ export default function DonorHome() {
         label: "Ratings",
         color: "#FFC107",
         bgColor: "#FFF8E1",
+        onPress: () => {
+          setLoading(true);
+          setTimeout(() => {
+            router.push("/(donor)/feedback");
+            setLoading(false);
+          }, 100);
+        },
       },
     ];
   };
@@ -98,76 +107,104 @@ export default function DonorHome() {
       status: d.status?.toLowerCase(),
       recipientName: d.claimedBy,
       rating: d.rating,
+      role: 'DONOR',
     }));
   };
 
-  if (loading && !refreshing) {
-    return <LoadingScreen message="Loading dashboard..." />;
-  }
+
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => router.push("/donate")}
-          activeOpacity={0.7}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
+        <View style={styles.headerLeft}>
           <Image
             source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.appName}>KusinaKonek</Text>
-            <Text style={styles.dashboardTitle}>Donor Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>KusinaKonek</Text>
+            <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/notifications')}
+          style={{ padding: 8 }}
+        >
+          <Bell size={wp(24)} color="#00C853" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#00C853"]}
-          />
-        }>
-        <View style={styles.heroContainer}>
-          <ImageBackground
-            source={{
-              uri: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop",
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#00C853"]}
+            />
+          }>
+          <View style={styles.heroContainer}>
+            <ImageBackground
+              source={{
+                uri: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop",
+              }}
+              style={styles.heroImage}
+              imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
+              <View style={styles.heroOverlay}>
+                <Text style={styles.heroTitle}>Share Your Blessings Today</Text>
+                <Text style={styles.heroSubtitle}>
+                  Help families in Naga City with your extra food
+                </Text>
+              </View>
+            </ImageBackground>
+          </View>
+
+          <View style={styles.statsContainer}>
+            <DashboardStats stats={getStats()} />
+          </View>
+
+          <TouchableOpacity
+            style={styles.mainButton}
+            onPress={() => {
+              setLoading(true);
+              setTimeout(() => {
+                router.push("/donate");
+                setLoading(false);
+              }, 100);
+            }}>
+            <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
+            <Text style={styles.mainButtonText}>Donate Food</Text>
+          </TouchableOpacity>
+
+          <RecentItemsList
+            items={getRecentItems()}
+            role="DONOR"
+            onSeeAll={() => { }}
+            onFeedback={(id) => {
+              setLoading(true);
+              // Small timeout to allow UI to update before freezing on navigation
+              setTimeout(() => {
+                router.push({
+                  pathname: "/(donor)/review-details",
+                  params: { disID: id }
+                });
+                // Reset loading state after navigation (when coming back)
+                // Use a focus effect or just time it out if push is instant
+                setLoading(false);
+              }, 100);
             }}
-            style={styles.heroImage}
-            imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
-            <View style={styles.heroOverlay}>
-              <Text style={styles.heroTitle}>Share Your Blessings Today</Text>
-              <Text style={styles.heroSubtitle}>
-                Help families in Naga City with your extra food
-              </Text>
-            </View>
-          </ImageBackground>
-        </View>
+          />
 
-        <View style={styles.statsContainer}>
-          <DashboardStats stats={getStats()} />
-        </View>
-
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => router.push("/donate")}>
-          <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
-          <Text style={styles.mainButtonText}>Donate Food</Text>
-        </TouchableOpacity>
-
-        <RecentItemsList
-          items={getRecentItems()}
-          role="DONOR"
-          onSeeAll={() => { }}
-        />
-
-        <View style={{ height: hp(20) }} />
-      </ScrollView>
+          <View style={{ height: hp(20) }} />
+        </ScrollView>
+        {loading && !refreshing && (
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#00C853" />
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 }

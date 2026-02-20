@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 
 function CartIcon({
@@ -48,6 +49,7 @@ function FloatingActionButton() {
 export default function TabLayout() {
   const { role } = useAuth();
   const { items: cartItems } = useCart();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const isDonor = role === "DONOR";
   const isRecipient = role === "RECIPIENT";
@@ -57,7 +59,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#00C853",
-        tabBarInactiveTintColor: "#999",
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
           borderTopWidth: 0,
           height:
@@ -69,7 +71,7 @@ export default function TabLayout() {
               ? hp(25) + insets.bottom
               : hp(8) + insets.bottom,
           paddingTop: hp(8),
-          backgroundColor: "#fff",
+          backgroundColor: colors.tabBar,
           elevation: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -3 },
@@ -95,25 +97,25 @@ export default function TabLayout() {
           title: "",
           ...(isDonor
             ? {
-                tabBarButton: (props) => {
-                  // Only extract necessary props to avoid type mismatches with spread
-                  const { accessibilityState, accessibilityLabel, testID } =
-                    props;
-                  return (
-                    <TouchableOpacity
-                      style={styles.fabContainer}
-                      onPress={() => router.push("/donate")}
-                      activeOpacity={0.8}
-                      accessibilityState={accessibilityState}
-                      accessibilityLabel={accessibilityLabel}
-                      testID={testID}>
-                      <View style={styles.fab}>
-                        <Utensils size={wp(28)} color="#fff" />
-                      </View>
-                    </TouchableOpacity>
-                  );
-                },
-              }
+              tabBarButton: (props) => {
+                // Only extract necessary props to avoid type mismatches with spread
+                const { accessibilityState, accessibilityLabel, testID } =
+                  props;
+                return (
+                  <TouchableOpacity
+                    style={styles.fabContainer}
+                    onPress={() => router.push("/donate")}
+                    activeOpacity={0.8}
+                    accessibilityState={accessibilityState}
+                    accessibilityLabel={accessibilityLabel}
+                    testID={testID}>
+                    <View style={styles.fab}>
+                      <Utensils size={wp(28)} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              },
+            }
             : { href: null }),
         }}
       />
@@ -142,6 +144,14 @@ export default function TabLayout() {
         name="edit-profile"
         options={{
           title: "Edit Profile",
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
           href: null,
         }}
       />

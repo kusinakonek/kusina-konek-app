@@ -1,11 +1,12 @@
 import { CompleteUserProfileInput, Role } from "@kusinakonek/common";
-import { prisma } from "@kusinakonek/database";
+import { prisma, supabaseAdmin } from "@kusinakonek/database";
 import { HttpError } from "../middlewares/errorHandler";
 import { roleRepository, userRepository } from "../repositories";
-import { sha256Hex } from "../utils/hash";
+import { sha256Hex, hashPassword } from "../utils/hash";
 import { encrypt, decrypt, safeDecrypt, safeDecryptAsync } from "../utils/encryption";
+import crypto from "crypto";
 
-const SUPABASE_MANAGED_PASSWORD = "__SUPABASE_MANAGED__";
+
 
 const normalizeRole = (value: unknown): Role | undefined => {
   if (typeof value !== "string") return undefined;
@@ -25,12 +26,34 @@ export const userService = {
       throw new HttpError(400, "Authenticated email is missing");
     }
 
-    // Lookup user by emailHash
+    // Primary lookup: by emailHash
     const emailHash = sha256Hex(authEmail.toLowerCase());
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { emailHash },
       include: { role: true, userAddress: true }
     });
+
+    // Fallback lookup: by userID (handles cases where emailHash doesn't match,
+    // e.g. user created via a different path or email casing mismatch)
+    if (!user && authUserId) {
+      user = await prisma.user.findUnique({
+        where: { userID: authUserId },
+        include: { role: true, userAddress: true }
+      });
+      if (user) {
+        console.log(`[getProfile] Found user by userID fallback (emailHash mismatch). Updating emailHash.`);
+        // Fix the emailHash so future lookups work correctly
+        try {
+          await prisma.user.update({
+            where: { userID: authUserId },
+            data: { emailHash }
+          });
+        } catch (e) {
+          // Non-fatal: another row may already have this emailHash
+          console.warn(`[getProfile] Could not update emailHash:`, e);
+        }
+      }
+    }
 
     if (!user) {
       // No profile yet — return basic info from auth, signal profile incomplete
@@ -129,6 +152,10 @@ export const userService = {
     const encryptedPhoneNo = encrypt(input.phoneNo);
     const encryptedOrgName = input.orgName ? encrypt(input.orgName) : null;
 
+    // Hash the password with bcrypt (use provided password or a secure random fallback)
+    const rawPassword = (input as any).password || crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await hashPassword(rawPassword);
+
     try {
       const user = await prisma.user.upsert({
         where: { emailHash },
@@ -145,7 +172,7 @@ export const userService = {
           emailHash,
           isOrg: input.isOrg ?? false,
           orgName: encryptedOrgName,
-          password: SUPABASE_MANAGED_PASSWORD,
+          password: hashedPassword,
           ...(input.address
             ? {
               userAddress: {
@@ -231,6 +258,73 @@ export const userService = {
       }
 
       throw error;
+    }
+  },
+
+  /**
+   * Save or update the Expo push token for a user.
+   * Called when the app registers for push notifications.
+   * Uses updateMany so it never throws if the user profile doesn't exist yet.
+   */
+  async updatePushToken(userID: string, pushToken: string) {
+    await prisma.user.updateMany({
+      where: { userID },
+      data: { pushToken },
+    });
+  },
+
+  /**
+   * Delete a user's account and all associated data.
+   * Uses a transaction to ensure atomicity.
+   */
+  async deleteAccount(userID: string) {
+    // 1. Delete from Supabase Auth (Identity Provider)
+    // We do this first or concurrently. If it fails, we shouldn't delete data?
+    // Or we delete data first? Usually better to delete data first so we don't have orphan data.
+    // However, if we delete data and auth deletion fails, the user is stuck without a profile.
+    // Let's delete data first (transaction), then auth user.
+
+    await prisma.$transaction(async (tx) => {
+      // Delete notifications
+      await tx.notification.deleteMany({ where: { userID } });
+
+      // Delete feedback (as donor or recipient)
+      await tx.feedback.deleteMany({
+        where: { OR: [{ donorID: userID }, { recipientID: userID }] },
+      });
+
+      // Clear recipient references on distributions and delete donor's distributions
+      await tx.distribution.updateMany({
+        where: { recipientID: userID },
+        data: { recipientID: null, status: "PENDING", claimedAt: null },
+      });
+      await tx.distribution.deleteMany({ where: { donorID: userID } });
+
+      // Delete food items
+      await tx.food.deleteMany({ where: { userID } });
+
+      // Delete drop-off locations
+      await tx.dropOffLocation.deleteMany({ where: { userID } });
+
+      // Delete address
+      await tx.address.deleteMany({ where: { UserID: userID } });
+
+      // Delete the user
+      await tx.user.delete({ where: { userID } });
+    });
+
+    // 2. Delete from Supabase Auth
+    try {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userID);
+      if (error) {
+        console.error(`[deleteAccount] Failed to delete auth user ${userID}:`, error);
+        // We log it but don't throw, as the main data is already gone.
+        // It might be already deleted or have other issues.
+      } else {
+        console.log(`[deleteAccount] Deleted auth user ${userID}`);
+      }
+    } catch (e) {
+      console.error(`[deleteAccount] Exception deleting auth user:`, e);
     }
   },
 };

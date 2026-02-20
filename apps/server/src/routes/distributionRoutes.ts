@@ -82,3 +82,10 @@ distributionRouter.post(
   validateRequest(requestDistributionSchema),
   distributionController.request,
 );
+
+// Recipient marks they are on the way to pick up food
+distributionRouter.post(
+  "/:disID/on-the-way",
+  authMiddleware,
+  distributionController.markOnTheWay,
+);

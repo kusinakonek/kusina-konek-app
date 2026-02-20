@@ -34,6 +34,9 @@ model User {
   isOrg       Boolean  @default(false)
   orgName     String?
   password    String
+  pushToken   String?  // Expo push token for push notifications
+  averageRating Float    @default(0)
+  ratingCount   Int      @default(0)
   DateAdded   DateTime @default(now())
 
   // Relations
@@ -160,6 +163,7 @@ model Feedback {
   @@index([donorID])
   @@index([disID])
   comments      String?
+  photoUrl      String?
   timestamp     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

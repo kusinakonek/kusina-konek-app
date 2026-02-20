@@ -332,6 +332,34 @@ export const authService = {
     return {
       message: "If an account with this email exists and is unverified, a verification email has been sent"
     };
+  },
+
+  /**
+   * Check if email or phone number is available
+   */
+  async checkAvailability(email?: string, phoneNo?: string) {
+    const result = {
+      emailAvailable: true,
+      phoneAvailable: true
+    };
+
+    if (email) {
+      const emailHash = sha256Hex(email.toLowerCase());
+      const user = await userRepository.getByEmailHash(emailHash);
+      if (user) {
+        result.emailAvailable = false;
+      }
+    }
+
+    if (phoneNo) {
+      const phoneNoHash = sha256Hex(phoneNo);
+      const user = await userRepository.getByPhoneNoHash(phoneNoHash);
+      if (user) {
+        result.phoneAvailable = false;
+      }
+    }
+
+    return result;
   }
 };
 

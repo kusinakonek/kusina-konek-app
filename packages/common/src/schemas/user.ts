@@ -13,13 +13,16 @@ export const completeUserProfileSchema = z
     isOrg: z.boolean().optional().default(false),
     orgName: z.string().min(2).optional(),
 
+    // Password (optional — used during initial profile creation to bcrypt-hash it)
+    password: z.string().optional(),
+
     // Optional address info (creates/updates Address table)
     address: z
       .object({
         latitude: z.number().min(-90).max(90),
         longitude: z.number().min(-180).max(180),
-        streetAddress: z.string().min(2),
-        barangay: z.string().min(2)
+        streetAddress: z.string().default(""),   // empty is fine during signup
+        barangay: z.string().min(1)              // at least 1 char
       })
       .optional()
   })

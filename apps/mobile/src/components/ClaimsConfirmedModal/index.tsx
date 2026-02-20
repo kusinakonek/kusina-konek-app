@@ -10,6 +10,7 @@ import {
 import { CheckCircle, MapPin } from "lucide-react-native";
 import { wp, hp, fp } from "../../utils/responsive";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 interface ClaimedItem {
   disID: string;
@@ -28,6 +29,8 @@ export default function ClaimsConfirmedModal({
   claimedItems,
   onClose,
 }: ClaimsConfirmedModalProps) {
+  const { colors, isDark } = useTheme();
+
   return (
     <Modal
       visible={visible}
@@ -35,10 +38,10 @@ export default function ClaimsConfirmedModal({
       animationType="fade"
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.card }]}>
           {/* Success Icon */}
           <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.1)' }]}>
               <CheckCircle
                 size={fp(40)}
                 color={theme.colors.primary}
@@ -48,28 +51,28 @@ export default function ClaimsConfirmedModal({
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Claims Confirmed!</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Claims Confirmed!</Text>
 
           {/* Description */}
-          <Text style={styles.description}>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
             Your food claims have been confirmed. Please pick up your items at
             the selected locations within the available times.
           </Text>
 
           {/* Claimed Items List */}
           <View style={styles.itemsSection}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Claimed Items ({claimedItems.length}):
             </Text>
             <ScrollView
               style={styles.itemsList}
               showsVerticalScrollIndicator={false}>
               {claimedItems.map((item, index) => (
-                <View key={item.disID} style={styles.itemCard}>
-                  <Text style={styles.itemName}>{item.foodName}</Text>
+                <View key={item.disID} style={[styles.itemCard, { backgroundColor: isDark ? colors.background : '#F8F9FA' }]}>
+                  <Text style={[styles.itemName, { color: colors.text }]}>{item.foodName}</Text>
                   <View style={styles.locationRow}>
                     <MapPin size={fp(14)} color={theme.colors.mutedText} />
-                    <Text style={styles.locationText}>{item.location}</Text>
+                    <Text style={[styles.locationText, { color: colors.textSecondary }]}>{item.location}</Text>
                   </View>
                 </View>
               ))}

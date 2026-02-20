@@ -48,4 +48,44 @@ export const userController = {
       next(error);
     }
   },
+  /**
+   * PUT /api/users/push-token
+   * Register or update the user's Expo push token for background notifications
+   */
+  async updatePushToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { pushToken } = req.body;
+      if (!pushToken || typeof pushToken !== "string") {
+        return res.status(400).json({ error: "pushToken is required" });
+      }
+
+      await userService.updatePushToken(req.user.id, pushToken);
+      return res.status(200).json({ message: "Push token updated" });
+    } catch (error) {
+      console.error("[updatePushToken] Error:", error);
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/users/account
+   * Delete the authenticated user's account and all associated data
+   */
+  async deleteAccount(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      await userService.deleteAccount(req.user.id);
+      return res.status(200).json({ message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("[deleteAccount] Error:", error);
+      next(error);
+    }
+  },
 };

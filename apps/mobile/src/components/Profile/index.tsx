@@ -11,9 +11,12 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Switch,
+  TextInput,
 } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   User,
   LogOut,
@@ -30,15 +33,21 @@ import {
   ChevronDown,
   Package,
   RefreshCw,
+  Trash2,
+  Moon,
+  Info,
+  BellOff,
+  Bell,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import axiosClient from "../../api/axiosClient";
 import { API_ENDPOINTS } from "../../api/endpoints";
 import { wp, hp, fp, isTablet } from "../../utils/responsive";
 import LoadingScreen from "../LoadingScreen";
+import { useTheme } from "../../../context/ThemeContext";
 
 export default function Profile() {
-  const { user, signOut, role, setRole } = useAuth();
+  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
   const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
   const [statsData, setStatsData] = useState<any>(null);
@@ -47,15 +56,33 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [showRolePicker, setShowRolePicker] = useState(false);
   const [switchingRole, setSwitchingRole] = useState(false);
+  const { isDark, colors, toggleTheme } = useTheme();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Logout/Delete states
+  const [isLoadingLogout, setIsLoadingLogout] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Load preferences
+  useEffect(() => {
+    AsyncStorage.getItem('notificationsEnabled').then(val => {
+      if (val === 'false') setNotificationsEnabled(false);
+    });
+  }, []);
 
   const fetchProfileData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
       setProfileData(profileRes.data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
+    } catch (error: any) {
+      console.error("Error fetching profile:", error?.response?.data || error?.message || error);
     }
 
     try {
@@ -64,8 +91,8 @@ export default function Profile() {
           ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
           : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setStatsData(dashboardRes.data?.stats || null);
-    } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
+    } catch (error: any) {
+      console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
     }
 
     // If current role is RECIPIENT, also fetch donor stats for history card
@@ -85,9 +112,12 @@ export default function Profile() {
     setRefreshing(false);
   }, [role, user]);
 
-  useEffect(() => {
-    fetchProfileData();
-  }, [fetchProfileData]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchProfileData();
+    }, [fetchProfileData])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -118,6 +148,10 @@ export default function Profile() {
 
   const handleLogout = async () => {
     try {
+      setIsLoadingLogout(true);
+      // Small delay to let the UI update if needed, though state change should be immediate
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       setProfileData(null);
       setStatsData(null);
       setDonorHistoryStats(null);
@@ -125,15 +159,83 @@ export default function Profile() {
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Failed to logout");
+      setIsLoadingLogout(false);
+    }
+  };
+
+  const handleDarkModeToggle = () => {
+    toggleTheme();
+  };
+
+  const handleNotificationsToggle = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    await AsyncStorage.setItem('notificationsEnabled', String(value));
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? You will need to verify your email to confirm.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send Code",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (user?.email) {
+                setLoading(true);
+                await sendDeleteAccountOtp(user.email);
+                setLoading(false);
+                setShowDeleteModal(true);
+              } else {
+                Alert.alert("Error", "No email found for this user.");
+              }
+            } catch (error: any) {
+              setLoading(false);
+              console.error("Delete account OTP error:", error);
+              Alert.alert("Error", "Failed to send verification code. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteOtp || deleteOtp.length < 6) {
+      Alert.alert("Error", "Please enter a valid code (6-8 digits).");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      if (user?.email) {
+        // 1. Verify OTP
+        await verifyDeleteAccountOtp(user.email, deleteOtp);
+
+        // 2. Delete Account
+        await axiosClient.delete(API_ENDPOINTS.USER.DELETE_ACCOUNT);
+
+        // 3. Sign Out
+        await signOut();
+
+        setShowDeleteModal(false);
+        Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+      }
+    } catch (error: any) {
+      setIsDeleting(false);
+      console.error("Confirm delete error:", error);
+      Alert.alert("Error", "Failed to verify code or delete account. Please check the code and try again.");
     }
   };
 
   const displayName = profileData?.profile
     ? `${profileData.profile.firstName || ""} ${profileData.profile.lastName || ""}`.trim() ||
-      profileData?.user?.displayName ||
-      user?.user_metadata?.full_name ||
-      user?.email?.split("@")[0] ||
-      "User"
+    profileData?.user?.displayName ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User"
     : user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayEmail = profileData?.user?.email || user?.email || "";
   const displayPhone =
@@ -144,9 +246,9 @@ export default function Profile() {
     "Not set";
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      })
+      month: "long",
+      year: "numeric",
+    })
     : "N/A";
   const needsProfileUpdate = profileData?.needsProfileUpdate === true;
 
@@ -159,19 +261,19 @@ export default function Profile() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.headerBtn}>
-          <ArrowLeft size={wp(22)} color="#333" />
+          <ArrowLeft size={wp(22)} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>My Profile</Text>
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={() => router.push("/(tabs)/edit-profile")}>
-          <Edit2 size={wp(20)} color="#333" />
+          <Edit2 size={wp(20)} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -196,12 +298,12 @@ export default function Profile() {
         )}
 
         {/* Profile Card with Banner */}
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: colors.card }]}>
           <View style={styles.bannerImage}>
             <View style={styles.bannerGradient} />
           </View>
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatarContainer}>
+            <View style={[styles.avatarContainer, { borderColor: colors.card }]}>
               <User size={wp(40)} color="#2E7D32" />
             </View>
           </View>
@@ -226,50 +328,50 @@ export default function Profile() {
           {/* Info Rows */}
           <View style={styles.infoSection}>
             <View style={styles.infoRow}>
-              <User size={wp(16)} color="#666" />
-              <Text style={styles.infoLabel}>Full Name</Text>
+              <User size={wp(16)} color={colors.textTertiary} />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Full Name</Text>
             </View>
-            <Text style={styles.infoValue}>{displayName}</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{displayName}</Text>
 
             <View style={[styles.infoRow, { marginTop: hp(16) }]}>
-              <Mail size={wp(16)} color="#666" />
-              <Text style={styles.infoLabel}>Email Address</Text>
+              <Mail size={wp(16)} color={colors.textTertiary} />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Email Address</Text>
             </View>
-            <Text style={styles.infoValue}>{displayEmail}</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{displayEmail}</Text>
 
             <View style={[styles.infoRow, { marginTop: hp(16) }]}>
-              <Phone size={wp(16)} color="#666" />
-              <Text style={styles.infoLabel}>Phone Number</Text>
+              <Phone size={wp(16)} color={colors.textTertiary} />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Phone Number</Text>
             </View>
-            <Text style={styles.infoValue}>{displayPhone}</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{displayPhone}</Text>
 
             <View style={[styles.infoRow, { marginTop: hp(16) }]}>
-              <MapPin size={wp(16)} color="#666" />
-              <Text style={styles.infoLabel}>Barangay</Text>
+              <MapPin size={wp(16)} color={colors.textTertiary} />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Barangay</Text>
             </View>
-            <Text style={styles.infoValue}>{displayBarangay}</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{displayBarangay}</Text>
 
             <View style={[styles.infoRow, { marginTop: hp(16) }]}>
-              <Calendar size={wp(16)} color="#666" />
-              <Text style={styles.infoLabel}>Member Since</Text>
+              <Calendar size={wp(16)} color={colors.textTertiary} />
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Member Since</Text>
             </View>
-            <Text style={styles.infoValue}>{memberSince}</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{memberSince}</Text>
           </View>
         </View>
 
         {/* Statistics Card */}
-        <View style={styles.statsCard}>
+        <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
           <View style={styles.statsHeader}>
             <View style={styles.statsIconWrap}>
               <Star size={wp(20)} color="#FFC107" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.statsTitle}>
+              <Text style={[styles.statsTitle, { color: colors.text }]}>
                 {role === "DONOR"
                   ? "Donation Statistics"
                   : "Food Received Statistics"}
               </Text>
-              <Text style={styles.statsSubtitle}>
+              <Text style={[styles.statsSubtitle, { color: colors.textTertiary }]}>
                 {role === "DONOR"
                   ? "Your contribution to the community"
                   : "Your food consumption currently."}
@@ -278,24 +380,24 @@ export default function Profile() {
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statBadge, { backgroundColor: "#FFEBEE" }]}>
+            <View style={[styles.statBadge, { backgroundColor: isDark ? '#3a1a1a' : "#FFEBEE" }]}>
               <Heart size={wp(16)} color="#E53935" />
               <Text style={styles.statLabel}>
                 {role === "DONOR" ? "Total Donations" : "Total Received"}
               </Text>
-              <Text style={styles.statValue}>
+              <Text style={[styles.statValue, { color: colors.text }]}>
                 {role === "DONOR"
                   ? statsData?.totalDonated || 0
-                  : statsData?.availableFoods || 0}
+                  : statsData?.totalReceived || 0}
               </Text>
             </View>
-            <View style={[styles.statBadge, { backgroundColor: "#E3F2FD" }]}>
+            <View style={[styles.statBadge, { backgroundColor: isDark ? '#1a2a3a' : "#E3F2FD" }]}>
               <Globe size={wp(16)} color="#1E88E5" />
               <Text style={styles.statLabel}>Active Now</Text>
-              <Text style={styles.statValue}>
+              <Text style={[styles.statValue, { color: colors.text }]}>
                 {role === "DONOR"
                   ? statsData?.availableItems || 0
-                  : statsData?.locations || 0}
+                  : statsData?.activeNow || 0}
               </Text>
             </View>
           </View>
@@ -303,19 +405,19 @@ export default function Profile() {
           {role === "DONOR" && (
             <View style={styles.donorExtraStats}>
               <View
-                style={[styles.statBadgeWide, { backgroundColor: "#E8F5E9" }]}>
+                style={[styles.statBadgeWide, { backgroundColor: isDark ? '#1a3a1a' : "#E8F5E9" }]}>
                 <View style={styles.statBadgeWideRow}>
                   <View>
                     <Heart size={wp(16)} color="#E53935" />
                     <Text style={styles.statLabel}>Families Helped</Text>
-                    <Text style={styles.statValue}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>
                       {statsData?.familiesHelped || 0}
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Star size={wp(16)} color="#FFC107" fill="#FFC107" />
                     <Text style={styles.statLabel}>Rating</Text>
-                    <Text style={styles.statValue}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>
                       {statsData?.averageRating || "N/A"}
                     </Text>
                   </View>
@@ -327,33 +429,33 @@ export default function Profile() {
 
         {/* Donor History Card (shown only to recipients who have donor activity) */}
         {role === "RECIPIENT" && hasDonorHistory && (
-          <View style={styles.donorHistoryCard}>
+          <View style={[styles.donorHistoryCard, { backgroundColor: colors.card, borderColor: isDark ? colors.border : '#E8F5E9' }]}>
             <View style={styles.donorHistoryHeader}>
-              <View style={styles.donorHistoryIconWrap}>
+              <View style={[styles.donorHistoryIconWrap, { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9' }]}>
                 <Package size={wp(20)} color="#2E7D32" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.donorHistoryTitle}>
                   Your Donor Activity
                 </Text>
-                <Text style={styles.donorHistorySubtitle}>
+                <Text style={[styles.donorHistorySubtitle, { color: colors.textSecondary }]}>
                   Contributions you made as a donor
                 </Text>
               </View>
             </View>
 
             <View style={styles.statsRow}>
-              <View style={[styles.statBadge, { backgroundColor: "#E8F5E9" }]}>
+              <View style={[styles.statBadge, { backgroundColor: isDark ? '#1a3a1a' : "#E8F5E9" }]}>
                 <Heart size={wp(16)} color="#2E7D32" />
                 <Text style={styles.statLabel}>Total Donated</Text>
-                <Text style={styles.statValue}>
+                <Text style={[styles.statValue, { color: colors.text }]}>
                   {donorHistoryStats?.totalDonated || 0}
                 </Text>
               </View>
-              <View style={[styles.statBadge, { backgroundColor: "#FFF8E1" }]}>
+              <View style={[styles.statBadge, { backgroundColor: isDark ? '#3a3a1a' : "#FFF8E1" }]}>
                 <Star size={wp(16)} color="#FFC107" fill="#FFC107" />
                 <Text style={styles.statLabel}>Avg Rating</Text>
-                <Text style={styles.statValue}>
+                <Text style={[styles.statValue, { color: colors.text }]}>
                   {donorHistoryStats?.averageRating || "N/A"}
                 </Text>
               </View>
@@ -362,15 +464,52 @@ export default function Profile() {
         )}
 
         {/* Account Settings */}
-        <View style={styles.settingsCard}>
-          <Text style={styles.settingsTitle}>Account Settings</Text>
+        <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.settingsTitle, { color: colors.text }]}>Account Settings</Text>
+
+          <View style={styles.settingsRow}>
+            <Moon size={wp(20)} color={colors.text} />
+            <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Dark Theme</Text>
+            <Switch
+              value={isDark}
+              onValueChange={handleDarkModeToggle}
+              trackColor={{ false: '#ddd', true: '#81C784' }}
+              thumbColor={isDark ? '#2E7D32' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.settingsRow}>
+            {notificationsEnabled
+              ? <Bell size={wp(20)} color={colors.text} />
+              : <BellOff size={wp(20)} color={colors.textTertiary} />}
+            <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Notifications</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleNotificationsToggle}
+              trackColor={{ false: '#ddd', true: '#81C784' }}
+              thumbColor={notificationsEnabled ? '#2E7D32' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity style={styles.settingsRow}>
-            <Settings size={wp(20)} color="#333" />
-            <Text style={styles.settingsRowText}>Settings</Text>
+            <Info size={wp(20)} color={colors.text} />
+            <Text style={[styles.settingsRowText, { color: colors.text }]}>About KusinaKonek</Text>
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity style={styles.settingsRow} onPress={handleDeleteAccount}>
+            <Trash2 size={wp(20)} color="#E53935" />
+            <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
+              Delete Account
+            </Text>
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity style={styles.settingsRow} onPress={handleLogout}>
             <LogOut size={wp(20)} color="#E53935" />
@@ -392,9 +531,9 @@ export default function Profile() {
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setShowRolePicker(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Switch Role</Text>
-            <Text style={styles.modalSubtitle}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Switch Role</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
               Choose how you want to use KusinaKonek
             </Text>
 
@@ -444,6 +583,70 @@ export default function Profile() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Delete Account OTP Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            // Do not close on outside click to ensure user consciously cancels
+            // if (!isDeleting) setShowDeleteModal(false);
+          }}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Verify Deletion</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Please enter the verification code sent to {user?.email}
+            </Text>
+
+            <TextInput
+              style={[
+                styles.otpInput,
+                {
+                  backgroundColor: isDark ? '#333' : '#F5F5F5',
+                  color: colors.text,
+                  borderColor: colors.border
+                }
+              ]}
+              placeholder="Enter verification code"
+              placeholderTextColor={colors.textTertiary}
+              value={deleteOtp}
+              onChangeText={setDeleteOtp}
+              keyboardType="number-pad"
+              maxLength={8}
+              editable={!isDeleting}
+            />
+
+            <TouchableOpacity
+              style={[styles.deleteConfirmBtn, isDeleting && styles.disabledBtn]}
+              onPress={handleConfirmDelete}
+              disabled={isDeleting}>
+              {isDeleting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.deleteConfirmText}>Verify & Delete</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowDeleteModal(false)}
+              disabled={isDeleting}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Logout Loading Overlay */}
+      {isLoadingLogout && (
+        <View style={StyleSheet.absoluteFill}>
+          <LoadingScreen message="Logging out..." />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -480,7 +683,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  bannerImage: { height: hp(100), backgroundColor: "#F5C518" },
+  bannerImage: { height: hp(100), backgroundColor: "#00C853" },
   bannerGradient: { flex: 1, opacity: 0.8 },
   avatarWrapper: { alignItems: "center", marginTop: hp(-40) },
   avatarContainer: {
@@ -668,10 +871,10 @@ const styles = StyleSheet.create({
     padding: wp(16),
     borderRadius: wp(16),
     borderWidth: 2,
-    borderColor: "#f0f0f0",
+    borderColor: "transparent",
     marginBottom: hp(12),
   },
-  roleOptionActive: { borderColor: "#00C853", backgroundColor: "#F1F8E9" },
+  roleOptionActive: { borderColor: "#00C853", backgroundColor: "rgba(0, 200, 83, 0.1)" },
   roleOptionIcon: {
     width: wp(48),
     height: wp(48),
@@ -693,4 +896,28 @@ const styles = StyleSheet.create({
     marginTop: hp(4),
   },
   modalCancelText: { fontSize: fp(15), color: "#999", fontWeight: "600" },
+  otpInput: {
+    padding: wp(16),
+    borderRadius: wp(12),
+    borderWidth: 1,
+    fontSize: fp(20),
+    textAlign: "center",
+    marginBottom: hp(24),
+    letterSpacing: 4,
+  },
+  deleteConfirmBtn: {
+    backgroundColor: "#E53935",
+    paddingVertical: hp(16),
+    borderRadius: wp(12),
+    alignItems: "center",
+    marginBottom: hp(8),
+  },
+  deleteConfirmText: {
+    color: "#fff",
+    fontSize: fp(16),
+    fontWeight: "bold",
+  },
+  disabledBtn: {
+    opacity: 0.7,
+  },
 });
