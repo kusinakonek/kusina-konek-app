@@ -195,6 +195,9 @@ export const foodService = {
 
     // Create locations using existing locationService if provided
     let dropOffLocationID: string | undefined;
+    let mainLatitude: number | undefined;
+    let mainLongitude: number | undefined;
+
     if (params.input.locations && params.input.locations.length > 0) {
       for (const loc of params.input.locations) {
         const location = await locationService.createLocation({
@@ -209,6 +212,8 @@ export const foodService = {
         });
         if (!dropOffLocationID) {
           dropOffLocationID = location.location.locID;
+          mainLatitude = loc.latitude;
+          mainLongitude = loc.longitude;
         }
       }
     }
@@ -226,6 +231,19 @@ export const foodService = {
       photoProof: params.input.photoProof,
       status: "PENDING",
     });
+
+    if (mainLatitude !== undefined && mainLongitude !== undefined) {
+      import("./notificationService").then(ns =>
+        ns.notificationService.notifyNearbyRecipients(
+          mainLatitude!,
+          mainLongitude!,
+          "New Food Nearby!",
+          `${params.input.foodName} is available near you!`,
+          { screen: "RecipientHome", foodID: created.foodID },
+          10
+        )
+      ).catch(error => console.error("Failed to notify nearby recipients", error));
+    }
 
     const decryptedFood = decryptFood(created);
     const decryptedDistribution = decryptDistribution(distribution);

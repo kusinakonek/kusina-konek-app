@@ -223,7 +223,6 @@ const styles = StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.5)",
-        justifyContent: "flex-end", // Bottom sheet style or center? Let's go center for modal
         alignItems: "center",
         padding: wp(20),
         justifyContent: "center",

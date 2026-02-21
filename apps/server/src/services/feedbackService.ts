@@ -48,6 +48,22 @@ export const feedbackService = {
       ratingCount: count
     });
 
+    // Notify Donor about the new feedback
+    try {
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "New Feedback Received!",
+          `A recipient has left a ${params.input.ratingScore}-star review on your donation.`,
+          "FEEDBACK",
+          { screen: "Feedback", disID: distribution.disID },
+          feedback.feedbackID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send feedback notification to donor", error);
+    }
+
     return { feedback };
   },
 

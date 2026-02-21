@@ -58,13 +58,18 @@ export const userController = {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const { pushToken } = req.body;
+      const { pushToken, latitude, longitude } = req.body;
       if (!pushToken || typeof pushToken !== "string") {
         return res.status(400).json({ error: "pushToken is required" });
       }
 
-      await userService.updatePushToken(req.user.id, pushToken);
-      return res.status(200).json({ message: "Push token updated" });
+      await userService.updatePushToken({
+        userID: req.user.id,
+        pushToken,
+        latitude,
+        longitude
+      });
+      return res.status(200).json({ message: "Push token and location updated" });
     } catch (error) {
       console.error("[updatePushToken] Error:", error);
       next(error);
