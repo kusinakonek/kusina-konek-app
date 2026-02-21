@@ -181,7 +181,7 @@ export default function DonorHome() {
           <RecentItemsList
             items={getRecentItems()}
             role="DONOR"
-            onSeeAll={() => { }}
+            onSeeAll={() => router.push("/(donor)/all-recent-donations")}
             onFeedback={(id) => {
               setLoading(true);
               // Small timeout to allow UI to update before freezing on navigation
