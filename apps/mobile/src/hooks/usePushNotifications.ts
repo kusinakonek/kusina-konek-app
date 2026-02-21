@@ -8,10 +8,10 @@ import { router } from 'expo-router';
 // Configure: no in-app popup alert, but play sound and set badge
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: false,
+        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
-        shouldShowBanner: false,
+        shouldShowBanner: true,
         shouldShowList: true,
     }),
 });

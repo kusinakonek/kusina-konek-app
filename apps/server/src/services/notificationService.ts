@@ -32,6 +32,7 @@ export const notificationService = {
       {
         to: token,
         sound: "default",
+        channelId: "default",
         title,
         body,
         data,
@@ -168,6 +169,7 @@ export const notificationService = {
       const messages: ExpoPushMessage[] = tokens.map((token) => ({
         to: token,
         sound: "default" as const,
+        channelId: "default",
         title,
         body: message,
         data: { ...data, type: "NEW_FOOD" },
@@ -244,6 +246,7 @@ export const notificationService = {
       const messages: ExpoPushMessage[] = tokens.map((token) => ({
         to: token,
         sound: "default" as const,
+        channelId: "default",
         title,
         body: message,
         data: { ...data, type: "NEW_FOOD" },
