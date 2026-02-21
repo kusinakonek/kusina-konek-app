@@ -48,7 +48,7 @@ async function registerForPushNotificationsAsync() {
 
     try {
         const easProjectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-        const fallbackProjectId = "ee40562e-14ee-424d-99a5-ef030cfce6be";
+        const fallbackProjectId = "10ca5b78-e88e-4a2b-9e87-288f2a4c56d0";
         const projectId = easProjectId || fallbackProjectId;
 
         console.log("Requesting Expo Push Token for projectId:", projectId);
