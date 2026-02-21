@@ -12,6 +12,7 @@ export default function DonorLayout() {
                 }}
             >
                 <Stack.Screen name="donate" />
+                <Stack.Screen name="all-recent-donations" />
             </Stack>
         </DonationProvider>
     );

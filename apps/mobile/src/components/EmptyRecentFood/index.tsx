@@ -1,13 +1,13 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Package, Utensils } from "lucide-react-native";
+import { Package, Utensils, Heart } from "lucide-react-native";
 import { wp, hp, fp } from "../../utils/responsive";
 import { useTheme } from "../../../context/ThemeContext";
 
 type EmptyRecentFoodProps = {
   title?: string;
   message?: string;
-  icon?: "package" | "utensils";
+  icon?: "package" | "utensils" | "heart";
 };
 
 export default function EmptyRecentFood({
@@ -22,6 +22,8 @@ export default function EmptyRecentFood({
     switch (icon) {
       case "utensils":
         return <Utensils {...iconProps} />;
+      case "heart":
+        return <Heart {...iconProps} />;
       case "package":
       default:
         return <Package {...iconProps} />;
