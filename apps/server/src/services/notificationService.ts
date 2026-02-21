@@ -198,7 +198,7 @@ export const notificationService = {
     title: string,
     message: string,
     data: any = {},
-    maxDistanceKm: number = 10
+    maxDistanceKm: number = 3
   ) {
     try {
       // Find all RECIPIENT users with their addresses
