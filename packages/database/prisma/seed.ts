@@ -38,12 +38,12 @@ async function main() {
 
     console.log('Wiping existing data...');
     // Delete in order to respect foreign key constraints
-    await prisma.feedback.deleteMany({});
-    await prisma.distribution.deleteMany({});
-    await prisma.dropOffLocation.deleteMany({});
-    await prisma.food.deleteMany({});
-    await prisma.address.deleteMany({});
-    await prisma.user.deleteMany({});
+    // await prisma.feedback.deleteMany({});
+    // await prisma.distribution.deleteMany({});
+    // await prisma.dropOffLocation.deleteMany({});
+    // await prisma.food.deleteMany({});
+    // await prisma.address.deleteMany({});
+    // await prisma.user.deleteMany({});
     // We don't wipe Roles and Statuses entirely, just in case, but upsert will handle them nicely.
 
     // 1. Roles
