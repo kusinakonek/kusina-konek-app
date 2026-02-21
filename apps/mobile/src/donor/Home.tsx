@@ -129,9 +129,30 @@ export default function DonorHome() {
         </View>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/notifications')}
-          style={{ padding: 8 }}
+          style={{ padding: 8, position: "relative" }}
         >
           <Bell size={wp(24)} color="#00C853" />
+          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+            <View
+              style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                backgroundColor: "#FF3B30",
+                width: wp(16),
+                height: wp(16),
+                borderRadius: wp(8),
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 1.5,
+                borderColor: colors.headerBg,
+              }}
+            >
+              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 

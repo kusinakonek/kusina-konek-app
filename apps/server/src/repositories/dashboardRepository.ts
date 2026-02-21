@@ -10,6 +10,7 @@ export interface DonorStats {
   availableItems: number;
   averageRating: number;
   familiesHelped: number;
+  unreadNotifications: number;
 }
 
 export interface RecipientStats {
@@ -18,6 +19,7 @@ export interface RecipientStats {
   totalServings: number;
   totalReceived: number;
   activeNow: number;
+  unreadNotifications: number;
 }
 
 export interface DonorDonationItem {
@@ -66,7 +68,7 @@ export const dashboardRepository = {
    * Counts: total donated, available items, average rating
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
-    const [totalDonated, availableItems, avgRating, familiesHelped] = await Promise.all([
+    const [totalDonated, availableItems, avgRating, familiesHelped, unreadNotifications] = await Promise.all([
       // Count distributions that have been claimed/on-the-way/completed
       prisma.distribution.count({
         where: {
@@ -98,6 +100,14 @@ export const dashboardRepository = {
         select: { recipientID: true },
         distinct: ["recipientID"],
       }),
+
+      // Count unread notifications
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
+      }),
     ]);
 
     return {
@@ -105,6 +115,7 @@ export const dashboardRepository = {
       availableItems,
       averageRating: Math.round((avgRating._avg.ratingScore ?? 0) * 10) / 10,
       familiesHelped: familiesHelped.length,
+      unreadNotifications,
     };
   },
 
@@ -158,7 +169,7 @@ export const dashboardRepository = {
   async getRecipientStats(userID: string): Promise<RecipientStats> {
     // quantity is a String field, so we can't use _sum in aggregate.
     // Fetch counts + quantities separately.
-    const [availableCount, locationCount, quantities] = await Promise.all([
+    const [availableCount, locationCount, quantities, unreadNotifications] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
@@ -180,6 +191,12 @@ export const dashboardRepository = {
           recipientID: null,
         },
         select: { quantity: true },
+      }),
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
       }),
     ]);
 
@@ -211,6 +228,7 @@ export const dashboardRepository = {
       totalServings,
       totalReceived,
       activeNow,
+      unreadNotifications,
     };
   },
 
