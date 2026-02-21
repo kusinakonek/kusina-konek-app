@@ -47,10 +47,15 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+        const easProjectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+        const fallbackProjectId = "ee40562e-14ee-424d-99a5-ef030cfce6be";
+        const projectId = easProjectId || fallbackProjectId;
+
+        console.log("Requesting Expo Push Token for projectId:", projectId);
         token = (await Notifications.getExpoPushTokenAsync({
             projectId,
         })).data;
+        console.log("Successfully got Expo Push Token:", token);
     } catch (error) {
         console.error('Error getting push token:', error);
     }
