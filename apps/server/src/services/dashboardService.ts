@@ -14,8 +14,8 @@ const findProfile = async (email: string) => {
 };
 
 /** Empty stats returned when user has no profile yet */
-const EMPTY_DONOR_STATS = { totalDonated: 0, availableItems: 0, averageRating: "N/A" };
-const EMPTY_RECIPIENT_STATS = { availableFoods: 0, locations: 0, totalServings: 0 };
+const EMPTY_DONOR_STATS = { totalDonated: 0, availableItems: 0, averageRating: "N/A", familiesHelped: 0, unreadNotifications: 0 };
+const EMPTY_RECIPIENT_STATS = { availableFoods: 0, locations: 0, totalServings: 0, totalReceived: 0, activeNow: 0, unreadNotifications: 0 };
 
 /**
  * Calculate relative time string (e.g., "1 day ago", "2 hours ago")
@@ -64,7 +64,8 @@ export const dashboardService = {
                 totalDonated: stats.totalDonated,
                 availableItems: stats.availableItems,
                 averageRating: stats.averageRating,
-                familiesHelped: stats.familiesHelped
+                familiesHelped: stats.familiesHelped,
+                unreadNotifications: stats.unreadNotifications
             },
             recentDonations: recentDonations.map((donation) => ({
                 ...donation,
@@ -100,6 +101,7 @@ export const dashboardService = {
                 totalServings: stats.totalServings,
                 totalReceived: stats.totalReceived,
                 activeNow: stats.activeNow,
+                unreadNotifications: stats.unreadNotifications
             },
             recentFoods: recentFoods.map((food) => ({
                 ...food,
