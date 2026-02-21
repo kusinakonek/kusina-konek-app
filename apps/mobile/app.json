@@ -35,7 +35,12 @@
           "apiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
         }
       },
-      "package": "com.kusinakonek.kusinakonek"
+      "package": "com.kusinakonek.kusinakonek",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -64,8 +69,10 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "10ca5b78-e88e-4a2b-9e87-288f2a4c56d0"
-      }
-    }
+        "projectId": "86fdbd3a-f2c0-4aed-8ced-99d70980e74a"
+      },
+      "router": {}
+    },
+    "owner": "testproject73s-organization"
   }
 }
