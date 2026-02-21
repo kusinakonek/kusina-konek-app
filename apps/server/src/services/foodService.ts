@@ -240,7 +240,8 @@ export const foodService = {
           "New Food Nearby!",
           `${params.input.foodName} is available near you!`,
           { screen: "RecipientHome", foodID: created.foodID },
-          10
+          10,
+          params.userID
         )
       ).catch(error => console.error("Failed to notify nearby recipients", error));
     }

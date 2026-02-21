@@ -198,7 +198,8 @@ export const notificationService = {
     title: string,
     message: string,
     data: any = {},
-    maxDistanceKm: number = 3
+    maxDistanceKm: number = 3,
+    excludeUserID?: string
   ) {
     try {
       // Find all RECIPIENT users with their addresses
@@ -212,6 +213,7 @@ export const notificationService = {
       });
 
       const nearbyRecipients = recipients.filter((recipient) => {
+        if (excludeUserID && recipient.userID === excludeUserID) return false;
         if (!recipient.userAddress) return false;
 
         const distance = calculateDistance(
