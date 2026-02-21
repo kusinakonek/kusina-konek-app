@@ -263,14 +263,29 @@ export const userService = {
 
   /**
    * Save or update the Expo push token for a user.
-   * Called when the app registers for push notifications.
-   * Uses updateMany so it never throws if the user profile doesn't exist yet.
+   * Also optionally updates their live GPS location.
    */
-  async updatePushToken(userID: string, pushToken: string) {
+  async updatePushToken(params: { userID: string; pushToken: string; latitude?: number; longitude?: number }) {
+    const { userID, pushToken, latitude, longitude } = params;
+
     await prisma.user.updateMany({
       where: { userID },
       data: { pushToken },
     });
+
+    // Also update their active coordinates if provided
+    if (latitude !== undefined && longitude !== undefined) {
+      const address = await prisma.address.findUnique({
+        where: { UserID: userID }
+      });
+
+      if (address) {
+        await prisma.address.update({
+          where: { UserID: userID },
+          data: { latitude, longitude }
+        });
+      }
+    }
   },
 
   /**

@@ -3,6 +3,19 @@ import { prisma } from "@kusinakonek/database";
 
 const expo = new Expo();
 
+// Helper to calculate distance in km using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export const notificationService = {
   async sendPushNotification(
     token: string,
@@ -170,6 +183,82 @@ export const notificationService = {
       }
     } catch (error) {
       console.error("Error broadcasting to recipients", error);
+    }
+  },
+
+  /**
+   * Notify nearby recipients about a new food donation.
+   * Calculates distance using the Haversine formula.
+   */
+  async notifyNearbyRecipients(
+    latitude: number,
+    longitude: number,
+    title: string,
+    message: string,
+    data: any = {},
+    maxDistanceKm: number = 10
+  ) {
+    try {
+      // Find all RECIPIENT users with their addresses
+      const recipients = await prisma.user.findMany({
+        where: {
+          role: { roleName: "RECIPIENT" },
+        },
+        include: {
+          userAddress: true,
+        },
+      });
+
+      const nearbyRecipients = recipients.filter((recipient) => {
+        if (!recipient.userAddress) return false;
+
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          recipient.userAddress.latitude,
+          recipient.userAddress.longitude
+        );
+
+        return distance <= maxDistanceKm;
+      });
+
+      if (nearbyRecipients.length === 0) return;
+
+      // Create in-app notification for ALL nearby recipients
+      for (const recipient of nearbyRecipients) {
+        await this.createInAppNotification(
+          recipient.userID,
+          "NEW_FOOD",
+          title,
+          message,
+        );
+      }
+
+      // Send push to those with tokens
+      const tokens = nearbyRecipients
+        .map((r) => r.pushToken!)
+        .filter((t) => t && Expo.isExpoPushToken(t));
+
+      if (tokens.length === 0) return;
+
+      const messages: ExpoPushMessage[] = tokens.map((token) => ({
+        to: token,
+        sound: "default" as const,
+        title,
+        body: message,
+        data: { ...data, type: "NEW_FOOD" },
+      }));
+
+      const chunks = expo.chunkPushNotifications(messages);
+      for (const chunk of chunks) {
+        try {
+          await expo.sendPushNotificationsAsync(chunk);
+        } catch (error) {
+          console.error("Error sending nearby push notification chunk", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error notifying nearby recipients", error);
     }
   },
 };
