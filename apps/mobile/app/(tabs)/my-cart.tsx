@@ -14,6 +14,7 @@ import CartBottomBar from "../../src/components/CartBottomBar";
 import CartItemCard from "../../src/components/CartItemCard";
 import EmptyCart from "../../src/components/EmptyCart";
 import ClaimLimitModal from "../../src/components/ClaimLimitModal";
+import RecipientDisclaimerModal from "../../src/components/RecipientDisclaimerModal";
 import { theme } from "../../src/constants/theme";
 import { useCart } from "../../context/CartContext";
 import axiosClient from "../../src/api/axiosClient";
@@ -34,6 +35,7 @@ export default function CartTab() {
   const { items, removeItem, pickUpAll, isPickingUp } = useCart();
   const { colors } = useTheme();
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [claimLimits, setClaimLimits] = useState<ClaimLimitsResponse | null>(
     null,
   );
@@ -44,10 +46,18 @@ export default function CartTab() {
   };
 
   /**
-   * When "Pick up Ulam(s)" is pressed, first check claim limits,
+   * When "Pick up Ulam(s)" is pressed, show the recipient disclaimer first.
+   */
+  const handlePickUpPress = () => {
+    setShowDisclaimerModal(true);
+  };
+
+  /**
+   * After accepting the disclaimer, check claim limits,
    * then proceed with pickup.
    */
-  const handlePickUpPress = async () => {
+  const handleDisclaimerAccept = async () => {
+    setShowDisclaimerModal(false);
     setIsCheckingLimits(true);
     try {
       const response = await axiosClient.get<ClaimLimitsResponse>(
@@ -72,7 +82,9 @@ export default function CartTab() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["top"]}>
       <CartHeader itemCount={items.length} onBack={() => router.back()} />
 
       <View style={styles.content}>
@@ -109,7 +121,11 @@ export default function CartTab() {
       </View>
 
       {isPickingUp || isCheckingLimits ? (
-        <View style={[styles.loadingBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <View
+          style={[
+            styles.loadingBar,
+            { backgroundColor: colors.surface, borderTopColor: colors.border },
+          ]}>
           <ActivityIndicator size="small" color={theme.colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
             {isCheckingLimits
@@ -124,6 +140,13 @@ export default function CartTab() {
           message="Please select a pickup point for each item"
         />
       )}
+
+      {/* Recipient Disclaimer Modal */}
+      <RecipientDisclaimerModal
+        visible={showDisclaimerModal}
+        onAccept={handleDisclaimerAccept}
+        onDecline={() => setShowDisclaimerModal(false)}
+      />
 
       {/* Claim Limit Modal */}
       <ClaimLimitModal
