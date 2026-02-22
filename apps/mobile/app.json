@@ -21,6 +21,10 @@
       "supportsTablet": true,
       "config": {
         "googleMapsApiKey": "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to your camera to take photos of food donations.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload food donation images."
       }
     },
     "android": {
@@ -40,7 +44,8 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA"
       ]
     },
     "web": {

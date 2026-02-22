@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pressable } from "react-native";
@@ -62,6 +63,8 @@ export default function AllRecentFoods() {
         })() as RecentItem["status"],
         rating: f.myRating,
         showFeedback: f.canGiveFeedback,
+        latitude: f.latitude ?? null,
+        longitude: f.longitude ?? null,
       }));
       setRecentFoods(foods);
     } catch (error) {
@@ -113,10 +116,45 @@ export default function AllRecentFoods() {
           try {
             await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
             fetchRecentFoods();
-            Alert.alert(
-              "Great!",
-              "The donor has been notified you're on your way.",
-            );
+
+            // Find the item's lat/lng and open navigation
+            const item = recentFoods.find((i) => i.id === id);
+            if (
+              item?.latitude != null &&
+              item?.longitude != null &&
+              item.latitude !== 0 &&
+              item.longitude !== 0
+            ) {
+              const lat = item.latitude;
+              const lng = item.longitude;
+              const url = Platform.select({
+                ios: `maps://app?daddr=${lat},${lng}`,
+                android: `google.navigation:q=${lat},${lng}`,
+                default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+              });
+              Alert.alert(
+                "Navigate to Pickup",
+                "The donor has been notified. Open maps for directions?",
+                [
+                  { text: "Not Now", style: "cancel" },
+                  {
+                    text: "Open Maps",
+                    onPress: () => {
+                      Linking.openURL(url!).catch(() =>
+                        Linking.openURL(
+                          `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+                        ),
+                      );
+                    },
+                  },
+                ],
+              );
+            } else {
+              Alert.alert(
+                "Great!",
+                "The donor has been notified you're on your way.",
+              );
+            }
           } catch (error) {
             console.error("Failed to mark on the way", error);
             Alert.alert("Error", "Failed to update status. Please try again.");

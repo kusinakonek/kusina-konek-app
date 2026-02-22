@@ -39,6 +39,8 @@ export interface RecipientFoodItem {
   quantity: string;
   status: string;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timestamp: Date;
   canGiveFeedback: boolean;
   myRating: number | null;
@@ -250,7 +252,7 @@ export const dashboardRepository = {
         timestamp: true,
         claimedAt: true,
         food: { select: { foodName: true } },
-        location: { select: { barangay: true } },
+        location: { select: { barangay: true, latitude: true, longitude: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
@@ -270,6 +272,8 @@ export const dashboardRepository = {
         quantity: d.quantity,
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
+        latitude: d.location.latitude,
+        longitude: d.location.longitude,
         timestamp: d.claimedAt || d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
