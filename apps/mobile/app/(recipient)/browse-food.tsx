@@ -16,6 +16,7 @@ import {
   SearchX,
   WifiOff,
   RefreshCw,
+  Map,
 } from "lucide-react-native";
 import { Pressable } from "react-native";
 import * as Location from "expo-location";
@@ -267,22 +268,32 @@ export default function BrowseFood() {
           </Text>
         </View>
 
-        <Pressable
-          style={styles.cartButton}
-          onPress={() => router.push("/(tabs)/my-cart")}
-          accessibilityRole="button"
-          accessibilityLabel="Cart">
-          <View>
-            <ShoppingCart size={wp(24)} color={theme.colors.primary} />
-            {cartItems.length > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>
-                  {cartItems.length > 9 ? "9+" : cartItems.length}
-                </Text>
-              </View>
-            )}
-          </View>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.mapButton}
+            onPress={() => router.push("/(recipient)/food-map")}
+            accessibilityRole="button"
+            accessibilityLabel="View Map">
+            <Map size={wp(22)} color={theme.colors.primary} />
+          </Pressable>
+
+          <Pressable
+            style={styles.cartButton}
+            onPress={() => router.push("/(tabs)/my-cart")}
+            accessibilityRole="button"
+            accessibilityLabel="Cart">
+            <View>
+              <ShoppingCart size={wp(24)} color={theme.colors.primary} />
+              {cartItems.length > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>
+                    {cartItems.length > 9 ? "9+" : cartItems.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        </View>
       </View>
 
       {/* Content */}
@@ -366,6 +377,21 @@ const styles = StyleSheet.create({
     marginTop: hp(1),
   },
   cartButton: {
+    width: wp(44),
+    height: wp(44),
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(46, 125, 50, 0.1)",
+    borderRadius: wp(12),
+    borderWidth: 1,
+    borderColor: "rgba(46, 125, 50, 0.2)",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wp(8),
+  },
+  mapButton: {
     width: wp(44),
     height: wp(44),
     justifyContent: "center",

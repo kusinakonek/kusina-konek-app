@@ -21,6 +21,8 @@ export interface RecentItem {
   recipientName?: string; // For donors seeing who claimed
   showFeedback?: boolean; // Show feedback button for recipients
   role?: "DONOR" | "RECIPIENT";
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface RecentItemsListProps {
