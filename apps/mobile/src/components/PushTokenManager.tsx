@@ -9,7 +9,7 @@ export const PushTokenManager = ({ token }: { token?: string }) => {
     const lastSentRef = useRef<string | null>(null);
 
     useEffect(() => {
-        const updateTokenAndLocation = async () => {
+        const updateTokenAndLocation = async (retryCount = 0) => {
             if (!user || !token) return;
 
             // Optional: Request location to update backend for proximity matching
@@ -30,7 +30,7 @@ export const PushTokenManager = ({ token }: { token?: string }) => {
                     currentLon = location.coords.longitude;
                 }
             } catch (locationErr) {
-                console.warn("Could not get background location for push registry:", locationErr);
+                console.warn("[PushTokenManager] Could not get location for push registry:", locationErr);
             }
 
             // Include coordinates in key so it re-syncs if user moves significantly (simplified check)
@@ -40,7 +40,7 @@ export const PushTokenManager = ({ token }: { token?: string }) => {
             if (lastSentRef.current === key) return; // already sent this combination
 
             try {
-                console.log("[PushTokenManager] Attempting to sync token with backend...");
+                console.log(`[PushTokenManager] Attempting to sync token with backend (attempt ${retryCount + 1})...`);
                 await axiosClient.put('/users/push-token', {
                     pushToken: token,
                     latitude: currentLat,
@@ -49,7 +49,17 @@ export const PushTokenManager = ({ token }: { token?: string }) => {
                 lastSentRef.current = key;
                 console.log("[PushTokenManager] Push token & location successfully updated for user", user.id);
             } catch (err: any) {
-                console.error("[PushTokenManager] Failed to update push token on backend:", err?.response?.data || err?.message || err);
+                const status = err?.response?.status;
+                const message = err?.response?.data?.error || err?.message;
+
+                console.error(`[PushTokenManager] Failed to update push token (status: ${status}):`, message);
+
+                // If it's a 404/500 (user profile maybe not created yet) and we have retries left
+                if ((status === 404 || status === 500 || !status) && retryCount < 3) {
+                    const delay = 3000 * (retryCount + 1);
+                    console.log(`[PushTokenManager] User profile may not be ready yet. Retrying in ${delay / 1000}s...`);
+                    setTimeout(() => updateTokenAndLocation(retryCount + 1), delay);
+                }
             }
         };
         updateTokenAndLocation();

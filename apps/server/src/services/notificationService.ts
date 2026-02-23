@@ -44,10 +44,15 @@ export const notificationService = {
       for (const chunk of chunks) {
         try {
           const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          console.log(`[PushNotification] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
+
           // Log any errors from Expo
-          for (const ticket of ticketChunk) {
+          for (let i = 0; i < ticketChunk.length; i++) {
+            const ticket = ticketChunk[i];
             if (ticket.status === "error") {
-              console.error("Expo push error:", ticket.message, ticket.details);
+              console.error(`[PushNotification] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
+            } else {
+              console.log(`[PushNotification] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
             }
           }
         } catch (error) {

@@ -268,7 +268,7 @@ export const userService = {
   async updatePushToken(params: { userID: string; pushToken: string | null; latitude?: number; longitude?: number }) {
     const { userID, pushToken, latitude, longitude } = params;
 
-    await prisma.user.updateMany({
+    await prisma.user.update({
       where: { userID },
       data: { pushToken },
     });

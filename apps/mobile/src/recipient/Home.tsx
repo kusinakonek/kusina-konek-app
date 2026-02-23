@@ -25,12 +25,14 @@ import { RecentFoodSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 import { useAlert } from "../../context/AlertContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showAlert } = useAlert();
+  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -57,6 +59,14 @@ export default function RecipientHome() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Handle auto-refresh when a notification is received
+  useEffect(() => {
+    if (notification) {
+      console.log("[RecipientHome] Notification received, auto-refreshing stats...");
+      fetchDashboardData();
+    }
+  }, [notification, fetchDashboardData]);
 
   // Refetch dashboard data whenever the screen comes into focus
   // This ensures recently requested food appears after pickup
