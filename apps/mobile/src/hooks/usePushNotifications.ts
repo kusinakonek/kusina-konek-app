@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure: no in-app popup alert, but play sound and set badge
 Notifications.setNotificationHandler({
@@ -17,6 +18,12 @@ Notifications.setNotificationHandler({
 });
 
 async function registerForPushNotificationsAsync() {
+    // Check if user has explicitly disabled notifications
+    const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
+    if (notificationsEnabled === 'false') {
+        return undefined; // Do not register
+    }
+
     let token: string | undefined;
 
     if (!Device.isDevice) {
@@ -112,7 +119,13 @@ export function usePushNotifications() {
         };
     }, []);
 
+    const registerToken = async () => {
+        const token = await registerForPushNotificationsAsync();
+        setExpoPushToken(token);
+        return token;
+    };
+
     const clearNotification = () => setNotification(null);
 
-    return { expoPushToken, notification, clearNotification };
+    return { expoPushToken, notification, clearNotification, registerToken };
 }

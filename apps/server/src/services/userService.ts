@@ -265,7 +265,7 @@ export const userService = {
    * Save or update the Expo push token for a user.
    * Also optionally updates their live GPS location.
    */
-  async updatePushToken(params: { userID: string; pushToken: string; latitude?: number; longitude?: number }) {
+  async updatePushToken(params: { userID: string; pushToken: string | null; latitude?: number; longitude?: number }) {
     const { userID, pushToken, latitude, longitude } = params;
 
     await prisma.user.updateMany({
