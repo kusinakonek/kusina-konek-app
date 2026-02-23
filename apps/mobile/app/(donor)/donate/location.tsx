@@ -98,21 +98,8 @@ export default function LocationScreen() {
 
     setSubmitting(true);
     try {
-      let imageBase64 = undefined;
-      if (formData.imageUri) {
-        try {
-          const response = await fetch(formData.imageUri);
-          const blob = await response.blob();
-          const reader = new FileReader();
-          imageBase64 = await new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-        } catch (e) {
-          console.error("Failed to convert image to base64", e);
-          // Continue without image or handle error
-        }
-      }
+      // imageUri is already a base64 data URI captured at photo time
+      const imageBase64 = formData.imageUri || undefined;
 
       const payload = {
         foodName: formData.foodName,
@@ -150,10 +137,16 @@ export default function LocationScreen() {
 
       setShowSuccessModal(true);
     } catch (error: any) {
-      console.error("Donation submission error:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        "Failed to submit donation. Please try again.";
+      console.error("Donation submission error:", {
+        message: error?.message,
+        code: error?.code,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      const isNetworkError = !error?.response;
+      const errorMessage = isNetworkError
+        ? "Network error while uploading photo. Please ensure server is running and try again with a clearer/smaller photo."
+        : (error.response?.data?.message || "Failed to submit donation. Please try again.");
       showAlert("Error", errorMessage, undefined, { type: 'error' });
     } finally {
       setSubmitting(false);

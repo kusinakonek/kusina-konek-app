@@ -258,6 +258,7 @@ export default function InteractiveMap({
         address: string; barangay: string; landmark: string; fullAddress: string;
     } | null>(null);
     const [geocoding, setGeocoding] = useState(false);
+    const [mapHeading, setMapHeading] = useState(0);
     const insets = useSafeAreaInsets();
     const mapRef = useRef<MapView>(null);
     const fullscreenMapRef = useRef<MapView>(null);
@@ -477,12 +478,14 @@ export default function InteractiveMap({
             setCurrentLocation(tempMarkerCoord);
         }
         setIsFullscreen(false);
+        setMapHeading(0);
     };
 
     const handleCloseFullscreen = () => {
         setIsFullscreen(false);
         setTempMarkerCoord(null);
         setTempAddressInfo(null);
+        setMapHeading(0);
     };
 
     const openFullscreen = () => {
@@ -608,6 +611,14 @@ export default function InteractiveMap({
                         showsMyLocationButton={false}
                         showsCompass={false}
                         rotateEnabled
+                        onRegionChangeComplete={async () => {
+                            if (fullscreenMapRef.current) {
+                                try {
+                                    const cam = await fullscreenMapRef.current.getCamera();
+                                    setMapHeading(cam.heading ?? 0);
+                                } catch {}
+                            }
+                        }}
                     >
                         {tempMarkerCoord && (
                             <Marker
@@ -625,48 +636,51 @@ export default function InteractiveMap({
                             <X size={24} color="#fff" />
                         </TouchableOpacity>
                         <Text style={styles.modalTitle}>Select Location</Text>
-                        <TouchableOpacity
-                            onPress={handleConfirmFullscreen}
-                            style={[styles.confirmButton, !tempAddressInfo && styles.confirmButtonDisabled]}
-                            disabled={!tempAddressInfo}
-                        >
-                            <Check size={20} color="#fff" />
-                            <Text style={styles.confirmText}>Confirm</Text>
-                        </TouchableOpacity>
+                        <View style={{ width: 40 }} />
                     </View>
 
-                    {/* Map Type Toggle in Fullscreen */}
-                    <View style={[styles.fullscreenMapTypeToggle, { top: insets.top + 64 }]}>
-                        <TouchableOpacity
-                            style={[styles.mapTypeBtn, mapType === 'standard' && styles.mapTypeBtnActive]}
-                            onPress={() => setMapType('standard')}
-                        >
-                            <Text style={[styles.mapTypeBtnText, mapType === 'standard' && styles.mapTypeBtnTextActive]}>
-                                Default
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.mapTypeBtn, styles.mapTypeBtnLast, mapType === 'hybrid' && styles.mapTypeBtnActive]}
-                            onPress={() => setMapType('hybrid')}
-                        >
-                            <Text style={[styles.mapTypeBtnText, mapType === 'hybrid' && styles.mapTypeBtnTextActive]}>
-                                Satellite
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                    {/* Bottom Sheet: location info + confirm button */}
+                    <View style={[styles.bottomSheet, { paddingBottom: (insets.bottom || 16) }]}>
+                        {/* Floating controls above the sheet */}
+                        <View style={styles.sheetFloatingControls}>
+                            {/* Map type toggle */}
+                            <View style={styles.mapTypeToggleFloating}>
+                                <TouchableOpacity
+                                    style={[styles.mapTypeBtn, mapType === 'standard' && styles.mapTypeBtnActive]}
+                                    onPress={() => setMapType('standard')}
+                                >
+                                    <Text style={[styles.mapTypeBtnText, mapType === 'standard' && styles.mapTypeBtnTextActive]}>
+                                        Default
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.mapTypeBtn, styles.mapTypeBtnLast, mapType === 'hybrid' && styles.mapTypeBtnActive]}
+                                    onPress={() => setMapType('hybrid')}
+                                >
+                                    <Text style={[styles.mapTypeBtnText, mapType === 'hybrid' && styles.mapTypeBtnTextActive]}>
+                                        Satellite
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
 
-                    <View style={[styles.fullscreenControlStack, { bottom: insets.bottom + 146 }]}>
-                        <TouchableOpacity style={styles.controlButton} onPress={() => handleRecenter(true)}>
-                            <LocateFixed size={18} color="#333" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.controlButton} onPress={handleResetNorth}>
-                            <Compass size={18} color="#333" />
-                        </TouchableOpacity>
-                    </View>
+                            {/* Icon buttons */}
+                            <View style={styles.iconButtonGroup}>
+                                <TouchableOpacity style={styles.controlButton} onPress={() => handleRecenter(true)}>
+                                    <LocateFixed size={18} color="#333" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.controlButton, mapHeading !== 0 && styles.controlButtonActive]}
+                                    onPress={handleResetNorth}
+                                >
+                                    <View style={{ transform: [{ rotate: `-${mapHeading}deg` }] }}>
+                                        <Compass size={18} color={mapHeading !== 0 ? '#E53935' : '#333'} />
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
 
-                    {/* Location Preview */}
-                    {tempMarkerCoord && (
-                        <View style={[styles.locationPreview, { bottom: insets.bottom + 16 }]}>
+                        {/* Location info row */}
+                        {tempMarkerCoord ? (
                             <View style={styles.previewRow}>
                                 <View style={styles.previewInfo}>
                                     <Text style={styles.coordText}>
@@ -678,7 +692,9 @@ export default function InteractiveMap({
                                         <Text numberOfLines={2} style={styles.addressText}>
                                             {tempAddressInfo.address}
                                         </Text>
-                                    ) : null}
+                                    ) : (
+                                        <Text style={styles.addressLoadingText}>Fetching address...</Text>
+                                    )}
                                 </View>
                                 {tempAddressInfo?.address ? (
                                     <TouchableOpacity
@@ -690,8 +706,23 @@ export default function InteractiveMap({
                                     </TouchableOpacity>
                                 ) : null}
                             </View>
-                        </View>
-                    )}
+                        ) : (
+                            <View style={styles.locationHintRow}>
+                                <Text style={styles.locationHintText}>📍 Tap the map to pin your location</Text>
+                            </View>
+                        )}
+
+                        {/* Confirm button */}
+                        <TouchableOpacity
+                            onPress={handleConfirmFullscreen}
+                            style={[styles.confirmBarButton, !tempAddressInfo && styles.confirmButtonDisabled]}
+                            disabled={!tempAddressInfo}
+                            activeOpacity={0.8}
+                        >
+                            <Check size={20} color="#fff" />
+                            <Text style={styles.confirmText}>Confirm Location</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </Modal>
         </View>
@@ -740,19 +771,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 5,
-    },
-    fullscreenMapTypeToggle: {
-        position: 'absolute',
-        right: 10,
-        flexDirection: 'row',
-        borderRadius: 8,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
-        zIndex: 10,
     },
     mapTypeBtn: {
         paddingHorizontal: 14,
@@ -834,20 +852,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    confirmButton: {
-        backgroundColor: '#00C853',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 18,
-        borderRadius: 24,
-        gap: 6,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
-    },
     confirmButtonDisabled: {
         backgroundColor: '#ccc',
     },
@@ -856,16 +860,54 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-    fullscreenControlStack: {
+    bottomSheet: {
         position: 'absolute',
-        right: 12,
-        gap: 10,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#fff',
+        paddingTop: 16,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        gap: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 12,
         zIndex: 10,
     },
+    sheetFloatingControls: {
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        top: -64,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        zIndex: 20,
+    },
+    mapTypeToggleFloating: {
+        flexDirection: 'row',
+        borderRadius: 10,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    iconButtonGroup: {
+        flexDirection: 'row',
+        gap: 10,
+        alignItems: 'center',
+    },
     controlButton: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
@@ -875,19 +917,40 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
     },
-    locationPreview: {
-        position: 'absolute',
-        left: 16,
-        right: 16,
-        backgroundColor: '#fff',
-        padding: 12,
-        borderRadius: 12,
-        maxHeight: 120,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.15,
+    controlButtonActive: {
+        backgroundColor: '#FFF3F3',
+        borderWidth: 1,
+        borderColor: '#E53935',
+    },
+    confirmBarButton: {
+        backgroundColor: '#00C853',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 14,
+        gap: 8,
+        shadowColor: '#00C853',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
         shadowRadius: 8,
-        elevation: 8,
+        elevation: 6,
+    },
+    locationHintRow: {
+        paddingVertical: 10,
+        alignItems: 'center',
+    },
+    locationHintText: {
+        fontSize: 14,
+        color: '#888',
+        fontStyle: 'italic',
+    },
+    addressLoadingText: {
+        fontSize: 12,
+        color: '#aaa',
+        fontStyle: 'italic',
+        marginTop: 4,
     },
     previewRow: {
         flexDirection: 'row',
