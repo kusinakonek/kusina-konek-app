@@ -42,6 +42,10 @@ export default function FoodDetailsScreen() {
             Alert.alert('Error', 'Please enter the quantity');
             return;
         }
+        if (!formData.imageUri) {
+            Alert.alert('Error', 'An actual photo of the food is required to proceed.');
+            return;
+        }
         setLoading(true);
         setCurrentStep(3);
         setTimeout(() => {
@@ -105,7 +109,7 @@ export default function FoodDetailsScreen() {
 
                             {/* Image Upload */}
                             <View style={{ marginBottom: 20 }}>
-                                <Text style={[styles.imageLabel, { color: colors.text }]}>Take Photo of Actual Food (Required by guidelines)</Text>
+                                <Text style={[styles.imageLabel, { color: colors.text }]}>Take Photo of Actual Food *</Text>
                                 <TouchableOpacity
                                     style={[
                                         styles.imageUpload,

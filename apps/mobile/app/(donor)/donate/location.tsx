@@ -90,6 +90,10 @@ export default function LocationScreen() {
       Alert.alert("Error", "Please tap on the map to select your location");
       return;
     }
+    if (!formData.imageUri) {
+      Alert.alert("Error", "An actual photo of the food is required.");
+      return;
+    }
 
     setSubmitting(true);
     try {

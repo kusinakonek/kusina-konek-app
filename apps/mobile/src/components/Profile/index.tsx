@@ -68,6 +68,7 @@ export default function Profile() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteOtp, setDeleteOtp] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Load preferences
   useEffect(() => {
@@ -498,45 +499,10 @@ export default function Profile() {
         <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.settingsTitle, { color: colors.text }]}>Account Settings</Text>
 
-          <View style={styles.settingsRow}>
-            <Moon size={wp(20)} color={colors.text} />
-            <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Dark Theme</Text>
-            <Switch
-              value={isDark}
-              onValueChange={handleDarkModeToggle}
-              trackColor={{ false: '#ddd', true: '#81C784' }}
-              thumbColor={isDark ? '#2E7D32' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.settingsRow}>
-            {notificationsEnabled
-              ? <Bell size={wp(20)} color={colors.text} />
-              : <BellOff size={wp(20)} color={colors.textTertiary} />}
-            <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Notifications</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={handleNotificationsToggle}
-              trackColor={{ false: '#ddd', true: '#81C784' }}
-              thumbColor={notificationsEnabled ? '#2E7D32' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setShowAboutModal(true)}>
-            <Info size={wp(20)} color={colors.text} />
-            <Text style={[styles.settingsRowText, { color: colors.text }]}>About KusinaKonek</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          <TouchableOpacity style={styles.settingsRow} onPress={handleDeleteAccount}>
-            <Trash2 size={wp(20)} color="#E53935" />
-            <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
-              Delete Account
+          <TouchableOpacity style={styles.settingsRow} onPress={() => setShowSettingsModal(true)}>
+            <Settings size={wp(20)} color={colors.text} />
+            <Text style={[styles.settingsRowText, { color: colors.text }]}>
+              Settings
             </Text>
           </TouchableOpacity>
 
@@ -700,6 +666,69 @@ export default function Profile() {
               onPress={() => setShowDeleteModal(false)}
               disabled={isDeleting}>
               <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Full Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSettingsModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowSettingsModal(false)}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card, paddingVertical: hp(32) }]}>
+            <Text style={[styles.modalTitle, { color: colors.text, marginBottom: hp(24) }]}>Settings</Text>
+
+            <View style={styles.settingsRow}>
+              <Moon size={wp(20)} color={colors.text} />
+              <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Dark Theme</Text>
+              <Switch
+                value={isDark}
+                onValueChange={handleDarkModeToggle}
+                trackColor={{ false: '#ddd', true: '#81C784' }}
+                thumbColor={isDark ? '#2E7D32' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.settingsRow}>
+              {notificationsEnabled
+                ? <Bell size={wp(20)} color={colors.text} />
+                : <BellOff size={wp(20)} color={colors.textTertiary} />}
+              <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Notifications</Text>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleNotificationsToggle}
+                trackColor={{ false: '#ddd', true: '#81C784' }}
+                thumbColor={notificationsEnabled ? '#2E7D32' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity style={styles.settingsRow} onPress={() => { setShowSettingsModal(false); setShowAboutModal(true); }}>
+              <Info size={wp(20)} color={colors.text} />
+              <Text style={[styles.settingsRowText, { color: colors.text }]}>About KusinaKonek</Text>
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity style={styles.settingsRow} onPress={() => { setShowSettingsModal(false); handleDeleteAccount(); }}>
+              <Trash2 size={wp(20)} color="#E53935" />
+              <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
+                Delete Account
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalCancelBtn, { marginTop: hp(24) }]}
+              onPress={() => setShowSettingsModal(false)}>
+              <Text style={styles.modalCancelText}>Close</Text>
             </TouchableOpacity>
           </View>
         </Pressable>

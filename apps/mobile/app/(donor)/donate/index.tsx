@@ -32,6 +32,7 @@ export default function SelectFoodScreen() {
             isCustomFood: false,
             foodName: food.name,
             description: food.description,
+            imageUri: null,
         });
         setCurrentStep(2);
         setTimeout(() => {
@@ -47,6 +48,7 @@ export default function SelectFoodScreen() {
             isCustomFood: true,
             foodName: '',
             description: '',
+            imageUri: null,
         });
         setCurrentStep(2);
         setTimeout(() => {

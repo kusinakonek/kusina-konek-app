@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -60,6 +61,10 @@ export default function BrowseFood() {
     useFoodCache();
   const { colors, isDark } = useTheme();
 
+  // Sort and Filter States
+  const [sortBy, setSortBy] = useState<'latest' | 'nearest'>('latest');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
   // Disclaimer State
   const [showDisclaimer, setShowDisclaimer] = useState(true);
 
@@ -106,26 +111,38 @@ export default function BrowseFood() {
     init();
   }, []);
 
-  // Filter distributions based on search query
+  // Filter distributions based on search query AND sort
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredDistributions(distributions);
-      return;
+    let result = [...distributions];
+
+    // 1. Search Query Filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((d) => {
+        const foodName = d.food?.foodName?.toLowerCase() ?? "";
+        const description = d.food?.description?.toLowerCase() ?? "";
+        const barangay = d.location?.barangay?.toLowerCase() ?? "";
+        return (
+          foodName.includes(query) ||
+          description.includes(query) ||
+          barangay.includes(query)
+        );
+      });
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = distributions.filter((d) => {
-      const foodName = d.food?.foodName?.toLowerCase() ?? "";
-      const description = d.food?.description?.toLowerCase() ?? "";
-      const barangay = d.location?.barangay?.toLowerCase() ?? "";
-      return (
-        foodName.includes(query) ||
-        description.includes(query) ||
-        barangay.includes(query)
-      );
-    });
-    setFilteredDistributions(filtered);
-  }, [searchQuery, distributions]);
+    // 2. Sorting
+    if (sortBy === 'latest') {
+      result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } else if (sortBy === 'nearest') {
+      result.sort((a, b) => {
+        const distA = a.distanceKm ?? 9999;
+        const distB = b.distanceKm ?? 9999;
+        return distA - distB;
+      });
+    }
+
+    setFilteredDistributions(result);
+  }, [searchQuery, distributions, sortBy]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -262,6 +279,48 @@ export default function BrowseFood() {
         onDecline={handleDeclineDisclaimer}
       />
 
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowFilterModal(false)}
+        >
+          <View style={[styles.filterContent, { backgroundColor: colors.card }]}>
+            <View style={styles.filterHeader}>
+              <Text style={[styles.filterTitle, { color: colors.text }]}>Sort by</Text>
+              <Pressable onPress={() => setShowFilterModal(false)}>
+                <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Done</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={[
+                styles.filterOption,
+                sortBy === 'latest' && { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9', borderColor: theme.colors.primary }
+              ]}
+              onPress={() => { setSortBy('latest'); setShowFilterModal(false); }}
+            >
+              <Text style={[styles.filterOptionText, { color: sortBy === 'latest' ? theme.colors.primary : colors.text }]}>Latest First</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.filterOption,
+                sortBy === 'nearest' && { backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9', borderColor: theme.colors.primary }
+              ]}
+              onPress={() => { setSortBy('nearest'); setShowFilterModal(false); }}
+            >
+              <Text style={[styles.filterOptionText, { color: sortBy === 'nearest' ? theme.colors.primary : colors.text }]}>Nearest First</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Header */}
       <View
         style={[
@@ -324,9 +383,7 @@ export default function BrowseFood() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search for food..."
-          onFilterPress={() => {
-            // TODO: implement filter modal
-          }}
+          onFilterPress={() => setShowFilterModal(true)}
         />
 
         {/* Count */}
@@ -513,5 +570,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: fp(10),
     fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    paddingHorizontal: wp(16),
+    paddingTop: hp(80),
+  },
+  filterContent: {
+    backgroundColor: "#fff",
+    borderRadius: wp(16),
+    padding: wp(16),
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  filterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: hp(24),
+  },
+  filterTitle: {
+    fontSize: fp(18),
+    fontWeight: "bold",
+  },
+  filterOption: {
+    padding: wp(16),
+    borderRadius: wp(12),
+    borderWidth: 1,
+    borderColor: "transparent",
+    marginBottom: hp(12),
+  },
+  filterOptionText: {
+    fontSize: fp(16),
+    fontWeight: "500",
   },
 });
