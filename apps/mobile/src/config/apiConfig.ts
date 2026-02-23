@@ -35,7 +35,12 @@ const getDevHostIp = (): string | null => {
 
     if (debuggerHost) {
       const host = debuggerHost.split(":")[0];
-      if (host && host !== "undefined") {
+      if (
+        host &&
+        host !== "undefined" &&
+        host !== "localhost" &&
+        host !== "127.0.0.1"
+      ) {
         return host;
       }
     }
@@ -100,5 +105,5 @@ const getApiBaseUrl = (): string => {
 
 export const API_CONFIG = {
   baseURL: getApiBaseUrl(),
-  timeout: 30000,
+  timeout: 120000,
 };
