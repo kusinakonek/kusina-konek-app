@@ -21,11 +21,13 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function DonorHome() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors } = useTheme();
+  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -47,6 +49,14 @@ export default function DonorHome() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Handle auto-refresh when a notification is received
+  useEffect(() => {
+    if (notification) {
+      console.log("[DonorHome] Notification received, auto-refreshing stats...");
+      fetchDashboardData();
+    }
+  }, [notification, fetchDashboardData]);
 
   // Refetch dashboard data whenever the screen comes into focus
   // This ensures the dashboard shows the latest donation data

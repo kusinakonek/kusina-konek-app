@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Configure: no in-app popup alert, but play sound and set badge
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
         shouldShowBanner: true,
