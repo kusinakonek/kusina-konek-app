@@ -40,15 +40,16 @@ export const PushTokenManager = ({ token }: { token?: string }) => {
             if (lastSentRef.current === key) return; // already sent this combination
 
             try {
+                console.log("[PushTokenManager] Attempting to sync token with backend...");
                 await axiosClient.put('/users/push-token', {
                     pushToken: token,
                     latitude: currentLat,
                     longitude: currentLon
                 });
                 lastSentRef.current = key;
-                console.log("Push token & location updated for user", user.id);
-            } catch (err) {
-                console.error("Failed to update push token", err);
+                console.log("[PushTokenManager] Push token & location successfully updated for user", user.id);
+            } catch (err: any) {
+                console.error("[PushTokenManager] Failed to update push token on backend:", err?.response?.data || err?.message || err);
             }
         };
         updateTokenAndLocation();
