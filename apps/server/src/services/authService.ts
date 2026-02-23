@@ -182,6 +182,19 @@ export const authService = {
       }
     });
 
+    // Update user's lastLoginAt and ensure isActive is true
+    try {
+      await prisma.user.update({
+        where: { userID: profile?.userID || data.user.id },
+        data: {
+          lastLoginAt: new Date(),
+          isActive: true
+        }
+      });
+    } catch (updateError) {
+      console.error("[Auth] Failed to update lastLoginAt and isActive status:", updateError);
+    }
+
     return {
       message: "Signed in successfully",
       session: {

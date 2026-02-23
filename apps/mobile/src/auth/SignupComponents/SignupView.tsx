@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, User, MapPin, Phone, ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, MapPin, Phone, ArrowLeft, Eye, EyeOff, Building2, CheckSquare, Square } from 'lucide-react-native';
 import { styles } from './SignupCSS/styles';
 import { useSignupLogic } from './SignupJS/useSignupLogic';
 
@@ -109,6 +109,31 @@ export default function SignupView() {
                         {/* Error Message for Phone */
                             phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
 
+                        <TouchableOpacity
+                            style={styles.checkboxContainer}
+                            onPress={() => handleChange('isOrg', !formData.isOrg)}
+                        >
+                            {formData.isOrg ? (
+                                <CheckSquare size={20} color="#00C853" />
+                            ) : (
+                                <Square size={20} color={colors.textSecondary} />
+                            )}
+                            <Text style={[styles.checkboxLabel, { color: colors.text }]}>Sign up as an Organization/LGU</Text>
+                        </TouchableOpacity>
+
+                        {formData.isOrg && (
+                            <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
+                                <Building2 size={20} color={colors.textSecondary} style={styles.inputIcon} />
+                                <TextInput
+                                    style={[styles.input, { color: colors.text }]}
+                                    placeholder="Organization / LGU Name *"
+                                    value={formData.orgName}
+                                    onChangeText={(text) => handleChange('orgName', text)}
+                                    placeholderTextColor={colors.textTertiary}
+                                />
+                            </View>
+                        )}
+
                         <View style={[styles.inputContainer, { backgroundColor: isDark ? colors.card : '#F5F5F5' }]}>
                             <Lock size={20} color={colors.textSecondary} style={styles.inputIcon} />
                             <TextInput
@@ -119,9 +144,6 @@ export default function SignupView() {
                                 secureTextEntry={!showPassword}
                                 placeholderTextColor={colors.textTertiary}
                             />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                {showPassword ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
-                            </TouchableOpacity>
                         </View>
 
                         {/* Password Strength Indicator */}
@@ -160,13 +182,22 @@ export default function SignupView() {
                                 placeholder="Confirm Password"
                                 value={formData.confirmPassword}
                                 onChangeText={(text) => handleChange('confirmPassword', text)}
-                                secureTextEntry={!showConfirmPassword}
+                                secureTextEntry={!showPassword}
                                 placeholderTextColor={colors.textTertiary}
                             />
-                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                                {showConfirmPassword ? <EyeOff size={20} color={colors.textSecondary} /> : <Eye size={20} color={colors.textSecondary} />}
-                            </TouchableOpacity>
                         </View>
+
+                        <TouchableOpacity
+                            style={styles.checkboxContainer}
+                            onPress={() => setShowPassword(!showPassword)}
+                        >
+                            {showPassword ? (
+                                <CheckSquare size={20} color="#00C853" />
+                            ) : (
+                                <Square size={20} color={colors.textSecondary} />
+                            )}
+                            <Text style={[styles.checkboxLabel, { color: colors.text }]}>Show Password</Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.button, loading && styles.buttonDisabled]}

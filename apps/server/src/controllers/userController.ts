@@ -59,8 +59,8 @@ export const userController = {
       }
 
       const { pushToken, latitude, longitude } = req.body;
-      if (!pushToken || typeof pushToken !== "string") {
-        return res.status(400).json({ error: "pushToken is required" });
+      if (pushToken !== null && typeof pushToken !== "string") {
+        return res.status(400).json({ error: "pushToken must be a string or null" });
       }
 
       await userService.updatePushToken({

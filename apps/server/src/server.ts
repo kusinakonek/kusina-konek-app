@@ -70,6 +70,56 @@ function startAutoRevertScheduler() {
   console.log("[AutoRevert] 3-hour pickup timeout scheduler started (checks every 15 min)");
 }
 
+/**
+ * Inactivity scheduler: every 24 hours, check for users whose last login
+ * was more than 30 days ago, and mark their accounts as inactive.
+ */
+function startInactivityScheduler() {
+  const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  setInterval(async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const result = await prisma.user.updateMany({
+        where: {
+          lastLoginAt: { lt: thirtyDaysAgo },
+          isActive: true
+        },
+        data: {
+          isActive: false
+        }
+      });
+
+      if (result.count > 0) {
+        console.log(`[Inactivity] Deactivated ${result.count} dormant account(s).`);
+      }
+    } catch (error) {
+      console.error("[Inactivity] Error during inactivity check:", error);
+    }
+  }, INTERVAL_MS);
+
+  // Run it once immediately on startup as well
+  (async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const result = await prisma.user.updateMany({
+        where: { lastLoginAt: { lt: thirtyDaysAgo }, isActive: true },
+        data: { isActive: false }
+      });
+      if (result.count > 0) {
+        console.log(`[Inactivity] Initial check deactivated ${result.count} dormant account(s).`);
+      }
+    } catch (e) {
+      console.error("[Inactivity] Startup check failed:", e);
+    }
+  })();
+
+  console.log("[Inactivity] Inactivity scheduler started (checks every 24 hours)");
+}
+
 const start = async () => {
   try {
     await prisma.$connect();
@@ -81,6 +131,7 @@ const start = async () => {
   }
 
   startAutoRevertScheduler();
+  startInactivityScheduler();
 
   app.listen(env.PORT, "0.0.0.0", () => {
     // eslint-disable-next-line no-console

@@ -33,6 +33,8 @@ export const useSignupLogic = () => {
         confirmPassword: '',
         barangay: '',
         phoneNo: '',
+        isOrg: false,
+        orgName: '',
     });
 
     const [emailError, setEmailError] = useState('');
@@ -40,7 +42,7 @@ export const useSignupLogic = () => {
 
     const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password]);
 
-    const handleChange = (key: string, value: string) => {
+    const handleChange = (key: string, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
         // Clear errors when user types
         if (key === 'email') setEmailError('');
@@ -66,10 +68,15 @@ export const useSignupLogic = () => {
     };
 
     const handleSignup = async () => {
-        const { fullName, email, password, confirmPassword, barangay, phoneNo } = formData;
+        const { fullName, email, password, confirmPassword, barangay, phoneNo, isOrg, orgName } = formData;
 
         if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
             Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+
+        if (isOrg && !orgName.trim()) {
+            Alert.alert('Error', 'Please enter your Organization/LGU name');
             return;
         }
 
@@ -117,6 +124,8 @@ export const useSignupLogic = () => {
                 barangay,
                 phone_no: phoneNo,
                 role,
+                isOrg,
+                orgName,
             });
             // Navigation happens inside signUp usually, or allow handling here
         } catch (error: any) {
