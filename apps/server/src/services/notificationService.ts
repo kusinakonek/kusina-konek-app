@@ -183,13 +183,23 @@ export const notificationService = {
       const chunks = expo.chunkPushNotifications(messages);
       for (const chunk of chunks) {
         try {
-          await expo.sendPushNotificationsAsync(chunk);
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          console.log(`[PushNotification:Broadcast] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
+
+          for (let i = 0; i < ticketChunk.length; i++) {
+            const ticket = ticketChunk[i];
+            if (ticket.status === "error") {
+              console.error(`[PushNotification:Broadcast] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
+            } else {
+              console.log(`[PushNotification:Broadcast] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
+            }
+          }
         } catch (error) {
-          console.error("Error broadcasting push notification chunk", error);
+          console.error("[PushNotification:Broadcast] Error sending push notification chunk", error);
         }
       }
     } catch (error) {
-      console.error("Error broadcasting to recipients", error);
+      console.error("[PushNotification:Broadcast] Error broadcasting to recipients", error);
     }
   },
 
@@ -262,13 +272,23 @@ export const notificationService = {
       const chunks = expo.chunkPushNotifications(messages);
       for (const chunk of chunks) {
         try {
-          await expo.sendPushNotificationsAsync(chunk);
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          console.log(`[PushNotification:Nearby] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
+
+          for (let i = 0; i < ticketChunk.length; i++) {
+            const ticket = ticketChunk[i];
+            if (ticket.status === "error") {
+              console.error(`[PushNotification:Nearby] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
+            } else {
+              console.log(`[PushNotification:Nearby] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
+            }
+          }
         } catch (error) {
-          console.error("Error sending nearby push notification chunk", error);
+          console.error("[PushNotification:Nearby] Error sending nearby push notification chunk", error);
         }
       }
     } catch (error) {
-      console.error("Error notifying nearby recipients", error);
+      console.error("[PushNotification:Nearby] Error notifying nearby recipients", error);
     }
   },
 };
