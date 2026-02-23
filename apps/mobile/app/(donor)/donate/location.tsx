@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   Linking,
   Platform,
@@ -36,12 +35,14 @@ import { API_ENDPOINTS } from "../../../src/api/endpoints";
 import { useFoodCache } from "../../../context/FoodCacheContext";
 import SuccessModal from "../../../src/components/SuccessModal";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAlert } from "../../../context/AlertContext";
 
 export default function LocationScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { formData, updateFormData, resetForm } = useDonation();
   const { invalidateCache } = useFoodCache();
+  const { showAlert } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -83,15 +84,15 @@ export default function LocationScreen() {
 
   const handleSubmitDonation = async () => {
     if (formData.locationType === "barangay" && !formData.selectedBarangay) {
-      Alert.alert("Error", "Please select a drop-off location");
+      showAlert("Error", "Please select a drop-off location", undefined, { type: 'warning' });
       return;
     }
     if (formData.locationType === "custom" && !formData.customLocation?.name) {
-      Alert.alert("Error", "Please tap on the map to select your location");
+      showAlert("Error", "Please tap on the map to select your location", undefined, { type: 'warning' });
       return;
     }
     if (!formData.imageUri) {
-      Alert.alert("Error", "An actual photo of the food is required.");
+      showAlert("Error", "An actual photo of the food is required.", undefined, { type: 'warning' });
       return;
     }
 
@@ -153,7 +154,7 @@ export default function LocationScreen() {
       const errorMessage =
         error.response?.data?.message ||
         "Failed to submit donation. Please try again.";
-      Alert.alert("Error", errorMessage);
+      showAlert("Error", errorMessage, undefined, { type: 'error' });
     } finally {
       setSubmitting(false);
     }

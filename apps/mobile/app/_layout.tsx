@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { PushTokenManager } from "../src/components/PushTokenManager";
 import { NotificationBanner } from "../src/components/NotificationBanner";
+import { AlertProvider } from "../context/AlertContext";
 
 function AppContent() {
   const { expoPushToken, notification, clearNotification } = usePushNotifications();
@@ -46,7 +47,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <AlertProvider>
+          <AppContent />
+        </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

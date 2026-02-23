@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  Alert,
   Platform,
   Linking,
 } from "react-native";
@@ -22,11 +21,13 @@ import EmptyRecentFood from "../../src/components/EmptyRecentFood";
 import { RecentFoodSkeleton } from "../../src/components/SkeletonLoader";
 import FeedbackModal from "../../src/components/FeedbackModal";
 import { useTheme } from "../../context/ThemeContext";
+import { useAlert } from "../../context/AlertContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 
 export default function AllRecentFoods() {
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentFoods, setRecentFoods] = useState<RecentItem[]>([]);
@@ -85,7 +86,7 @@ export default function AllRecentFoods() {
   }, [fetchRecentFoods]);
 
   const handleConfirmDonation = async (id: string) => {
-    Alert.alert(
+    showAlert(
       "Confirm Receipt",
       "Have you successfully received this food?",
       [
@@ -99,16 +100,17 @@ export default function AllRecentFoods() {
               setFeedbackVisible(true);
             } catch (error) {
               console.error("Failed to confirm donation", error);
-              Alert.alert("Error", "Failed to confirm. Please try again.");
+              showAlert("Error", "Failed to confirm. Please try again.", undefined, { type: 'error' });
             }
           },
         },
       ],
+      { type: 'info' }
     );
   };
 
   const handleMarkOnTheWay = async (id: string) => {
-    Alert.alert("On the Way", "Are you heading to pick up this food now?", [
+    showAlert("On the Way", "Are you heading to pick up this food now?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Yes, I'm On My Way",
@@ -132,7 +134,7 @@ export default function AllRecentFoods() {
                 android: `google.navigation:q=${lat},${lng}`,
                 default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
               });
-              Alert.alert(
+              showAlert(
                 "Navigate to Pickup",
                 "The donor has been notified. Open maps for directions?",
                 [
@@ -148,20 +150,23 @@ export default function AllRecentFoods() {
                     },
                   },
                 ],
+                { type: 'info' }
               );
             } else {
-              Alert.alert(
+              showAlert(
                 "Great!",
                 "The donor has been notified you're on your way.",
+                undefined,
+                { type: 'success' }
               );
             }
           } catch (error) {
             console.error("Failed to mark on the way", error);
-            Alert.alert("Error", "Failed to update status. Please try again.");
+            showAlert("Error", "Failed to update status. Please try again.", undefined, { type: 'error' });
           }
         },
       },
-    ]);
+    ], { type: 'info' });
   };
 
   const handleFeedback = (id: string) => {
@@ -184,12 +189,12 @@ export default function AllRecentFoods() {
         photoUrl: photo,
       });
       setFeedbackVisible(false);
-      Alert.alert("Thank You!", "Your feedback has been submitted.");
+      showAlert("Thank You!", "Your feedback has been submitted.", undefined, { type: 'success' });
       fetchRecentFoods();
       setSelectedDisID(null);
     } catch (error) {
       console.error("Feedback submit error:", error);
-      Alert.alert("Error", "Failed to submit feedback. Please try again.");
+      showAlert("Error", "Failed to submit feedback. Please try again.", undefined, { type: 'error' });
     } finally {
       setSubmittingFeedback(false);
     }

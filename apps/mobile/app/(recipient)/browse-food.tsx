@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -29,6 +28,7 @@ import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 import { BrowseFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
+import { useAlert } from "../../context/AlertContext";
 import RecipientDisclaimerModal from "../../src/components/RecipientDisclaimerModal";
 
 /** Returns a human-readable relative time string */
@@ -60,6 +60,7 @@ export default function BrowseFood() {
   const { distributions, loading, error, fetchDistributions, isCached } =
     useFoodCache();
   const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
 
   // Sort and Filter States
   const [sortBy, setSortBy] = useState<'latest' | 'nearest'>('latest');
@@ -157,13 +158,15 @@ export default function BrowseFood() {
   const handleRequest = (distribution: Distribution) => {
     const alreadyInCart = cartItems.some((i) => i.disID === distribution.disID);
     if (alreadyInCart) {
-      Alert.alert("Already in Cart", "This food is already in your cart.");
+      showAlert("Already in Cart", "This food is already in your cart.", undefined, { type: 'warning' });
       return;
     }
     addItem(distribution);
-    Alert.alert(
+    showAlert(
       "Added to Cart",
       `${distribution.food?.foodName ?? "Food"} has been added to your cart. You have 15 minutes to pick it up.`,
+      undefined,
+      { type: 'success' }
     );
   };
 

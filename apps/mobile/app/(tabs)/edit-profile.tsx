@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert,
+    View, Text, StyleSheet, TouchableOpacity, ScrollView,
     TextInput, ActivityIndicator, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,10 +12,12 @@ import { wp, hp, fp } from '../../src/utils/responsive';
 import LoadingScreen from '../../src/components/LoadingScreen';
 import SuccessModal from '../../src/components/SuccessModal';
 import { useTheme } from '../../context/ThemeContext';
+import { useAlert } from '../../context/AlertContext';
 
 export default function EditProfile() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -93,15 +95,15 @@ export default function EditProfile() {
     const handleSave = async () => {
         // Basic validation
         if (!firstName.trim()) {
-            Alert.alert('Validation', 'First name is required.');
+            showAlert('Validation', 'First name is required.', undefined, { type: 'warning' });
             return;
         }
         if (!lastName.trim()) {
-            Alert.alert('Validation', 'Last name is required.');
+            showAlert('Validation', 'Last name is required.', undefined, { type: 'warning' });
             return;
         }
         if (!phoneNo.trim() || phoneNo.trim().length < 7) {
-            Alert.alert('Validation', 'Please enter a valid phone number (min 7 digits).');
+            showAlert('Validation', 'Please enter a valid phone number (min 7 digits).', undefined, { type: 'warning' });
             return;
         }
 
@@ -133,7 +135,7 @@ export default function EditProfile() {
         } catch (error: any) {
             console.error('Error updating profile:', error);
             const message = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update profile.';
-            Alert.alert('Error', message);
+            showAlert('Error', message, undefined, { type: 'error' });
         } finally {
             setSaving(false);
         }

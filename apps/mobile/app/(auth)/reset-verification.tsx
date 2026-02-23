@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -18,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Lock, RefreshCw } from 'lucide-react-native';
 import { useResendTimer } from '../../src/hooks/useResendTimer';
+import { useAlert } from '../../context/AlertContext';
 
 const OTP_LENGTH = 8; // User specified 8 digits
 
@@ -25,6 +25,7 @@ export default function ResetVerification() {
     const router = useRouter();
     const { email } = useLocalSearchParams<{ email: string }>();
     const { verifyRecoveryOtp, sendRecoveryOtp } = useAuth(); // Reuse sendRecoveryOtp for resend
+    const { showAlert } = useAlert();
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
@@ -68,12 +69,12 @@ export default function ResetVerification() {
     const handleVerify = async (code?: string) => {
         const otpCode = code || otp.join('');
         if (otpCode.length !== OTP_LENGTH) {
-            Alert.alert('Error', `Please enter the complete ${OTP_LENGTH}-digit code`);
+            showAlert('Error', `Please enter the complete ${OTP_LENGTH}-digit code`, undefined, { type: 'warning' });
             return;
         }
 
         if (!email) {
-            Alert.alert('Error', 'No email found. Please try again.');
+            showAlert('Error', 'No email found. Please try again.', undefined, { type: 'error' });
             return;
         }
 
@@ -85,7 +86,7 @@ export default function ResetVerification() {
         } catch (error: any) {
             console.error(error);
             const message = error.message || 'Invalid verification code';
-            Alert.alert('Verification Failed', message);
+            showAlert('Verification Failed', message, undefined, { type: 'error' });
             // Clear OTP inputs on failure
             setOtp(Array(OTP_LENGTH).fill(''));
             inputRefs.current[0]?.focus();
@@ -101,9 +102,9 @@ export default function ResetVerification() {
         try {
             await sendRecoveryOtp(email);
             startTimer();
-            Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+            showAlert('Code Sent', 'A new verification code has been sent to your email.', undefined, { type: 'success' });
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to resend code');
+            showAlert('Error', error.message || 'Failed to resend code', undefined, { type: 'error' });
         } finally {
             setResending(false);
         }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera } from 'lucide-react-native';
@@ -8,17 +8,19 @@ import { useDonation } from '../../../context/DonationContext';
 import Input from '../../../src/components/Input';
 import { useTheme } from '../../../context/ThemeContext';
 import LoadingScreen from '../../../src/components/LoadingScreen';
+import { useAlert } from '../../../context/AlertContext';
 
 export default function FoodDetailsScreen() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
     const { formData, updateFormData, setCurrentStep } = useDonation();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
 
     const takePhoto = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please allow access to your camera.');
+            showAlert('Permission Required', 'Please allow access to your camera.', undefined, { type: 'warning' });
             return;
         }
 
@@ -35,15 +37,15 @@ export default function FoodDetailsScreen() {
 
     const handleContinue = () => {
         if (!formData.foodName.trim()) {
-            Alert.alert('Error', 'Please enter the food name');
+            showAlert('Error', 'Please enter the food name', undefined, { type: 'warning' });
             return;
         }
         if (!formData.quantity.trim()) {
-            Alert.alert('Error', 'Please enter the quantity');
+            showAlert('Error', 'Please enter the quantity', undefined, { type: 'warning' });
             return;
         }
         if (!formData.imageUri) {
-            Alert.alert('Error', 'An actual photo of the food is required to proceed.');
+            showAlert('Error', 'An actual photo of the food is required to proceed.', undefined, { type: 'warning' });
             return;
         }
         setLoading(true);

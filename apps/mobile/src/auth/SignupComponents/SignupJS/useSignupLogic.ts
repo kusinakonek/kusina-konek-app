@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../../context/AuthContext';
+import { useAlert } from '../../../../context/AlertContext';
 
 // Password strength checker
 const getPasswordStrength = (password: string) => {
@@ -22,6 +22,7 @@ const getPasswordStrength = (password: string) => {
 export const useSignupLogic = () => {
     const router = useRouter();
     const { signUp, role } = useAuth(); // Assuming useAuth is accessible
+    const { showAlert } = useAlert();
 
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -71,27 +72,27 @@ export const useSignupLogic = () => {
         const { fullName, email, password, confirmPassword, barangay, phoneNo, isOrg, orgName } = formData;
 
         if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
-            Alert.alert('Error', 'Please fill in all required fields');
+            showAlert('Error', 'Please fill in all required fields', undefined, { type: 'warning' });
             return;
         }
 
         if (isOrg && !orgName.trim()) {
-            Alert.alert('Error', 'Please enter your Organization/LGU name');
+            showAlert('Error', 'Please enter your Organization/LGU name', undefined, { type: 'warning' });
             return;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            showAlert('Error', 'Passwords do not match', undefined, { type: 'error' });
             return;
         }
 
         if (password.length < 8) {
-            Alert.alert('Error', 'Password must be at least 8 characters');
+            showAlert('Error', 'Password must be at least 8 characters', undefined, { type: 'warning' });
             return;
         }
 
         if (!role) {
-            Alert.alert('Error', 'No role selected. Please restart the app.');
+            showAlert('Error', 'No role selected. Please restart the app.', undefined, { type: 'error' });
             return;
         }
 
@@ -132,9 +133,9 @@ export const useSignupLogic = () => {
             console.error(error);
             const message = error.message || 'Something went wrong';
             if (message.includes('already registered')) {
-                Alert.alert('Signup Failed', 'An account with this email already exists');
+                showAlert('Signup Failed', 'An account with this email already exists', undefined, { type: 'error' });
             } else {
-                Alert.alert('Signup Failed', message);
+                showAlert('Signup Failed', message, undefined, { type: 'error' });
             }
         } finally {
             setLoading(false);

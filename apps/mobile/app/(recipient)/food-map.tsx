@@ -6,7 +6,6 @@ import {
     Platform,
     ActivityIndicator,
     TouchableOpacity,
-    Alert,
     Image,
     Animated,
     Dimensions,
@@ -29,6 +28,7 @@ import {
 import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { useCart } from "../../context/CartContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useAlert } from "../../context/AlertContext";
 import { theme } from "../../src/constants/theme";
 import { wp, hp, fp } from "../../src/utils/responsive";
 
@@ -46,6 +46,7 @@ export default function FoodMap() {
     const { distributions, loading, fetchDistributions } = useFoodCache();
     const { items: cartItems, addItem } = useCart();
     const { colors, isDark } = useTheme();
+    const { showAlert } = useAlert();
 
     const [userLocation, setUserLocation] = useState<{
         latitude: number;
@@ -139,13 +140,15 @@ export default function FoodMap() {
             (i) => i.disID === distribution.disID,
         );
         if (alreadyInCart) {
-            Alert.alert("Already in Cart", "This food is already in your cart.");
+            showAlert("Already in Cart", "This food is already in your cart.", undefined, { type: 'warning' });
             return;
         }
         addItem(distribution);
-        Alert.alert(
+        showAlert(
             "Added to Cart",
             `${distribution.food?.foodName ?? "Food"} has been added to your cart.`,
+            undefined,
+            { type: 'success' }
         );
     };
 

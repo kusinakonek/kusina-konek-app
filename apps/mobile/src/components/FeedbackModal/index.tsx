@@ -8,13 +8,13 @@ import {
     TextInput,
     Image,
     ActivityIndicator,
-    Alert,
 } from "react-native";
 import { Star, Camera, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { wp, hp, fp } from "../../utils/responsive";
 import { theme } from "../../constants/theme";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAlert } from "../../../context/AlertContext";
 
 interface FeedbackModalProps {
     visible: boolean;
@@ -30,6 +30,7 @@ export default function FeedbackModal({
     isSubmitting = false,
 }: FeedbackModalProps) {
     const { colors, isDark } = useTheme();
+    const { showAlert } = useAlert();
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [photo, setPhoto] = useState<string | null>(null);
@@ -42,9 +43,11 @@ export default function FeedbackModal({
         // Request permissions first
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-            Alert.alert(
+            showAlert(
                 "Permission required",
-                "Please grant camera roll permissions to upload a photo."
+                "Please grant camera roll permissions to upload a photo.",
+                undefined,
+                { type: 'error' }
             );
             return;
         }
@@ -75,7 +78,7 @@ export default function FeedbackModal({
     const takePhoto = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== "granted") {
-            Alert.alert("Permission required", "Please grant camera permissions.");
+            showAlert("Permission required", "Please grant camera permissions.", undefined, { type: 'error' });
             return;
         }
 
@@ -95,11 +98,11 @@ export default function FeedbackModal({
 
     const handleSubmit = () => {
         if (rating === 0) {
-            Alert.alert("Rating Required", "Please select a star rating.");
+            showAlert("Rating Required", "Please select a star rating.", undefined, { type: 'warning' });
             return;
         }
         if (!photo) {
-            Alert.alert("Photo Required", "Please upload a photo of the food/selfie.");
+            showAlert("Photo Required", "Please upload a photo of the food/selfie.", undefined, { type: 'warning' });
             return;
         }
         onSubmit(rating, comment, photo);

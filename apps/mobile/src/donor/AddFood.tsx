@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,7 @@ type Region = {
 export default function AddFood() {
     const { user } = useAuth();
     const router = useRouter();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
 
     // Form State
@@ -50,7 +52,7 @@ export default function AddFood() {
         (async () => {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission to access location was denied');
+                showAlert('Location Error', 'Permission to access location was denied', undefined, { type: 'error' });
                 return;
             }
 
@@ -73,32 +75,34 @@ export default function AddFood() {
 
     const handleSubmit = async () => {
         if (!foodName || !quantity || !selectedLocation) {
-            Alert.alert('Error', 'Please fill in all required fields and select a location.');
+            showAlert('Error', 'Please fill in all required fields and select a location.', undefined, { type: 'warning' });
             return;
         }
 
         setLoading(true);
         try {
             const payload = {
-                food_name: foodName,
+                foodName: foodName,
                 description,
-                quantity: parseInt(quantity),
+                quantity: quantity.toString(),
                 unit,
-                pickup_location: locationName,
-                latitude: selectedLocation.lat,
-                longitude: selectedLocation.lng,
-                status: 'AVAILABLE'
+                locations: [{
+                    latitude: selectedLocation.lat,
+                    longitude: selectedLocation.lng,
+                    streetAddress: locationName || 'Selected Location',
+                    barangay: 'N/A'
+                }],
+                scheduledTime: new Date().toISOString(),
             };
 
-            // Using DISTRIBUTION endpoint based on inference, adapting if needed
-            await api.post(API_ENDPOINTS.DISTRIBUTION.ADD_DISTRIBUTION, payload);
+            await api.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
 
-            Alert.alert('Success', 'Food donation added successfully!', [
+            showAlert('Success', 'Food donation added successfully!', [
                 { text: 'OK', onPress: () => router.push('/(tabs)') }
-            ]);
+            ], { type: 'success' });
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Error', error.response?.data?.message || 'Failed to add food.');
+            showAlert('Error', error.response?.data?.message || 'Failed to add food.', undefined, { type: 'error' });
         } finally {
             setLoading(false);
         }

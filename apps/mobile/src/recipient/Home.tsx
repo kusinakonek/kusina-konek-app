@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   Image,
   Platform,
-  Alert,
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,11 +24,13 @@ import LoadingScreen from "../components/LoadingScreen";
 import { RecentFoodSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
+import { useAlert } from "../../context/AlertContext";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -111,13 +112,14 @@ export default function RecipientHome() {
   }
 
   const handleConfirmDonation = async (id: string) => {
-    Alert.alert(
+    showAlert(
       "Confirm Receipt",
       "Have you successfully received this food?",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Yes, Confirm",
+          style: "default",
           onPress: async () => {
             setLoading(true);
             try {
@@ -127,7 +129,7 @@ export default function RecipientHome() {
               setFeedbackVisible(true);
             } catch (error) {
               console.error("Failed to confirm donation", error);
-              Alert.alert("Error", "Failed to confirm. Please try again.");
+              showAlert("Error", "Failed to confirm. Please try again.");
               setLoading(false);
             } finally {
               // Only stop loading if we are NOT showing the modal (error case)
@@ -138,6 +140,7 @@ export default function RecipientHome() {
           },
         },
       ],
+      { type: 'warning' }
     );
   };
 
@@ -158,22 +161,23 @@ export default function RecipientHome() {
       });
 
       setFeedbackVisible(false);
-      Alert.alert("Thank You!", "Your feedback has been submitted.");
+      showAlert("Thank You!", "Your feedback has been submitted.", undefined, { type: 'success' });
       fetchDashboardData();
       setSelectedDisID(null);
     } catch (error) {
       console.error("Feedback submit error:", error);
-      Alert.alert("Error", "Failed to submit feedback. Please try again.");
+      showAlert("Error", "Failed to submit feedback. Please try again.", undefined, { type: 'error' });
     } finally {
       setSubmittingFeedback(false);
     }
   };
 
   const handleMarkOnTheWay = async (id: string) => {
-    Alert.alert("On the Way", "Are you heading to pick up this food now?", [
+    showAlert("On the Way", "Are you heading to pick up this food now?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Yes, I'm On My Way",
+        style: "default",
         onPress: async () => {
           setLoading(true);
           try {
@@ -195,13 +199,14 @@ export default function RecipientHome() {
                 android: `google.navigation:q=${lat},${lng}`,
                 default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
               });
-              Alert.alert(
+              showAlert(
                 "Navigate to Pickup",
                 "The donor has been notified. Open maps for directions?",
                 [
                   { text: "Not Now", style: "cancel" },
                   {
                     text: "Open Maps",
+                    style: "default",
                     onPress: () => {
                       Linking.openURL(url!).catch(() =>
                         Linking.openURL(
@@ -211,22 +216,25 @@ export default function RecipientHome() {
                     },
                   },
                 ],
+                { type: 'info' }
               );
             } else {
-              Alert.alert(
+              showAlert(
                 "Great!",
                 "The donor has been notified you're on your way.",
+                undefined,
+                { type: 'success' }
               );
             }
           } catch (error) {
             console.error("Failed to mark on the way", error);
-            Alert.alert("Error", "Failed to update status. Please try again.");
+            showAlert("Error", "Failed to update status. Please try again.", undefined, { type: 'error' });
           } finally {
             setLoading(false);
           }
         },
       },
-    ]);
+    ], { type: 'info' });
   };
 
   const handleFeedback = (id: string) => {
