@@ -27,11 +27,19 @@ export default function FoodDetailsScreen() {
         const result = await ImagePicker.launchCameraAsync({
             allowsEditing: true,
             aspect: [4, 3],
-            quality: 0.8,
+            quality: 0.3,
+            base64: true,
         });
 
         if (!result.canceled && result.assets[0]) {
-            updateFormData({ imageUri: result.assets[0].uri });
+            const asset = result.assets[0];
+            if (!asset.base64) {
+                showAlert('Error', 'Failed to process photo. Please retake the photo.', undefined, { type: 'error' });
+                return;
+            }
+            // Store as base64 data URI so no conversion is needed on submission
+            const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+            updateFormData({ imageUri: dataUri });
         }
     };
 
@@ -127,7 +135,7 @@ export default function FoodDetailsScreen() {
                                             <Text style={[styles.uploadText, { color: colors.textSecondary }]}>
                                                 <Text style={styles.uploadLink}>Open Camera</Text> to capture food
                                             </Text>
-                                            <Text style={[styles.uploadHint, { color: colors.textTertiary }]}>PNG, JPG (MAX. 5MB)</Text>
+                                            <Text style={[styles.uploadHint, { color: colors.textTertiary }]}>Take a clear photo of the food</Text>
                                         </View>
                                     )}
                                 </TouchableOpacity>
