@@ -15,25 +15,6 @@ export default function FoodDetailsScreen() {
     const { formData, updateFormData, setCurrentStep } = useDonation();
     const [loading, setLoading] = useState(false);
 
-    const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please allow access to your photo library.');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            updateFormData({ imageUri: result.assets[0].uri });
-        }
-    };
-
     const takePhoto = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
@@ -50,18 +31,6 @@ export default function FoodDetailsScreen() {
         if (!result.canceled && result.assets[0]) {
             updateFormData({ imageUri: result.assets[0].uri });
         }
-    };
-
-    const showImageOptions = () => {
-        Alert.alert(
-            'Upload Image',
-            'Choose an option',
-            [
-                { text: 'Take Photo', onPress: takePhoto },
-                { text: 'Choose from Library', onPress: pickImage },
-                { text: 'Cancel', style: 'cancel' },
-            ]
-        );
     };
 
     const handleContinue = () => {
@@ -123,21 +92,26 @@ export default function FoodDetailsScreen() {
 
                             {/* Quantity */}
                             <Input
-                                label="Quantity / Serving(s)"
-                                placeholder="e.g., 5 servings, 1 bilao, 20 pieces"
+                                label="Quantity (Number of Servings)"
+                                placeholder="e.g., 5, 10, 20"
                                 value={formData.quantity}
-                                onChangeText={(text) => updateFormData({ quantity: text })}
+                                keyboardType="phone-pad"
+                                onChangeText={(text) => {
+                                    // Remove any non-numeric characters
+                                    const numericText = text.replace(/[^0-9]/g, '');
+                                    updateFormData({ quantity: numericText });
+                                }}
                             />
 
                             {/* Image Upload */}
                             <View style={{ marginBottom: 20 }}>
-                                <Text style={[styles.imageLabel, { color: colors.text }]}>Upload Food Image (Optional)</Text>
+                                <Text style={[styles.imageLabel, { color: colors.text }]}>Take Photo of Actual Food (Required by guidelines)</Text>
                                 <TouchableOpacity
                                     style={[
                                         styles.imageUpload,
                                         { backgroundColor: colors.inputBg, borderColor: colors.border }
                                     ]}
-                                    onPress={showImageOptions}
+                                    onPress={takePhoto}
                                 >
                                     {formData.imageUri ? (
                                         <Image source={{ uri: formData.imageUri }} style={styles.previewImage} />
@@ -145,7 +119,7 @@ export default function FoodDetailsScreen() {
                                         <View style={styles.uploadPlaceholder}>
                                             <Camera size={32} color={colors.textTertiary} />
                                             <Text style={[styles.uploadText, { color: colors.textSecondary }]}>
-                                                <Text style={styles.uploadLink}>Click to upload</Text> or take a photo
+                                                <Text style={styles.uploadLink}>Open Camera</Text> to capture food
                                             </Text>
                                             <Text style={[styles.uploadHint, { color: colors.textTertiary }]}>PNG, JPG (MAX. 5MB)</Text>
                                         </View>

@@ -3,15 +3,15 @@ import { z } from "zod";
 export const completeUserProfileSchema = z
   .object({
     firstName: z.string().min(1),
-    middleName: z.string().min(1).optional(),
+    middleName: z.string().min(1).nullish(),
     lastName: z.string().min(1),
-    suffix: z.string().min(1).optional(),
+    suffix: z.string().min(1).nullish(),
     role: z.enum(["DONOR", "RECIPIENT", "ADMIN"]).optional(),
 
     phoneNo: z.string().min(7),
 
     isOrg: z.boolean().optional().default(false),
-    orgName: z.string().min(2).optional(),
+    orgName: z.string().min(2).nullish(),
 
     // Password (optional — used during initial profile creation to bcrypt-hash it)
     password: z.string().optional(),

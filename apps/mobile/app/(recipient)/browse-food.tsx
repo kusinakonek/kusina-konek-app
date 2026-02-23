@@ -28,6 +28,7 @@ import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 import { BrowseFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
+import RecipientDisclaimerModal from "../../src/components/RecipientDisclaimerModal";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -58,6 +59,18 @@ export default function BrowseFood() {
   const { distributions, loading, error, fetchDistributions, isCached } =
     useFoodCache();
   const { colors, isDark } = useTheme();
+
+  // Disclaimer State
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
+
+  const handleAcceptDisclaimer = () => {
+    setShowDisclaimer(false);
+  };
+
+  const handleDeclineDisclaimer = () => {
+    setShowDisclaimer(false);
+    router.back();
+  };
 
   // Store user location for fetching nearest distributions
   const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -241,6 +254,14 @@ export default function BrowseFood() {
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: colors.background }]}
       edges={["top"]}>
+
+      {/* Disclaimer Modal */}
+      <RecipientDisclaimerModal
+        visible={showDisclaimer}
+        onAccept={handleAcceptDisclaimer}
+        onDecline={handleDeclineDisclaimer}
+      />
+
       {/* Header */}
       <View
         style={[
