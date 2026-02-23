@@ -6,6 +6,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/KusinaKonek-Logo.png",
+    "notification": {
+      "icon": "./assets/KusinaKonek-Logo.png",
+      "color": "#00C853"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
