@@ -37,7 +37,9 @@ model User {
   pushToken   String?  // Expo push token for push notifications
   averageRating Float    @default(0)
   ratingCount   Int      @default(0)
-  DateAdded   DateTime @default(now())
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime @default(now())
+  DateAdded     DateTime @default(now())
 
   // Relations
   foods           Food[]

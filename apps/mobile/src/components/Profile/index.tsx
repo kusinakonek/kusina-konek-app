@@ -13,6 +13,7 @@ import {
   Platform,
   Switch,
   TextInput,
+  Image as RNImage,
 } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -45,6 +46,7 @@ import { API_ENDPOINTS } from "../../api/endpoints";
 import { wp, hp, fp, isTablet } from "../../utils/responsive";
 import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
+import { usePushNotifications } from "../../hooks/usePushNotifications";
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
@@ -56,8 +58,10 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [showRolePicker, setShowRolePicker] = useState(false);
   const [switchingRole, setSwitchingRole] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
   const { isDark, colors, toggleTheme } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { registerToken } = usePushNotifications();
 
   // Logout/Delete states
   const [isLoadingLogout, setIsLoadingLogout] = useState(false);
@@ -168,8 +172,27 @@ export default function Profile() {
   };
 
   const handleNotificationsToggle = async (value: boolean) => {
+    // Optimistic UI update
     setNotificationsEnabled(value);
     await AsyncStorage.setItem('notificationsEnabled', String(value));
+
+    try {
+      if (value) {
+        // Turning ON: request token and send to backend
+        const token = await registerToken();
+        if (token) {
+          await axiosClient.put(API_ENDPOINTS.USER.PUSH_TOKEN, { pushToken: token });
+        }
+      } else {
+        // Turning OFF: tell backend to remove token (by sending a null or empty token, or empty payload if the backend unsets it when empty)
+        await axiosClient.put(API_ENDPOINTS.USER.PUSH_TOKEN, { pushToken: null });
+      }
+    } catch (error) {
+      console.error("Error updating push token preference on backend:", error);
+      // Revert if API call fails
+      setNotificationsEnabled(!value);
+      await AsyncStorage.setItem('notificationsEnabled', String(!value));
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -259,6 +282,14 @@ export default function Profile() {
       (donorHistoryStats.availableItems &&
         donorHistoryStats.availableItems > 0))
   );
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
+        <LoadingScreen message="Loading profile..." />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
@@ -495,7 +526,7 @@ export default function Profile() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <TouchableOpacity style={styles.settingsRow}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => setShowAboutModal(true)}>
             <Info size={wp(20)} color={colors.text} />
             <Text style={[styles.settingsRowText, { color: colors.text }]}>About KusinaKonek</Text>
           </TouchableOpacity>
@@ -579,6 +610,39 @@ export default function Profile() {
               style={styles.modalCancelBtn}
               onPress={() => setShowRolePicker(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* About App Modal */}
+      <Modal
+        visible={showAboutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAboutModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowAboutModal(false)}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>About KusinaKonek</Text>
+
+            <View style={{ alignItems: 'center', marginVertical: hp(16) }}>
+              <View style={[styles.avatarContainer, { width: wp(60), height: wp(60), borderRadius: wp(16), marginBottom: hp(12), borderColor: 'transparent' }]}>
+                <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
+              </View>
+              <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
+              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.0</Text>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: colors.text, textAlign: 'center', lineHeight: 22 }]}>
+              KusinaKonek is a community-driven food sharing platform dedicated to reducing food waste and helping families in need.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalCancelBtn, { marginTop: hp(24), backgroundColor: '#00C853', borderWidth: 0 }]}
+              onPress={() => setShowAboutModal(false)}>
+              <Text style={[styles.modalCancelText, { color: '#fff' }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </Pressable>

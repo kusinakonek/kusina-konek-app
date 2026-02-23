@@ -207,6 +207,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
         const selectedRole = metadata?.role || 'RECIPIENT';
+        const isOrg = metadata?.isOrg || false;
+        const orgName = metadata?.orgName || '';
 
         // Use the backend API which encrypts consistently with Node.js AES-256-GCM
         const { data: sessionData } = await supabase.auth.getSession();
@@ -225,7 +227,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             lastName: lastName || firstName,
             phoneNo: phone || `no-phone-${userId}`,
             role: selectedRole,
-            isOrg: false,
+            isOrg,
+            orgName: isOrg && orgName ? orgName : null,
             password,
             ...(barangay ? {
                 address: {
