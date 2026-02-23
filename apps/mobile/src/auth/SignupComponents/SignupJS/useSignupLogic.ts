@@ -34,8 +34,11 @@ export const useSignupLogic = () => {
         confirmPassword: '',
         barangay: '',
         phoneNo: '',
-        isOrg: false,
-        orgName: '',
+        // Organization fields - commented out for now
+        // isOrg: false,
+        // orgName: '',
+        isOrg: false as const,
+        orgName: '' as const,
     });
 
     const [emailError, setEmailError] = useState('');
@@ -76,10 +79,11 @@ export const useSignupLogic = () => {
             return;
         }
 
-        if (isOrg && !orgName.trim()) {
-            showAlert('Error', 'Please enter your Organization/LGU name', undefined, { type: 'warning' });
-            return;
-        }
+        // Organization validation - commented out for now
+        // if (isOrg && !orgName.trim()) {
+        //     showAlert('Error', 'Please enter your Organization/LGU name', undefined, { type: 'warning' });
+        //     return;
+        // }
 
         if (password !== confirmPassword) {
             showAlert('Error', 'Passwords do not match', undefined, { type: 'error' });
@@ -125,8 +129,11 @@ export const useSignupLogic = () => {
                 barangay,
                 phone_no: phoneNo,
                 role,
-                isOrg,
-                orgName,
+                // Organization fields - commented out for now
+                // isOrg,
+                // orgName,
+                isOrg: false,
+                orgName: '',
             });
             // Navigation happens inside signUp usually, or allow handling here
         } catch (error: any) {

@@ -9,6 +9,7 @@ import Input from '../../../src/components/Input';
 import { useTheme } from '../../../context/ThemeContext';
 import LoadingScreen from '../../../src/components/LoadingScreen';
 import { useAlert } from '../../../context/AlertContext';
+import { compressImageTo5MB } from '../../../src/utils/imageCompressor';
 
 export default function FoodDetailsScreen() {
     const router = useRouter();
@@ -27,19 +28,22 @@ export default function FoodDetailsScreen() {
         const result = await ImagePicker.launchCameraAsync({
             allowsEditing: true,
             aspect: [4, 3],
-            quality: 0.3,
-            base64: true,
+            quality: 0.7, // Capture at decent quality, compression handles the rest
         });
 
         if (!result.canceled && result.assets[0]) {
             const asset = result.assets[0];
-            if (!asset.base64) {
-                showAlert('Error', 'Failed to process photo. Please retake the photo.', undefined, { type: 'error' });
-                return;
+            try {
+                setLoading(true);
+                // Compress the image to ensure it's within 5 MB
+                const compressedDataUri = await compressImageTo5MB(asset.uri);
+                updateFormData({ imageUri: compressedDataUri });
+            } catch (error: any) {
+                console.error('Image compression failed:', error);
+                showAlert('Error', error.message || 'Failed to process photo. Please try again.', undefined, { type: 'error' });
+            } finally {
+                setLoading(false);
             }
-            // Store as base64 data URI so no conversion is needed on submission
-            const dataUri = `data:image/jpeg;base64,${asset.base64}`;
-            updateFormData({ imageUri: dataUri });
         }
     };
 
