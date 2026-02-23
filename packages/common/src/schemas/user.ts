@@ -10,6 +10,9 @@ export const completeUserProfileSchema = z
 
     phoneNo: z.string().min(7),
 
+    // Organization fields - commented out for now
+    // isOrg: z.boolean().optional().default(false),
+    // orgName: z.string().min(2).nullish(),
     isOrg: z.boolean().optional().default(false),
     orgName: z.string().min(2).nullish(),
 
@@ -25,10 +28,11 @@ export const completeUserProfileSchema = z
         barangay: z.string().min(1)              // at least 1 char
       })
       .optional()
-  })
-  .refine((data) => !data.isOrg || !!data.orgName, {
-    message: "orgName is required when isOrg is true",
-    path: ["orgName"]
   });
+  // Organization refinement - commented out for now
+  // .refine((data) => !data.isOrg || !!data.orgName, {
+  //   message: "orgName is required when isOrg is true",
+  //   path: ["orgName"]
+  // });
 
 export type CompleteUserProfileInput = z.infer<typeof completeUserProfileSchema>;

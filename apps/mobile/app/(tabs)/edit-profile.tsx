@@ -30,8 +30,9 @@ export default function EditProfile() {
     const [phoneNo, setPhoneNo] = useState('');
     const [barangay, setBarangay] = useState('');
     const [streetAddress, setStreetAddress] = useState('');
-    const [isOrg, setIsOrg] = useState(false);
-    const [orgName, setOrgName] = useState('');
+    // Organization fields - commented out for now
+    // const [isOrg, setIsOrg] = useState(false);
+    // const [orgName, setOrgName] = useState('');
 
     // Track original profile values for dirty checking
     const originalValues = useRef<Record<string, any>>({});
@@ -46,11 +47,12 @@ export default function EditProfile() {
             suffix !== orig.suffix ||
             phoneNo !== orig.phoneNo ||
             barangay !== orig.barangay ||
-            streetAddress !== orig.streetAddress ||
-            isOrg !== orig.isOrg ||
-            orgName !== orig.orgName
+            streetAddress !== orig.streetAddress
+            // Organization dirty checks - commented out for now
+            // || isOrg !== orig.isOrg
+            // || orgName !== orig.orgName
         );
-    }, [firstName, lastName, middleName, suffix, phoneNo, barangay, streetAddress, isOrg, orgName]);
+    }, [firstName, lastName, middleName, suffix, phoneNo, barangay, streetAddress]);
 
     // Fetch current profile data to pre-fill form
     const fetchProfile = useCallback(async () => {
@@ -65,8 +67,9 @@ export default function EditProfile() {
                 setPhoneNo(profile.phoneNo || '');
                 setBarangay(profile.address?.barangay || '');
                 setStreetAddress(profile.address?.streetAddress || '');
-                setIsOrg(profile.isOrg || false);
-                setOrgName(profile.orgName || '');
+                // Organization fields - commented out for now
+                // setIsOrg(profile.isOrg || false);
+                // setOrgName(profile.orgName || '');
 
                 // Store original values for dirty tracking
                 originalValues.current = {
@@ -77,8 +80,9 @@ export default function EditProfile() {
                     phoneNo: profile.phoneNo || '',
                     barangay: profile.address?.barangay || '',
                     streetAddress: profile.address?.streetAddress || '',
-                    isOrg: profile.isOrg || false,
-                    orgName: profile.orgName || '',
+                    // Organization original values - commented out for now
+                    // isOrg: profile.isOrg || false,
+                    // orgName: profile.orgName || '',
                 };
             }
         } catch (error) {
@@ -113,12 +117,14 @@ export default function EditProfile() {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
                 phoneNo: phoneNo.trim(),
-                isOrg,
+                // Organization field - commented out for now
+                // isOrg,
             };
 
             if (middleName.trim()) payload.middleName = middleName.trim();
             if (suffix.trim()) payload.suffix = suffix.trim();
-            if (orgName.trim()) payload.orgName = orgName.trim();
+            // Organization name - commented out for now
+            // if (orgName.trim()) payload.orgName = orgName.trim();
 
             // Include address if barangay is provided
             if (barangay.trim()) {
@@ -284,7 +290,7 @@ export default function EditProfile() {
                         </View>
                     </View>
 
-                    {/* Organization Section */}
+                    {/* Organization Section - commented out for now
                     <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
                         <View style={styles.sectionHeader}>
                             <Building2 size={wp(20)} color="#FF6F00" />
@@ -315,6 +321,7 @@ export default function EditProfile() {
                             </View>
                         )}
                     </View>
+                    */}
 
                     <View style={{ height: hp(40) }} />
                 </ScrollView>

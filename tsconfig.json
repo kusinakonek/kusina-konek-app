@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "types": ["node", "react", "react-native", "jest"]
+    "types": ["node", "react", "react-native", "jest"],
+    "skipLibCheck": true
   },
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "exclude": ["node_modules", "apps/*/node_modules", "packages/*/node_modules"]
 }

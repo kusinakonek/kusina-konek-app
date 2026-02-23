@@ -39,41 +39,33 @@ export default function FeedbackModal({
         setRating(score);
     };
 
-    const pickImage = async () => {
-        // Request permissions first
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-            showAlert(
-                "Permission required",
-                "Please grant camera roll permissions to upload a photo.",
-                undefined,
-                { type: 'error' }
-            );
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.5,
-            base64: true, // We need base64 to send to backend or display
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            // In a real app, you might upload this to a storage bucket and get a URL.
-            // For this implementation, we'll assume the backend handles the base64 or we send it as is.
-            // However, the schema expects a "photoUrl". 
-            // If we send base64 data URI, it might be too large for a simple string field if not text/longtext.
-            // But for now, let's use the uri or base64.
-            // The instruction said "required photo of the food selfie".
-            // We will pass the base64 string if available, or just the URI if we are finding a way to upload it.
-            // Let's assume we pass the data URI for now.
-            const selectedAsset = result.assets[0];
-            const imageUri = `data:image/jpeg;base64,${selectedAsset.base64}`;
-            setPhoto(imageUri);
-        }
-    };
+    // Gallery upload - commented out, only camera capture is allowed
+    // const pickImage = async () => {
+    //     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    //     if (status !== "granted") {
+    //         showAlert(
+    //             "Permission required",
+    //             "Please grant camera roll permissions to upload a photo.",
+    //             undefined,
+    //             { type: 'error' }
+    //         );
+    //         return;
+    //     }
+    //
+    //     const result = await ImagePicker.launchImageLibraryAsync({
+    //         mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    //         allowsEditing: true,
+    //         aspect: [4, 3],
+    //         quality: 0.5,
+    //         base64: true,
+    //     });
+    //
+    //     if (!result.canceled && result.assets && result.assets.length > 0) {
+    //         const selectedAsset = result.assets[0];
+    //         const imageUri = `data:image/jpeg;base64,${selectedAsset.base64}`;
+    //         setPhoto(imageUri);
+    //     }
+    // };
 
     const takePhoto = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -186,17 +178,18 @@ export default function FeedbackModal({
                             </View>
                         ) : (
                             <View style={{ flexDirection: 'row', gap: wp(10) }}>
-                                <TouchableOpacity
+                                {/* Gallery upload removed - only camera capture is allowed */}
+                                {/* <TouchableOpacity
                                     style={[styles.uploadButton, { borderColor: colors.border }]}
                                     onPress={pickImage}>
                                     <Camera size={fp(24)} color={theme.colors.primary} />
                                     <Text style={[styles.uploadText, { color: theme.colors.primary }]}>Gallery</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                                 <TouchableOpacity
-                                    style={[styles.uploadButton, { borderColor: colors.border }]}
+                                    style={[styles.uploadButton, { borderColor: colors.border, flex: 1 }]}
                                     onPress={takePhoto}>
                                     <Camera size={fp(24)} color={theme.colors.primary} />
-                                    <Text style={[styles.uploadText, { color: theme.colors.primary }]}>Camera</Text>
+                                    <Text style={[styles.uploadText, { color: theme.colors.primary }]}>Take Photo</Text>
                                 </TouchableOpacity>
                             </View>
                         )}

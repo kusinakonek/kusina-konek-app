@@ -207,8 +207,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
         const selectedRole = metadata?.role || 'RECIPIENT';
-        const isOrg = metadata?.isOrg || false;
-        const orgName = metadata?.orgName || '';
+        // Organization fields - commented out for now
+        // const isOrg = metadata?.isOrg || false;
+        // const orgName = metadata?.orgName || '';
+        const isOrg = false;
+        const orgName = '';
 
         // Use the backend API which encrypts consistently with Node.js AES-256-GCM
         const { data: sessionData } = await supabase.auth.getSession();
