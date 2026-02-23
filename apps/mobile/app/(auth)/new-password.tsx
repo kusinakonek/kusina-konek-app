@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -18,10 +17,12 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
 import SuccessModal from '../../src/components/SuccessModal';
+import { useAlert } from '../../context/AlertContext';
 
 export default function NewPassword() {
     const router = useRouter();
     const { updatePassword } = useAuth();
+    const { showAlert } = useAlert();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -31,17 +32,17 @@ export default function NewPassword() {
 
     const handleUpdatePassword = async () => {
         if (!password || !confirmPassword) {
-            Alert.alert('Error', 'Please fill in both fields');
+            showAlert('Error', 'Please fill in both fields', undefined, { type: 'warning' });
             return;
         }
 
         if (password.length < 6) {
-            Alert.alert('Error', 'Password must be at least 6 characters long');
+            showAlert('Error', 'Password must be at least 6 characters long', undefined, { type: 'warning' });
             return;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            showAlert('Error', 'Passwords do not match', undefined, { type: 'error' });
             return;
         }
 
@@ -51,7 +52,7 @@ export default function NewPassword() {
             setShowSuccessModal(true);
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Error', error.message || 'Failed to update password');
+            showAlert('Error', error.message || 'Failed to update password', undefined, { type: 'error' });
         } finally {
             setLoading(false);
         }

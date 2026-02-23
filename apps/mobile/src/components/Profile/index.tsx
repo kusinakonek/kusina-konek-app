@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   RefreshControl,
   Modal,
   Pressable,
@@ -47,10 +46,12 @@ import { wp, hp, fp, isTablet } from "../../utils/responsive";
 import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import { useAlert } from "../../../context/AlertContext";
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
   const router = useRouter();
+  const { showAlert } = useAlert();
   const [profileData, setProfileData] = useState<any>(null);
   const [statsData, setStatsData] = useState<any>(null);
   const [donorHistoryStats, setDonorHistoryStats] = useState<any>(null);
@@ -145,7 +146,7 @@ export default function Profile() {
       // fetchProfileData will run due to the role dependency change
     } catch (error) {
       console.error("Error switching role:", error);
-      Alert.alert("Error", "Failed to switch role. Please try again.");
+      showAlert("Error", "Failed to switch role. Please try again.", undefined, { type: 'error' });
     } finally {
       setSwitchingRole(false);
     }
@@ -163,7 +164,7 @@ export default function Profile() {
       await signOut();
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to logout");
+      showAlert("Error", "Failed to logout", undefined, { type: 'error' });
       setIsLoadingLogout(false);
     }
   };
@@ -197,7 +198,7 @@ export default function Profile() {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       "Delete Account",
       "Are you sure you want to delete your account? You will need to verify your email to confirm.",
       [
@@ -213,22 +214,23 @@ export default function Profile() {
                 setLoading(false);
                 setShowDeleteModal(true);
               } else {
-                Alert.alert("Error", "No email found for this user.");
+                showAlert("Error", "No email found for this user.", undefined, { type: 'error' });
               }
             } catch (error: any) {
               setLoading(false);
               console.error("Delete account OTP error:", error);
-              Alert.alert("Error", "Failed to send verification code. Please try again.");
+              showAlert("Error", "Failed to send verification code. Please try again.", undefined, { type: 'error' });
             }
           },
         },
-      ]
+      ],
+      { type: 'warning' }
     );
   };
 
   const handleConfirmDelete = async () => {
     if (!deleteOtp || deleteOtp.length < 6) {
-      Alert.alert("Error", "Please enter a valid code (6-8 digits).");
+      showAlert("Error", "Please enter a valid code (6-8 digits).", undefined, { type: 'warning' });
       return;
     }
 
@@ -245,12 +247,12 @@ export default function Profile() {
         await signOut();
 
         setShowDeleteModal(false);
-        Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+        showAlert("Account Deleted", "Your account has been permanently deleted.", undefined, { type: 'success' });
       }
     } catch (error: any) {
       setIsDeleting(false);
       console.error("Confirm delete error:", error);
-      Alert.alert("Error", "Failed to verify code or delete account. Please check the code and try again.");
+      showAlert("Error", "Failed to verify code or delete account. Please check the code and try again.", undefined, { type: 'error' });
     }
   };
 
@@ -675,7 +677,7 @@ export default function Profile() {
       <Modal
         visible={showSettingsModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowSettingsModal(false)}>
         <Pressable
           style={styles.modalOverlay}
