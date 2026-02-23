@@ -8,18 +8,6 @@ import DisclaimerModal from '../../../src/components/DisclaimerModal';
 import { useTheme } from '../../../context/ThemeContext';
 import LoadingScreen from '../../../src/components/LoadingScreen';
 
-// Food images using online URLs
-const foodImages: { [key: string]: string } = {
-    '1': 'https://images.unsplash.com/photo-1598449356475-b9f71db7d847?w=400', // Chicken Adobo
-    '2': 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=400', // Pancit Canton
-    '3': 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400', // Sinigang
-    '4': 'https://images.unsplash.com/photo-1548507200-4d9d37c55c79?w=400', // Lumpia Shanghai
-    '5': 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400', // Fried Rice
-    '6': 'https://images.unsplash.com/photo-1547928578-bca3e9c5a8dc?w=400', // Menudo
-    '7': 'https://images.unsplash.com/photo-1516714435131-44d6b64dc6a2?w=400', // Rice Meals
-    '8': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400', // Bread & Pastries
-};
-
 export default function SelectFoodScreen() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
@@ -111,15 +99,8 @@ export default function SelectFoodScreen() {
                                         ]}
                                         onPress={() => handleSelectFood(food)}
                                     >
-                                        <View style={[styles.foodImageContainer, { backgroundColor: colors.border }]}>
-                                            <Image
-                                                source={{ uri: foodImages[food.id] }}
-                                                style={styles.foodImage}
-                                                resizeMode="cover"
-                                            />
-                                        </View>
                                         <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>{food.name}</Text>
-                                        <Text style={[styles.foodDesc, { color: colors.textSecondary }]} numberOfLines={2}>{food.description}</Text>
+                                        <Text style={[styles.foodDesc, { color: colors.textSecondary }]} numberOfLines={3}>{food.description}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -218,27 +199,16 @@ const styles = StyleSheet.create({
         borderColor: '#00C853',
         backgroundColor: '#F1FFF6',
     },
-    foodImageContainer: {
-        width: '100%',
-        height: 80,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        overflow: 'hidden',
-        marginBottom: 8,
-    },
-    foodImage: {
-        width: '100%',
-        height: '100%',
-    },
     foodName: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
         color: '#1a1a1a',
-        marginBottom: 2,
+        marginBottom: 6,
     },
     foodDesc: {
-        fontSize: 11,
+        fontSize: 13,
         color: '#666',
+        lineHeight: 18,
     },
     customItem: {
         backgroundColor: '#fff',
