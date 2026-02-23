@@ -58,13 +58,18 @@ async function registerForPushNotificationsAsync() {
         const fallbackProjectId = "86fdbd3a-f2c0-4aed-8ced-99d70980e74a";
         const projectId = easProjectId || fallbackProjectId;
 
-        console.log("Requesting Expo Push Token for projectId:", projectId);
-        token = (await Notifications.getExpoPushTokenAsync({
+        console.log("[PushNotification] Requesting token with projectId:", projectId);
+
+        const response = await Notifications.getExpoPushTokenAsync({
             projectId,
-        })).data;
-        console.log("Successfully got Expo Push Token:", token);
-    } catch (error) {
-        console.error('Error getting push token:', error);
+        });
+        token = response.data;
+        console.log("[PushNotification] Successfully generated token:", token);
+    } catch (error: any) {
+        console.error('[PushNotification] Error getting push token:', error);
+        // Log more detail if available
+        if (error.code) console.error('[PushNotification] Error code:', error.code);
+        if (error.message) console.error('[PushNotification] Error message:', error.message);
     }
 
     return token;
