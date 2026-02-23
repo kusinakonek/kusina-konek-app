@@ -15,7 +15,7 @@ app.set("etag", false);
 
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(morgan("dev"));
 
 // Prevent HTTP caching for all /api responses
