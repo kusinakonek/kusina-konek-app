@@ -53,9 +53,9 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
-        const easProjectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-        const fallbackProjectId = "86fdbd3a-f2c0-4aed-8ced-99d70980e74a";
-        const projectId = easProjectId || fallbackProjectId;
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId ??
+            Constants.easConfig?.projectId ??
+            "d8943c07-cbc7-4ae8-86a2-783ff4283c00";
 
         console.log("[PushNotification] Requesting token with projectId:", projectId);
 
