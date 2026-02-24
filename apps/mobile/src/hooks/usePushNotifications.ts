@@ -47,10 +47,15 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
+        const fromExpoConfig = Constants.expoConfig?.extra?.eas?.projectId;
+        const fromEasConfig = Constants.easConfig?.projectId;
+        const projectId = fromExpoConfig ?? fromEasConfig ?? "e9513db4-b6aa-4833-927f-349cde3e0a46";
+
         console.log("[PushNotification] === DIAGNOSTICS ===");
         console.log("[PushNotification] Platform:", Platform.OS);
         console.log("[PushNotification] appOwnership:", Constants.appOwnership);
         console.log("[PushNotification] executionEnvironment:", Constants.executionEnvironment);
+        console.log("[PushNotification] Resolved projectId:", projectId);
 
         // Get the native FCM token directly (bypasses Expo's push service)
         const deviceToken = await Notifications.getDevicePushTokenAsync();
@@ -105,7 +110,6 @@ export function usePushNotifications() {
             setNotification(notification);
         });
 
-        // Listen for notification taps (both foreground and background/killed)
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
             handleNotificationNavigation(data);
