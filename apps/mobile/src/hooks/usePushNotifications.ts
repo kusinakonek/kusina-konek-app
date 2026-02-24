@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Configure: no in-app popup alert, but play sound and set badge
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
+        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
         shouldShowBanner: true,
@@ -53,17 +54,25 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId ??
-            Constants.easConfig?.projectId ??
-            "d8943c07-cbc7-4ae8-86a2-783ff4283c00";
+        const fromExpoConfig = Constants.expoConfig?.extra?.eas?.projectId;
+        const fromEasConfig = Constants.easConfig?.projectId;
+        const projectId = fromExpoConfig ?? fromEasConfig ?? "d8943c07-cbc7-4ae8-86a2-783ff4283c00";
 
-        console.log("[PushNotification] Requesting token with projectId:", projectId);
+        console.log("[PushNotification] === DIAGNOSTICS ===");
+        console.log("[PushNotification] Platform:", Platform.OS);
+        console.log("[PushNotification] appOwnership:", Constants.appOwnership);
+        console.log("[PushNotification] executionEnvironment:", Constants.executionEnvironment);
+        console.log("[PushNotification] projectId from expoConfig:", fromExpoConfig);
+        console.log("[PushNotification] projectId from easConfig:", fromEasConfig);
+        console.log("[PushNotification] Resolved projectId:", projectId);
+        console.log("[PushNotification] === END DIAGNOSTICS ===");
 
         const response = await Notifications.getExpoPushTokenAsync({
             projectId,
         });
         token = response.data;
         console.log("[PushNotification] Successfully generated token:", token);
+        console.log("[PushNotification] Token prefix:", token?.substring(0, 25));
     } catch (error: any) {
         console.error('[PushNotification] Error getting push token:', error);
         // Log more detail if available
