@@ -79,10 +79,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "d8943c07-cbc7-4ae8-86a2-783ff4283c00"
+        "projectId": "e9513db4-b6aa-4833-927f-349cde3e0a46"
       },
       "router": {}
-    },
-    "owner": "testproject73s-organization"
+    }
   }
 }
