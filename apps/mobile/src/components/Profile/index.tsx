@@ -62,7 +62,7 @@ export default function Profile() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const { isDark, colors, toggleTheme } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const { registerToken } = usePushNotifications();
+  const { registerToken, expoPushToken } = usePushNotifications();
 
   // Logout/Delete states
   const [isLoadingLogout, setIsLoadingLogout] = useState(false);
@@ -600,12 +600,19 @@ export default function Profile() {
                 <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
               </View>
               <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
-              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.0</Text>
+              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.1</Text>
             </View>
 
             <Text style={[styles.modalSubtitle, { color: colors.text, textAlign: 'center', lineHeight: 22 }]}>
               KusinaKonek is a community-driven food sharing platform dedicated to reducing food waste and helping families in need.
             </Text>
+
+            <View style={{ marginTop: hp(16), padding: wp(12), backgroundColor: isDark ? '#333' : '#F5F5F5', borderRadius: wp(8) }}>
+              <Text style={{ fontSize: fp(10), color: colors.textSecondary, marginBottom: hp(4) }}>Device Push Token:</Text>
+              <Text selectable style={{ fontSize: fp(9), color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>
+                {expoPushToken || "Token not available. Please ensure notifications are enabled."}
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[styles.modalCancelBtn, { marginTop: hp(24), backgroundColor: '#00C853', borderWidth: 0 }]}
