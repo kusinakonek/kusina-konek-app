@@ -69,6 +69,12 @@ async function registerForPushNotificationsAsync() {
         // Log more detail if available
         if (error.code) console.error('[PushNotification] Error code:', error.code);
         if (error.message) console.error('[PushNotification] Error message:', error.message);
+        if (error.stack) console.error('[PushNotification] Stack trace:', error.stack);
+
+        // Specific advice for common error codes
+        if (error.code === 'MISSING_PROJECT_ID') {
+            console.error('[PushNotification] PRO TIP: Check if app.json has extra.eas.projectId');
+        }
     }
 
     return token;
