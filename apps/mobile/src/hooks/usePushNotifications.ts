@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 
-// Configure: no in-app popup alert, but play sound and set badge
+// Configure: show alert, play sound and set badge
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
@@ -47,36 +47,22 @@ async function registerForPushNotificationsAsync() {
     }
 
     try {
-        const fromExpoConfig = Constants.expoConfig?.extra?.eas?.projectId;
-        const fromEasConfig = Constants.easConfig?.projectId;
-        const projectId = fromExpoConfig ?? fromEasConfig ?? "d8943c07-cbc7-4ae8-86a2-783ff4283c00";
-
         console.log("[PushNotification] === DIAGNOSTICS ===");
         console.log("[PushNotification] Platform:", Platform.OS);
         console.log("[PushNotification] appOwnership:", Constants.appOwnership);
         console.log("[PushNotification] executionEnvironment:", Constants.executionEnvironment);
-        console.log("[PushNotification] projectId from expoConfig:", fromExpoConfig);
-        console.log("[PushNotification] projectId from easConfig:", fromEasConfig);
-        console.log("[PushNotification] Resolved projectId:", projectId);
-        console.log("[PushNotification] === END DIAGNOSTICS ===");
 
-        const response = await Notifications.getExpoPushTokenAsync({
-            projectId,
-        });
-        token = response.data;
-        console.log("[PushNotification] Successfully generated token:", token);
-        console.log("[PushNotification] Token prefix:", token?.substring(0, 25));
+        // Get the native FCM token directly (bypasses Expo's push service)
+        const deviceToken = await Notifications.getDevicePushTokenAsync();
+        token = deviceToken.data;
+
+        console.log("[PushNotification] Token type:", deviceToken.type);
+        console.log("[PushNotification] FCM token obtained:", token?.substring(0, 30) + "...");
+        console.log("[PushNotification] === END DIAGNOSTICS ===");
     } catch (error: any) {
-        console.error('[PushNotification] Error getting push token:', error);
-        // Log more detail if available
+        console.error('[PushNotification] Error getting FCM token:', error);
         if (error.code) console.error('[PushNotification] Error code:', error.code);
         if (error.message) console.error('[PushNotification] Error message:', error.message);
-        if (error.stack) console.error('[PushNotification] Stack trace:', error.stack);
-
-        // Specific advice for common error codes
-        if (error.code === 'MISSING_PROJECT_ID') {
-            console.error('[PushNotification] PRO TIP: Check if app.json has extra.eas.projectId');
-        }
     }
 
     return token;
