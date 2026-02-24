@@ -1,7 +1,23 @@
-import { Expo, ExpoPushMessage } from "expo-server-sdk";
+import * as admin from "firebase-admin";
 import { prisma } from "@kusinakonek/database";
 
-const expo = new Expo();
+// Initialize Firebase Admin SDK
+// Uses environment variables for credentials (set in Render)
+if (!admin.apps.length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+  if (projectId && clientEmail && privateKey) {
+    admin.initializeApp({
+      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+    });
+    console.log("[Firebase] Admin SDK initialized successfully");
+  } else {
+    console.warn("[Firebase] Missing credentials. Push notifications will not work.");
+    console.warn("[Firebase] Required env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY");
+  }
+}
 
 // Helper to calculate distance in km using Haversine formula
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -16,51 +32,121 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+/**
+ * Validate that a token looks like a valid FCM token (not an Expo push token).
+ * FCM tokens are typically long base64-like strings.
+ */
+function isValidFCMToken(token: string): boolean {
+  if (!token || typeof token !== "string") return false;
+  // Reject Expo push tokens (they start with ExponentPushToken[)
+  if (token.startsWith("ExponentPushToken[")) return false;
+  // FCM tokens are typically 100+ characters
+  return token.length > 20;
+}
+
 export const notificationService = {
+  /**
+   * Send a push notification directly via Firebase Cloud Messaging (FCM).
+   * Bypasses Expo's push service entirely.
+   */
   async sendPushNotification(
     token: string,
     title: string,
     body: string,
     data: any = {},
   ) {
-    if (!Expo.isExpoPushToken(token)) {
-      console.error(`Push token ${token} is not a valid Expo push token`);
+    if (!admin.apps.length) {
+      console.warn("[PushNotification] Firebase not initialized. Skipping push.");
       return;
     }
 
-    const messages: ExpoPushMessage[] = [
-      {
-        to: token,
-        sound: "default",
-        channelId: "default",
-        title,
-        body,
-        data,
-      },
-    ];
+    if (!isValidFCMToken(token)) {
+      console.error(`[PushNotification] Invalid FCM token: ${token?.substring(0, 30)}...`);
+      return;
+    }
 
     try {
-      const chunks = expo.chunkPushNotifications(messages);
-      for (const chunk of chunks) {
-        try {
-          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-          console.log(`[PushNotification] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
-
-          // Log any errors from Expo
-          for (let i = 0; i < ticketChunk.length; i++) {
-            const ticket = ticketChunk[i];
-            if (ticket.status === "error") {
-              console.error(`[PushNotification] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
-            } else {
-              console.log(`[PushNotification] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
-            }
-          }
-        } catch (error) {
-          console.error("Error sending push notification chunk", error);
-        }
+      // Convert all data values to strings (FCM requires string values)
+      const stringData: Record<string, string> = {};
+      for (const [key, value] of Object.entries(data)) {
+        stringData[key] = String(value ?? "");
       }
-    } catch (error) {
-      console.error("Error sending push notification", error);
+
+      const result = await admin.messaging().send({
+        token,
+        notification: {
+          title,
+          body,
+        },
+        data: stringData,
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "default",
+            sound: "default",
+            priority: "high",
+          },
+        },
+      });
+
+      console.log(`[PushNotification] Sent successfully. Message ID: ${result}`);
+    } catch (error: any) {
+      console.error("[PushNotification] Error sending push notification:", error.message);
+
+      // Handle specific FCM errors
+      if (error.code === "messaging/registration-token-not-registered") {
+        console.warn(`[PushNotification] Token expired/invalid. Clearing token from DB.`);
+        // Optionally clear the invalid token from the database
+        await prisma.user.updateMany({
+          where: { pushToken: token },
+          data: { pushToken: null },
+        });
+      }
+    }
+  },
+
+  /**
+   * Send a push notification and return the response (for debugging/test endpoint)
+   */
+  async sendPushNotificationWithResponse(
+    token: string,
+    title: string,
+    body: string,
+    data: any = {},
+  ) {
+    if (!admin.apps.length) {
+      return { error: "Firebase not initialized. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY env vars." };
+    }
+
+    if (!isValidFCMToken(token)) {
+      return { error: `Invalid FCM token: ${token?.substring(0, 30)}... (Expo push tokens are no longer supported, use device FCM tokens)` };
+    }
+
+    try {
+      const stringData: Record<string, string> = {};
+      for (const [key, value] of Object.entries(data)) {
+        stringData[key] = String(value ?? "");
+      }
+
+      const result = await admin.messaging().send({
+        token,
+        notification: { title, body },
+        data: stringData,
+        android: {
+          priority: "high",
+          notification: {
+            channelId: "default",
+            sound: "default",
+            priority: "high",
+          },
+        },
+      });
+
+      console.log(`[TestNotification] Sent successfully. Message ID: ${result}`);
+      return { success: true, messageId: result };
+    } catch (error: any) {
+      console.error("[TestNotification] FCM error:", error.message);
+      return { error: error.message, code: error.code };
     }
   },
 
@@ -85,7 +171,7 @@ export const notificationService = {
 
   /**
    * Notify a user both in-app and via push notification (if they have a push token).
-   * Works even when the app is closed — push goes through Expo → FCM/APNs.
+   * Works even when the app is closed — push goes directly through FCM.
    */
   async notifyUser(
     userID: string,
@@ -142,11 +228,9 @@ export const notificationService = {
   /**
    * Broadcast a push notification to all recipients who have a push token.
    * Also creates in-app notifications for each recipient.
-   * Used when a new food donation is created.
    */
   async broadcastToRecipients(title: string, message: string, data: any = {}) {
     try {
-      // Find all users with RECIPIENT role who have a push token
       const recipients = await prisma.user.findMany({
         where: {
           role: { roleName: "RECIPIENT" },
@@ -164,38 +248,22 @@ export const notificationService = {
         );
       }
 
-      // Send push to those with tokens
-      const tokens = recipients
-        .map((r) => r.pushToken!)
-        .filter((t) => t && Expo.isExpoPushToken(t));
+      // Send push to those with valid FCM tokens
+      const tokensToSend = recipients
+        .filter((r) => r.pushToken && isValidFCMToken(r.pushToken));
 
-      if (tokens.length === 0) return;
+      if (tokensToSend.length === 0) return;
 
-      const messages: ExpoPushMessage[] = tokens.map((token) => ({
-        to: token,
-        sound: "default" as const,
-        channelId: "default",
-        title,
-        body: message,
-        data: { ...data, type: "NEW_FOOD" },
-      }));
+      console.log(`[PushNotification:Broadcast] Sending to ${tokensToSend.length} recipients`);
 
-      const chunks = expo.chunkPushNotifications(messages);
-      for (const chunk of chunks) {
+      for (const recipient of tokensToSend) {
         try {
-          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-          console.log(`[PushNotification:Broadcast] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
-
-          for (let i = 0; i < ticketChunk.length; i++) {
-            const ticket = ticketChunk[i];
-            if (ticket.status === "error") {
-              console.error(`[PushNotification:Broadcast] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
-            } else {
-              console.log(`[PushNotification:Broadcast] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
-            }
-          }
+          await this.sendPushNotification(recipient.pushToken!, title, message, {
+            ...data,
+            type: "NEW_FOOD",
+          });
         } catch (error) {
-          console.error("[PushNotification:Broadcast] Error sending push notification chunk", error);
+          console.error(`[PushNotification:Broadcast] Error for user ${recipient.userID}:`, error);
         }
       }
     } catch (error) {
@@ -217,7 +285,6 @@ export const notificationService = {
     excludeUserID?: string
   ) {
     try {
-      // Find all RECIPIENT users with their addresses
       const recipients = await prisma.user.findMany({
         where: {
           role: { roleName: "RECIPIENT" },
@@ -243,6 +310,8 @@ export const notificationService = {
 
       if (nearbyRecipients.length === 0) return;
 
+      console.log(`[PushNotification:Nearby] Found ${nearbyRecipients.length} nearby recipients`);
+
       // Create in-app notification for ALL nearby recipients
       for (const recipient of nearbyRecipients) {
         await this.createInAppNotification(
@@ -253,38 +322,22 @@ export const notificationService = {
         );
       }
 
-      // Send push to those with tokens
-      const tokens = nearbyRecipients
-        .map((r) => r.pushToken!)
-        .filter((t) => t && Expo.isExpoPushToken(t));
+      // Send push to those with valid FCM tokens
+      const withTokens = nearbyRecipients
+        .filter((r) => r.pushToken && isValidFCMToken(r.pushToken));
 
-      if (tokens.length === 0) return;
+      if (withTokens.length === 0) return;
 
-      const messages: ExpoPushMessage[] = tokens.map((token) => ({
-        to: token,
-        sound: "default" as const,
-        channelId: "default",
-        title,
-        body: message,
-        data: { ...data, type: "NEW_FOOD" },
-      }));
+      console.log(`[PushNotification:Nearby] Sending push to ${withTokens.length} recipients with tokens`);
 
-      const chunks = expo.chunkPushNotifications(messages);
-      for (const chunk of chunks) {
+      for (const recipient of withTokens) {
         try {
-          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-          console.log(`[PushNotification:Nearby] Sent chunk of ${chunk.length} messages. Received ${ticketChunk.length} tickets.`);
-
-          for (let i = 0; i < ticketChunk.length; i++) {
-            const ticket = ticketChunk[i];
-            if (ticket.status === "error") {
-              console.error(`[PushNotification:Nearby] Error for token ${chunk[i].to}:`, ticket.message, ticket.details);
-            } else {
-              console.log(`[PushNotification:Nearby] Success for token ${chunk[i].to}: Ticket ID ${ticket.id}`);
-            }
-          }
+          await this.sendPushNotification(recipient.pushToken!, title, message, {
+            ...data,
+            type: "NEW_FOOD",
+          });
         } catch (error) {
-          console.error("[PushNotification:Nearby] Error sending nearby push notification chunk", error);
+          console.error(`[PushNotification:Nearby] Error for user ${recipient.userID}:`, error);
         }
       }
     } catch (error) {

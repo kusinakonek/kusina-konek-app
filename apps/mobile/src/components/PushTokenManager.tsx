@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import axiosClient from '../api/axiosClient';
 import { usePushNotifications } from '../hooks/usePushNotifications';
@@ -27,6 +28,13 @@ export const PushTokenManager = ({ token: initialToken }: { token?: string }) =>
 
             if (!token) {
                 console.warn("[PushTokenManager] Still no token after registration attempt. Will retry next mount or update.");
+                return;
+            }
+
+            // Check if user has explicitly disabled notifications
+            const notificationsEnabled = await AsyncStorage.getItem('notificationsEnabled');
+            if (notificationsEnabled === 'false') {
+                console.log("[PushTokenManager] Notifications disabled by user, skipping backend sync.");
                 return;
             }
 
