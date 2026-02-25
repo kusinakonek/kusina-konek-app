@@ -5,13 +5,12 @@ import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { FoodCacheProvider } from "../context/FoodCacheContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
-import { usePushNotifications } from "../src/hooks/usePushNotifications";
-import { PushTokenManager } from "../src/components/PushTokenManager";
+import { NotificationProvider, useNotification } from "../context/NotificationContext";
 import { NotificationBanner } from "../src/components/NotificationBanner";
 import { AlertProvider } from "../context/AlertContext";
 
 function AppContent() {
-  const { expoPushToken, notification, clearNotification } = usePushNotifications();
+  const { notification, clearNotification } = useNotification();
   const { colors, isDark } = useTheme();
 
   return (
@@ -20,25 +19,22 @@ function AppContent() {
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
       />
-      <AuthProvider>
-        <PushTokenManager token={expoPushToken} />
-        <FoodCacheProvider>
-          <CartProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            />
-            <NotificationBanner
-              visible={!!notification}
-              title={notification?.request?.content?.title || "Notification"}
-              message={notification?.request?.content?.body || ""}
-              onClose={clearNotification}
-            />
-          </CartProvider>
-        </FoodCacheProvider>
-      </AuthProvider>
+      <FoodCacheProvider>
+        <CartProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          />
+          <NotificationBanner
+            visible={!!notification}
+            title={notification?.request?.content?.title || "Notification"}
+            message={notification?.request?.content?.body || ""}
+            onClose={clearNotification}
+          />
+        </CartProvider>
+      </FoodCacheProvider>
     </>
   );
 }
@@ -48,7 +44,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AlertProvider>
-          <AppContent />
+          <AuthProvider>
+            <NotificationProvider>
+              <AppContent />
+            </NotificationProvider>
+          </AuthProvider>
         </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>
