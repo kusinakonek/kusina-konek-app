@@ -4,18 +4,26 @@ import { prisma } from "@kusinakonek/database";
 // Initialize Firebase Admin SDK
 // Uses environment variables for credentials (set in Render)
 if (!admin.apps.length) {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^"|"$/g, '');
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^"|"$/g, '');
+  // Handle both literal \n and actual newlines, and strip potential quotes
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^"|"$/g, '').replace(/\\n/g, "\n");
 
   if (projectId && clientEmail && privateKey) {
-    admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    });
-    console.log("[Firebase] Admin SDK initialized successfully");
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+      });
+      console.log(`[Firebase] Admin SDK initialized successfully for project: ${projectId}`);
+    } catch (error: any) {
+      console.error("[Firebase] Initialization error:", error.message);
+    }
   } else {
-    console.warn("[Firebase] Missing credentials. Push notifications will not work.");
-    console.warn("[Firebase] Required env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY");
+    console.warn("=========================================================");
+    console.warn("[Firebase] CRITICAL: Missing credentials. Push notifications DISABLED.");
+    console.warn("[Firebase] Expected: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY");
+    console.warn("[Firebase] Check your environment variables on Render.");
+    console.warn("=========================================================");
   }
 }
 

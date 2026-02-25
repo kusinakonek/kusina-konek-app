@@ -1,83 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 import { router } from 'expo-router';
-
-// Configure: show alert, play sound and set badge
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
-
-async function registerForPushNotificationsAsync() {
-    let token: string | undefined;
-
-    if (!Device.isDevice) {
-        console.log('Push notifications require a physical device');
-        return undefined;
-    }
-
-    if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
-    }
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-        console.log('Failed to get push notification permission');
-        return undefined;
-    }
-
-    try {
-        const fromExpoConfig = Constants.expoConfig?.extra?.eas?.projectId;
-        const fromEasConfig = Constants.easConfig?.projectId;
-        const projectId = fromExpoConfig ?? fromEasConfig ?? "e9513db4-b6aa-4833-927f-349cde3e0a46";
-
-        console.log("[PushNotification] === DIAGNOSTICS ===");
-        console.log("[PushNotification] Platform:", Platform.OS);
-        console.log("[PushNotification] appOwnership:", Constants.appOwnership);
-        console.log("[PushNotification] executionEnvironment:", Constants.executionEnvironment);
-        console.log("[PushNotification] Resolved projectId:", projectId);
-
-        // Get the native FCM token directly (bypasses Expo's push service)
-        const deviceToken = await Notifications.getDevicePushTokenAsync();
-        token = deviceToken.data;
-
-        console.log("[PushNotification] Token type:", deviceToken.type);
-        console.log("[PushNotification] FCM token obtained:", token?.substring(0, 30) + "...");
-        console.log("[PushNotification] === END DIAGNOSTICS ===");
-    } catch (error: any) {
-        console.error('[PushNotification] Error getting FCM token:', error);
-        if (error.code) console.error('[PushNotification] Error code:', error.code);
-        if (error.message) console.error('[PushNotification] Error message:', error.message);
-    }
-
-    return token;
-}
+import { useNotification } from '../../context/NotificationContext';
 
 /**
  * Navigate to the appropriate screen based on notification type.
  */
 function handleNotificationNavigation(data: any) {
     const type = data?.type;
+    console.log("[usePushNotifications] Handling navigation for type:", type);
+
     switch (type) {
         case 'CLAIM_ALERT':
         case 'ON_THE_WAY':
@@ -97,37 +29,27 @@ function handleNotificationNavigation(data: any) {
 }
 
 export function usePushNotifications() {
-    const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
-    const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-    const notificationListener = useRef<Notifications.EventSubscription>(null);
+    const { expoPushToken, notification, clearNotification, registerToken, notificationsEnabled, setNotificationsEnabled } = useNotification();
     const responseListener = useRef<Notifications.EventSubscription>(null);
 
     useEffect(() => {
-        registerForPushNotificationsAsync().then(token => setExpoPushToken(token));
-
-        // Listen for foreground notifications (drives the slide-down banner)
-        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-            setNotification(notification);
-        });
-
+        // Listen for user interaction (when they click the notification)
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data;
             handleNotificationNavigation(data);
         });
 
         return () => {
-            notificationListener.current?.remove();
-            responseListener.current?.remove();
+            if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
         };
     }, []);
 
-    const registerToken = async () => {
-        const token = await registerForPushNotificationsAsync();
-        setExpoPushToken(token);
-        return token;
+    return {
+        expoPushToken,
+        notification,
+        clearNotification,
+        registerToken,
+        notificationsEnabled,
+        setNotificationsEnabled
     };
-
-    const clearNotification = () => setNotification(null);
-
-    return { expoPushToken, notification, clearNotification, registerToken };
 }

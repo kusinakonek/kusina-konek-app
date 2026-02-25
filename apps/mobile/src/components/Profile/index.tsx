@@ -61,8 +61,7 @@ export default function Profile() {
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const { isDark, colors, toggleTheme } = useTheme();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const { registerToken } = usePushNotifications();
+  const { notification, notificationsEnabled, setNotificationsEnabled } = usePushNotifications();
 
   // Logout/Delete states
   const [isLoadingLogout, setIsLoadingLogout] = useState(false);
@@ -70,13 +69,6 @@ export default function Profile() {
   const [deleteOtp, setDeleteOtp] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-
-  // Load preferences
-  useEffect(() => {
-    AsyncStorage.getItem('notificationsEnabled').then(val => {
-      if (val === 'false') setNotificationsEnabled(false);
-    });
-  }, []);
 
   const fetchProfileData = useCallback(async () => {
     if (!user) {
@@ -124,6 +116,15 @@ export default function Profile() {
       fetchProfileData();
     }, [fetchProfileData])
   );
+
+  // Handle auto-refresh when a notification is received (Silent Refresh)
+  useEffect(() => {
+    if (notification) {
+      console.log("[Profile] Notification received, performing silent refresh...");
+      // We call fetchProfileData without setting loading(true)
+      fetchProfileData();
+    }
+  }, [notification, fetchProfileData]); // Added fetchProfileData to dependencies
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -174,27 +175,7 @@ export default function Profile() {
   };
 
   const handleNotificationsToggle = async (value: boolean) => {
-    // Optimistic UI update
-    setNotificationsEnabled(value);
-    await AsyncStorage.setItem('notificationsEnabled', String(value));
-
-    try {
-      if (value) {
-        // Turning ON: request token and send to backend
-        const token = await registerToken();
-        if (token) {
-          await axiosClient.put(API_ENDPOINTS.USER.PUSH_TOKEN, { pushToken: token });
-        }
-      } else {
-        // Turning OFF: tell backend to remove token (by sending a null or empty token, or empty payload if the backend unsets it when empty)
-        await axiosClient.put(API_ENDPOINTS.USER.PUSH_TOKEN, { pushToken: null });
-      }
-    } catch (error) {
-      console.error("Error updating push token preference on backend:", error);
-      // Revert if API call fails
-      setNotificationsEnabled(!value);
-      await AsyncStorage.setItem('notificationsEnabled', String(!value));
-    }
+    await setNotificationsEnabled(value);
   };
 
   const handleDeleteAccount = () => {
@@ -687,7 +668,11 @@ export default function Profile() {
           <View style={[styles.modalContent, { backgroundColor: colors.card, paddingVertical: hp(32) }]}>
             <Text style={[styles.modalTitle, { color: colors.text, marginBottom: hp(24) }]}>Settings</Text>
 
-            <View style={styles.settingsRow}>
+            <TouchableOpacity
+              style={styles.settingsRow}
+              activeOpacity={0.7}
+              onPress={handleDarkModeToggle}
+            >
               <Moon size={wp(20)} color={colors.text} />
               <Text style={[styles.settingsRowText, { flex: 1, color: colors.text }]}>Dark Theme</Text>
               <Switch
@@ -696,11 +681,15 @@ export default function Profile() {
                 trackColor={{ false: '#ddd', true: '#81C784' }}
                 thumbColor={isDark ? '#2E7D32' : '#f4f3f4'}
               />
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            <View style={styles.settingsRow}>
+            <TouchableOpacity
+              style={styles.settingsRow}
+              activeOpacity={0.7}
+              onPress={() => handleNotificationsToggle(!notificationsEnabled)}
+            >
               {notificationsEnabled
                 ? <Bell size={wp(20)} color={colors.text} />
                 : <BellOff size={wp(20)} color={colors.textTertiary} />}
@@ -711,7 +700,7 @@ export default function Profile() {
                 trackColor={{ false: '#ddd', true: '#81C784' }}
                 thumbColor={notificationsEnabled ? '#2E7D32' : '#f4f3f4'}
               />
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
