@@ -268,23 +268,18 @@ export const userService = {
   async updatePushToken(params: { userID: string; pushToken: string | null; latitude?: number; longitude?: number }) {
     const { userID, pushToken, latitude, longitude } = params;
 
-    await prisma.user.update({
+    // Use updateMany so it doesn't throw a P2025 error if the user hasn't completed their profile yet
+    await prisma.user.updateMany({
       where: { userID },
       data: { pushToken },
     });
 
     // Also update their active coordinates if provided
     if (latitude !== undefined && longitude !== undefined) {
-      const address = await prisma.address.findUnique({
-        where: { UserID: userID }
+      await prisma.address.updateMany({
+        where: { UserID: userID },
+        data: { latitude, longitude }
       });
-
-      if (address) {
-        await prisma.address.update({
-          where: { UserID: userID },
-          data: { latitude, longitude }
-        });
-      }
     }
   },
 

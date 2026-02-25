@@ -6,8 +6,8 @@ import { prisma } from "@kusinakonek/database";
 if (!admin.apps.length) {
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^"|"$/g, '');
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^"|"$/g, '');
-  // Handle both literal \n and actual newlines, and strip potential quotes
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^"|"$/g, '').replace(/\\n/g, "\n");
+  // Handle literal \n, physical newlines, and strip potential quotes. Collapse double newlines if copy-pasted weirdly.
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^"|"$/g, '').replace(/\\n/g, "\n").replace(/\n+/g, "\n");
 
   if (projectId && clientEmail && privateKey) {
     try {
