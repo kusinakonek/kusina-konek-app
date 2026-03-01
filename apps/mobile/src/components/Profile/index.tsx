@@ -578,7 +578,7 @@ export default function Profile() {
 
             <View style={{ alignItems: 'center', marginVertical: hp(16) }}>
               <View style={[styles.avatarContainer, { width: wp(60), height: wp(60), borderRadius: wp(16), marginBottom: hp(12), borderColor: 'transparent' }]}>
-                <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
+                <RNImage source={require('../../../assets/KUSINAKONEK-NEW-LOGO.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
               </View>
               <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
               <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.2</Text>

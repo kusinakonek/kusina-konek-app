@@ -337,4 +337,24 @@ export const userService = {
       console.error(`[deleteAccount] Exception deleting auth user:`, e);
     }
   },
+
+  /**
+   * Switch a user's role between DONOR and RECIPIENT.
+   * Updates the roleID column in the User table.
+   */
+  async switchRole(params: { userID: string; roleName: "DONOR" | "RECIPIENT" }) {
+    const { userID, roleName } = params;
+
+    const role = await roleRepository.getByName(roleName);
+    if (!role) {
+      throw new HttpError(400, `Role '${roleName}' not found in database`);
+    }
+
+    await prisma.user.updateMany({
+      where: { userID },
+      data: { roleID: role.roleID },
+    });
+
+    return { message: "Role updated", role: roleName };
+  },
 };
