@@ -61,6 +61,12 @@ foodRouter.delete(
   foodController.deleteDonation,
 );
 
+foodRouter.post(
+  "/donations/:foodID/cancel",
+  authMiddleware,
+  foodController.cancelDonation,
+);
+
 
 foodRouter.post(
   "/donations/:foodID/confirm",

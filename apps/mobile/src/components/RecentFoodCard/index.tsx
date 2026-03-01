@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { MapPin, Star } from "lucide-react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { MapPin, Star, Utensils } from "lucide-react-native";
 import { useTheme } from "../../../context/ThemeContext";
 import { RecentItem } from "../RecentItemsList";
 
@@ -10,6 +10,7 @@ interface RecentFoodCardProps {
   onConfirm?: (id: string) => void;
   onMarkOnTheWay?: (id: string) => void;
   onFeedback?: (id: string) => void;
+  onCancel?: (id: string) => void;
 }
 
 export default function RecentFoodCard({
@@ -18,6 +19,7 @@ export default function RecentFoodCard({
   onConfirm,
   onMarkOnTheWay,
   onFeedback,
+  onCancel,
 }: RecentFoodCardProps) {
   const { colors } = useTheme();
 
@@ -36,8 +38,18 @@ export default function RecentFoodCard({
       activeOpacity={0.7}
       disabled={!item.rating}
       onPress={handlePress}>
+
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        {/* Render Image Thumbnail if available */}
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.foodImage} />
+        ) : (
+          <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
+            <Utensils size={24} color={colors.textSecondary} />
+          </View>
+        )}
+
+        <View style={styles.headerTextInfo}>
           <Text style={[styles.itemTitle, { color: colors.text }]}>
             {item.title}
           </Text>
@@ -118,6 +130,14 @@ export default function RecentFoodCard({
           <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
         </TouchableOpacity>
       )}
+
+      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && (
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => onCancel(item.id)}>
+          <Text style={styles.cancelButtonText}>Cancel Donation</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -137,9 +157,26 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  foodImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTextInfo: {
+    flex: 1,
+    paddingRight: 8,
   },
   itemTitle: {
     fontSize: 16,
@@ -253,6 +290,21 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    marginTop: 12,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e53935",
+    height: 44,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#e53935",
     fontSize: 16,
     fontWeight: "600",
   },

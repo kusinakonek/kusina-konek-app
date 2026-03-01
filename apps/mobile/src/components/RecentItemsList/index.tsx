@@ -16,13 +16,14 @@ export interface RecentItem {
   quantity: string;
   location: string;
   time: string;
-  status?: "pending" | "donated" | "claimed" | "on-the-way" | "completed";
+  status?: "pending" | "available" | "donated" | "claimed" | "on-the-way" | "completed";
   rating?: number;
   recipientName?: string; // For donors seeing who claimed
   showFeedback?: boolean; // Show feedback button for recipients
   role?: "DONOR" | "RECIPIENT";
   latitude?: number | null;
   longitude?: number | null;
+  image?: string | null;
 }
 
 interface RecentItemsListProps {
@@ -32,6 +33,7 @@ interface RecentItemsListProps {
   onConfirm?: (id: string) => void;
   onMarkOnTheWay?: (id: string) => void;
   onFeedback?: (id: string) => void;
+  onCancel?: (id: string) => void;
 }
 
 export const RecentItemsList = ({
@@ -41,6 +43,7 @@ export const RecentItemsList = ({
   onConfirm,
   onMarkOnTheWay,
   onFeedback,
+  onCancel,
 }: RecentItemsListProps) => {
   const { colors, isDark } = useTheme();
 
@@ -51,6 +54,7 @@ export const RecentItemsList = ({
       onConfirm={onConfirm}
       onMarkOnTheWay={onMarkOnTheWay}
       onFeedback={onFeedback}
+      onCancel={onCancel}
     />
   );
 
