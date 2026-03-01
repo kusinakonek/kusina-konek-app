@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: "/users/profile",
     PUSH_TOKEN: "/users/push-token",
     DELETE_ACCOUNT: "/users/account",
+    SWITCH_ROLE: "/users/role",
   },
   NOTIFICATION: {
     LIST: "/notifications",
