@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Platform, KeyboardAvoidingView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera } from 'lucide-react-native';
@@ -9,7 +9,8 @@ import Input from '../../../src/components/Input';
 import { useTheme } from '../../../context/ThemeContext';
 import LoadingScreen from '../../../src/components/LoadingScreen';
 import { useAlert } from '../../../context/AlertContext';
-import { compressImageTo5MB } from '../../../src/utils/imageCompressor';
+import { compressImageFast } from '../../../src/utils/imageCompressor';
+import CameraOptionModal from '../../../src/components/CameraOptionModal';
 
 export default function FoodDetailsScreen() {
     const router = useRouter();
@@ -17,8 +18,17 @@ export default function FoodDetailsScreen() {
     const { formData, updateFormData, setCurrentStep } = useDonation();
     const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
+    const [showCameraModal, setShowCameraModal] = useState(false);
 
-    const takePhoto = async () => {
+    const takePhoto = () => {
+        setShowCameraModal(true);
+    };
+
+    const handleCameraOption = (allowsEditing: boolean) => {
+        launchCamera(allowsEditing);
+    };
+
+    const launchCamera = async (allowsEditing: boolean) => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
             showAlert('Permission Required', 'Please allow access to your camera.', undefined, { type: 'warning' });
@@ -26,8 +36,8 @@ export default function FoodDetailsScreen() {
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsEditing,
+            aspect: allowsEditing ? [4, 3] : undefined,
             quality: 0.7, // Capture at decent quality, compression handles the rest
         });
 
@@ -35,8 +45,8 @@ export default function FoodDetailsScreen() {
             const asset = result.assets[0];
             try {
                 setLoading(true);
-                // Compress the image to ensure it's within 5 MB
-                const compressedDataUri = await compressImageTo5MB(asset.uri);
+                // Compress and scale the image in a single fast pass limit
+                const compressedDataUri = await compressImageFast(asset.uri);
                 updateFormData({ imageUri: compressedDataUri });
             } catch (error: any) {
                 console.error('Image compression failed:', error);
@@ -84,83 +94,101 @@ export default function FoodDetailsScreen() {
                         </View>
                     </View>
 
-                    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-                        <View style={[styles.card, { backgroundColor: colors.card }]}>
-                            <Text style={[styles.cardTitle, { color: colors.text }]}>Food Details</Text>
-                            <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Tell us about the food you're donating</Text>
+                    <KeyboardAvoidingView
+                        style={{ flex: 1 }}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+                    >
+                        <ScrollView
+                            style={[styles.container, { backgroundColor: colors.background }]}
+                            contentContainerStyle={{ paddingBottom: 120 }}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            <View style={[styles.card, { backgroundColor: colors.card }]}>
+                                <Text style={[styles.cardTitle, { color: colors.text }]}>Food Details</Text>
+                                <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>Tell us about the food you're donating</Text>
 
 
-                            {/* Food Name */}
-                            <Input
-                                label="Food Name"
-                                placeholder="e.g., Chicken Adobo, Pancit Canton"
-                                value={formData.foodName}
-                                onChangeText={(text) => updateFormData({ foodName: text })}
-                            />
+                                {/* Food Name */}
+                                <Input
+                                    label="Food Name"
+                                    placeholder="e.g., Chicken Adobo, Pancit Canton"
+                                    value={formData.foodName}
+                                    onChangeText={(text) => updateFormData({ foodName: text })}
+                                />
 
-                            {/* Description */}
-                            <Input
-                                label="Description"
-                                placeholder="Brief description of the food (optional)"
-                                value={formData.description}
-                                onChangeText={(text) => updateFormData({ description: text })}
-                                multiline
-                                numberOfLines={3}
-                            />
+                                {/* Description */}
+                                <Input
+                                    label="Description"
+                                    placeholder="Brief description of the food (optional)"
+                                    value={formData.description}
+                                    onChangeText={(text) => updateFormData({ description: text })}
+                                    multiline
+                                    numberOfLines={3}
+                                />
 
-                            {/* Quantity */}
-                            <Input
-                                label="Quantity (Number of Servings)"
-                                placeholder="e.g., 5, 10, 20"
-                                value={formData.quantity}
-                                keyboardType="phone-pad"
-                                onChangeText={(text) => {
-                                    // Remove any non-numeric characters
-                                    const numericText = text.replace(/[^0-9]/g, '');
-                                    updateFormData({ quantity: numericText });
-                                }}
-                            />
+                                {/* Quantity */}
+                                <Input
+                                    label="Quantity (Number of Servings)"
+                                    placeholder="e.g., 5, 10, 20"
+                                    value={formData.quantity}
+                                    keyboardType="phone-pad"
+                                    onChangeText={(text) => {
+                                        // Remove any non-numeric characters
+                                        const numericText = text.replace(/[^0-9]/g, '');
+                                        updateFormData({ quantity: numericText });
+                                    }}
+                                />
 
-                            {/* Image Upload */}
-                            <View style={{ marginBottom: 20 }}>
-                                <Text style={[styles.imageLabel, { color: colors.text }]}>Take Photo of Actual Food *</Text>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.imageUpload,
-                                        { backgroundColor: colors.inputBg, borderColor: colors.border }
-                                    ]}
-                                    onPress={takePhoto}
-                                >
-                                    {formData.imageUri ? (
-                                        <Image source={{ uri: formData.imageUri }} style={styles.previewImage} />
-                                    ) : (
-                                        <View style={styles.uploadPlaceholder}>
-                                            <Camera size={32} color={colors.textTertiary} />
-                                            <Text style={[styles.uploadText, { color: colors.textSecondary }]}>
-                                                <Text style={styles.uploadLink}>Open Camera</Text> to capture food
-                                            </Text>
-                                            <Text style={[styles.uploadHint, { color: colors.textTertiary }]}>Take a clear photo of the food</Text>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                                {formData.imageUri && (
+                                {/* Image Upload */}
+                                <View style={{ marginBottom: 20 }}>
+                                    <Text style={[styles.imageLabel, { color: colors.text }]}>Take Photo of Actual Food *</Text>
                                     <TouchableOpacity
-                                        style={styles.removeImage}
-                                        onPress={() => updateFormData({ imageUri: null })}
+                                        style={[
+                                            styles.imageUpload,
+                                            { backgroundColor: colors.inputBg, borderColor: colors.border }
+                                        ]}
+                                        onPress={takePhoto}
                                     >
-                                        <Text style={styles.removeImageText}>Remove Image</Text>
+                                        {formData.imageUri ? (
+                                            <Image source={{ uri: formData.imageUri }} style={styles.previewImage} />
+                                        ) : (
+                                            <View style={styles.uploadPlaceholder}>
+                                                <Camera size={32} color={colors.textTertiary} />
+                                                <Text style={[styles.uploadText, { color: colors.textSecondary }]}>
+                                                    <Text style={styles.uploadLink}>Open Camera</Text> to capture food
+                                                </Text>
+                                                <Text style={[styles.uploadHint, { color: colors.textTertiary }]}>Take a clear photo of the food</Text>
+                                            </View>
+                                        )}
                                     </TouchableOpacity>
-                                )}
+                                    {formData.imageUri && (
+                                        <TouchableOpacity
+                                            style={styles.removeImage}
+                                            onPress={() => updateFormData({ imageUri: null })}
+                                        >
+                                            <Text style={styles.removeImageText}>Remove Image</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             </View>
-                        </View>
-                    </ScrollView>
+                        </ScrollView>
 
-                    {/* Continue Button */}
-                    <View style={[styles.footer, { backgroundColor: colors.headerBg, borderTopColor: colors.border }]}>
-                        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-                            <Text style={styles.continueText}>Continue</Text>
-                        </TouchableOpacity>
-                    </View>
+                        {/* Buttons Footer */}
+                        <View style={[styles.footer, { backgroundColor: colors.headerBg, borderTopColor: colors.border }]}>
+                            <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+                                <Text style={styles.continueText}>Continue</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+
+                    {/* Camera Option Modal */}
+                    <CameraOptionModal
+                        visible={showCameraModal}
+                        onClose={() => setShowCameraModal(false)}
+                        onSelectCrop={handleCameraOption}
+                    />
                 </>
             )}
         </SafeAreaView>
@@ -277,6 +305,16 @@ const styles = StyleSheet.create({
     continueText: {
         color: '#fff',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    cancelButtonOuter: {
+        paddingVertical: 12,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    cancelTextOuter: {
+        color: '#e53935',
+        fontSize: 15,
         fontWeight: '600',
     },
 });
