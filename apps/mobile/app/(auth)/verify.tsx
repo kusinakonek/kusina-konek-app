@@ -139,7 +139,7 @@ export default function Verify() {
                 <ScrollView contentContainerStyle={styles.content}>
                     <View style={styles.header}>
                         <Image
-                            source={require('../../assets/KusinaKonek-Logo.png')}
+                            source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />

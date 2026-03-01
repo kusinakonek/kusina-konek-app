@@ -4,7 +4,7 @@ import { MapPin, Clock, Users, Navigation } from "lucide-react-native";
 import { theme } from "../../constants/theme";
 import { useTheme } from "../../../context/ThemeContext";
 
-const DEFAULT_FOOD_IMAGE = require("../../../assets/KusinaKonek-Logo.png");
+const DEFAULT_FOOD_IMAGE = require("../../../assets/KUSINAKONEK-NEW-LOGO.png");
 
 export type BrowseFoodCardProps = {
   imageUri?: string | null;

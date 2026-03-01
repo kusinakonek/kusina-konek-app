@@ -44,7 +44,7 @@ export default function LoginView() {
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     <View style={styles.header}>
                         <Image
-                            source={require('../../../assets/KusinaKonek-Logo.png')}
+                            source={require('../../../assets/KUSINAKONEK-NEW-LOGO.png')}
                             style={styles.logoImage}
                             resizeMode="contain"
                         />
