@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -22,6 +23,7 @@ import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import CancelDonationModal from "../components/CancelDonationModal";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -31,6 +33,8 @@ export default function DonorHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -118,10 +122,30 @@ export default function DonorHome() {
       recipientName: d.claimedBy,
       rating: d.rating,
       role: 'DONOR',
+      image: d.image || d.food?.image,
     }));
   };
 
+  const handleCancelDonation = (id: string) => {
+    setDonationToCancel(id);
+    setShowCancelModal(true);
+  };
 
+  const confirmCancelDonation = async () => {
+    if (!donationToCancel) return;
+    setLoading(true);
+    try {
+      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error("Failed to cancel donation:", error);
+      const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
+      Alert.alert("Error", msg);
+      setLoading(false);
+    } finally {
+      setDonationToCancel(null);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
@@ -230,6 +254,7 @@ export default function DonorHome() {
                 setLoading(false);
               }, 100);
             }}
+            onCancel={handleCancelDonation}
           />
 
           <View style={{ height: hp(20) }} />
@@ -240,6 +265,15 @@ export default function DonorHome() {
           </View>
         )}
       </View>
+
+      <CancelDonationModal
+        visible={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setDonationToCancel(null);
+        }}
+        onConfirm={confirmCancelDonation}
+      />
     </SafeAreaView>
   );
 }

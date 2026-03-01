@@ -137,4 +137,10 @@ export const distributionRepository = {
       },
     });
   },
+
+  delete(disID: string) {
+    return prisma.distribution.delete({
+      where: { disID },
+    });
+  },
 };

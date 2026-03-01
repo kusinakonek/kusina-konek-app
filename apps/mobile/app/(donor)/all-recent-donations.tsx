@@ -20,6 +20,8 @@ import EmptyRecentFood from "../../src/components/EmptyRecentFood";
 import { RecentFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import CancelDonationModal from "../../src/components/CancelDonationModal";
+import { Alert } from "react-native";
 
 export default function AllRecentDonations() {
     const { user } = useAuth();
@@ -27,6 +29,10 @@ export default function AllRecentDonations() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [recentDonations, setRecentDonations] = useState<RecentItem[]>([]);
+
+    // Cancel logic state
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
 
     const fetchRecentDonations = useCallback(async () => {
         if (!user) return;
@@ -42,6 +48,7 @@ export default function AllRecentDonations() {
                 recipientName: d.claimedBy,
                 rating: d.rating,
                 role: "DONOR",
+                image: d.image || d.food?.image,
             }));
             setRecentDonations(donations);
         } catch (error) {
@@ -69,11 +76,34 @@ export default function AllRecentDonations() {
         });
     };
 
+    const handleCancelDonation = (id: string) => {
+        setDonationToCancel(id);
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelDonation = async () => {
+        if (!donationToCancel) return;
+        setLoading(true);
+        try {
+            await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+            await fetchRecentDonations();
+        } catch (error: any) {
+            console.error("Failed to cancel donation:", error);
+            const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
+            Alert.alert("Error", msg);
+            setLoading(false);
+        } finally {
+            setDonationToCancel(null);
+            setShowCancelModal(false);
+        }
+    };
+
     const renderItem = ({ item }: { item: RecentItem }) => (
         <RecentFoodCard
             item={item}
             role="DONOR"
             onFeedback={handleFeedbackNavigation}
+            onCancel={handleCancelDonation}
         />
     );
 
@@ -143,6 +173,12 @@ export default function AllRecentDonations() {
                     />
                 )}
             </View>
+
+            <CancelDonationModal
+                visible={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={confirmCancelDonation}
+            />
         </SafeAreaView>
     );
 }

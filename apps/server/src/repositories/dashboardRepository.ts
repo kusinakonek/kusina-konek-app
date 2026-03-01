@@ -31,6 +31,7 @@ export interface DonorDonationItem {
   timestamp: Date;
   claimedBy: string | null;
   rating: number | null;
+  image: string | null;
 }
 
 export interface RecipientFoodItem {
@@ -137,7 +138,7 @@ export const dashboardRepository = {
         quantity: true,
         status: true,
         timestamp: true,
-        food: { select: { foodName: true } },
+        food: { select: { foodName: true, image: true } },
         location: { select: { barangay: true } },
         recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
@@ -160,6 +161,7 @@ export const dashboardRepository = {
           ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
           : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
+        image: d.food?.image || null,
       };
     });
   },
