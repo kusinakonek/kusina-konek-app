@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
+  Image as RNImage,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -40,7 +41,11 @@ function FloatingActionButton() {
   return (
     <View style={styles.fabContainer} pointerEvents="none">
       <View style={styles.fab}>
-        <Utensils size={wp(28)} color="#fff" />
+        <RNImage
+          source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
+          style={{ width: wp(32), height: wp(32) }}
+          resizeMode="contain"
+        />
       </View>
     </View>
   );
@@ -110,7 +115,11 @@ export default function TabLayout() {
                     accessibilityLabel={accessibilityLabel}
                     testID={testID}>
                     <View style={styles.fab}>
-                      <Utensils size={wp(28)} color="#fff" />
+                      <RNImage
+                        source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
+                        style={{ width: wp(32), height: wp(32) }}
+                        resizeMode="contain"
+                      />
                     </View>
                   </TouchableOpacity>
                 );

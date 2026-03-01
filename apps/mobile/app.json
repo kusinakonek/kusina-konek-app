@@ -5,13 +5,13 @@
     "scheme": "kusinakonek",
     "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/KusinaKonek-Logo.png",
+    "icon": "./assets/KUSINAKONEK-NEW-LOGO.png",
     "notification": {
-      "icon": "./assets/KusinaKonek-Logo.png",
+      "icon": "./assets/KUSINAKONEK-NEW-LOGO.png",
       "color": "#00C853"
     },
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/KUSINAKONEK-NEW-LOGO.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -34,7 +34,7 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/KUSINAKONEK-NEW-LOGO.png",
         "backgroundColor": "#FFFFFF"
       },
       "config": {

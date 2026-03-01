@@ -81,7 +81,7 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
             <View style={styles.content}>
                 <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                     <Image
-                        source={require('../../assets/KusinaKonek-Logo.png')}
+                        source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
                         style={{
                             width: logoSize,
                             height: logoSize,
