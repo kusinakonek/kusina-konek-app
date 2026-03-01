@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
       `/foods/donations/user/${userID}`,
     UPDATE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
     DELETE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
+    CANCEL_DONATION: (foodID: string) => `/foods/donations/${foodID}/cancel`,
     REQUEST_DONATION: "/foods/donations/request",
     GET_BY_ID: (foodID: string) => `/foods/${foodID}`,
     ADD_DONATION: "/foods/donations",

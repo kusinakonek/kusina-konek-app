@@ -70,13 +70,17 @@ export const foodController = {
   // Donation-specific controllers with encryption
   async createDonation(req: Request, res: Response, next: NextFunction) {
     try {
+      console.time(`ADD_DONATION_${req.user!.id}`);
+      console.log(`[FoodController] Starting donation submission...`);
       const input = req.body as CreateFoodInput;
       const result = await foodService.createDonation({
         userID: req.user!.id,
         input,
       });
+      console.timeEnd(`ADD_DONATION_${req.user!.id}`);
       return res.status(201).json(result);
     } catch (error) {
+      console.timeEnd(`ADD_DONATION_${req.user!.id}`);
       next(error);
     }
   },
@@ -131,6 +135,18 @@ export const foodController = {
   async deleteDonation(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await foodService.deleteDonation({
+        userID: req.user!.id,
+        foodID: req.params.foodID,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async cancelDonation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await foodService.cancelDonation({
         userID: req.user!.id,
         foodID: req.params.foodID,
       });
