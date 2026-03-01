@@ -93,4 +93,30 @@ export const userController = {
       next(error);
     }
   },
+
+  /**
+   * PATCH /api/users/role
+   * Switch the authenticated user's role (DONOR <-> RECIPIENT)
+   */
+  async switchRole(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { role } = req.body;
+      if (role !== "DONOR" && role !== "RECIPIENT") {
+        return res.status(400).json({ error: "Role must be 'DONOR' or 'RECIPIENT'" });
+      }
+
+      const result = await userService.switchRole({
+        userID: req.user.id,
+        roleName: role,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

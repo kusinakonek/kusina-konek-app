@@ -104,6 +104,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setRole = async (newRole: 'DONOR' | 'RECIPIENT') => {
         setRoleState(newRole);
         await AsyncStorage.setItem('userRole', newRole);
+        // Sync role to database
+        try {
+            const axiosClient = (await import('../src/api/axiosClient')).default;
+            await axiosClient.patch('/users/role', { role: newRole });
+        } catch (error) {
+            console.error('Failed to sync role to database:', error);
+        }
     };
 
     const signIn = async (email: string, password: string) => {

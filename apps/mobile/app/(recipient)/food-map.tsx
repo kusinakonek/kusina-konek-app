@@ -318,7 +318,7 @@ export default function FoodMap() {
                                 source={
                                     selectedFood.food?.image
                                         ? { uri: selectedFood.food.image }
-                                        : require("../../assets/KusinaKonek-Logo.png")
+                                        : require("../../assets/KUSINAKONEK-NEW-LOGO.png")
                                 }
                                 style={styles.panelImage}
                                 resizeMode="cover"
