@@ -117,6 +117,13 @@ export default function LocationPicker({
                         <Text style={styles.navigateText}>Navigate with Google Maps</Text>
                         <ExternalLink size={12} color="rgba(255,255,255,0.7)" />
                     </TouchableOpacity>
+
+                    {/* Notice */}
+                    <View style={styles.noticeBox}>
+                        <Text style={styles.noticeText}>
+                            Notice: Please double-check if the suggested Barangay and Landmark are correct based on your pinned location. You can edit them if needed.
+                        </Text>
+                    </View>
                 </>
             )}
 
@@ -221,6 +228,19 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    noticeBox: {
+        backgroundColor: '#FFF3E0',
+        padding: 12,
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: '#FF9800',
+        marginBottom: 16,
+    },
+    noticeText: {
+        color: '#E65100',
+        fontSize: 12,
+        lineHeight: 18,
     },
 
 });
