@@ -128,7 +128,7 @@ export default function DonorHome() {
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <View style={styles.headerLeft}>
           <Image
-            source={require("../../assets/KusinaKonek-Logo.png")}
+            source={require("../../assets/KUSINAKONEK-NEW-LOGO.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -205,7 +205,11 @@ export default function DonorHome() {
                 setLoading(false);
               }, 100);
             }}>
-            <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
+            <Image
+              source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
+              style={{ width: wp(28), height: wp(28), marginRight: wp(8) }}
+              resizeMode="contain"
+            />
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
 

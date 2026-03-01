@@ -23,7 +23,7 @@ export default function Welcome() {
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
             <View style={styles.header}>
                 <Image
-                    source={require('../../assets/KusinaKonek-Logo.png')}
+                    source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
                 />
