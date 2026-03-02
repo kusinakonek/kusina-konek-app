@@ -141,5 +141,19 @@ export const authController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * POST /api/auth/availability
+   * Check if email or phone number is already in use
+   */
+  async checkAvailability(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, phoneNo } = req.body;
+      const result = await authService.checkAvailability(email, phoneNo);
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
   }
 };

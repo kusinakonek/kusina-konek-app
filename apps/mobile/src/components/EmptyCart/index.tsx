@@ -2,16 +2,19 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ShoppingCart } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type EmptyCartProps = {
   onBrowseFood?: () => void;
 };
 
 export default function EmptyCart({ onBrowseFood }: EmptyCartProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.message}>You haven't requested your food yet...</Text>
-      <Text style={styles.subMessage}>Pick your food here:</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.message, { color: colors.textSecondary }]}>You haven't requested your food yet...</Text>
+      <Text style={[styles.subMessage, { color: colors.textSecondary }]}>Pick your food here:</Text>
 
       <Pressable
         style={styles.browseButton}
@@ -28,7 +31,7 @@ export default function EmptyCart({ onBrowseFood }: EmptyCartProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: theme.colors.background,
     borderRadius: theme.radius.md,
     justifyContent: "center",
     alignItems: "center",

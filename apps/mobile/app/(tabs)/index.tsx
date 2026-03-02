@@ -1,28 +1,15 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import DonorHome from '../DONOR/Home';
-import RecipientHome from '../RECIPIENT/Home';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import DonorHome from '../../src/donor/Home';
+import RecipientHome from '../../src/recipient/Home';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 export default function Home() {
-    const { role, isLoading } = useAuth();
-    //...
-    if (isLoading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#00C853" />
-            </View>
-        );
+    const { role, isLoading, user } = useAuth();
+
+    if (isLoading || !user) {
+        return <LoadingScreen message="Preparing your dashboard..." />;
     }
 
     return role === 'DONOR' ? <DonorHome /> : <RecipientHome />;
 }
-
-const styles = StyleSheet.create({
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
-});

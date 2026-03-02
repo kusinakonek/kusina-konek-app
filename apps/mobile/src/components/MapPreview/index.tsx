@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal, SafeAreaView, Platform, StatusBar } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Maximize2, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface MapPreviewProps {
     latitude: number;
@@ -12,49 +13,34 @@ interface MapPreviewProps {
 
 export default function MapPreview({ latitude, longitude, title, height = 200 }: MapPreviewProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const insets = useSafeAreaInsets();
 
-    // Generate OpenStreetMap HTML with Leaflet
-    const getMapHtml = (isFull: boolean) => `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        * { margin: 0; padding: 0; }
-        html, body, #map { height: 100%; width: 100%; }
-        .leaflet-container {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-    </style>
-</head>
-<body>
-    <div id="map"></div>
-    <script>
-        var map = L.map('map', {
-            zoomControl: ${isFull ? 'true' : 'false'},
-            attributionControl: false
-        }).setView([${latitude}, ${longitude}], 16);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        var marker = L.marker([${latitude}, ${longitude}]).addTo(map);
-        ${title ? `marker.bindPopup("${title.replace(/"/g, '\\"')}").openPopup();` : ''}
-    </script>
-</body>
-</html>
-    `;
+    const region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+    };
 
     return (
         <View style={[styles.container, { height }]}>
-            <WebView
-                source={{ html: getMapHtml(false) }}
-                style={styles.webview}
+            {/* Inline Google Map (non-interactive preview) */}
+            <MapView
+                style={styles.map}
+                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                initialRegion={region}
                 scrollEnabled={false}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-            />
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+                toolbarEnabled={false}
+            >
+                <Marker
+                    coordinate={{ latitude, longitude }}
+                    title={title}
+                    pinColor="#00C853"
+                />
+            </MapView>
 
             {/* Enlarge Button Overlay */}
             <TouchableOpacity
@@ -70,31 +56,44 @@ export default function MapPreview({ latitude, longitude, title, height = 200 }:
                 visible={isFullscreen}
                 animationType="slide"
                 onRequestClose={() => setIsFullscreen(false)}
-                presentationStyle="fullScreen"
+                statusBarTranslucent
             >
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
+                <View style={styles.modalContainer}>
+                    {/* Fullscreen Google Map (interactive) */}
+                    <MapView
+                        style={StyleSheet.absoluteFillObject}
+                        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                        initialRegion={{
+                            ...region,
+                            latitudeDelta: 0.01,
+                            longitudeDelta: 0.01,
+                        }}
+                        showsUserLocation
+                        showsMyLocationButton
+                    >
+                        <Marker
+                            coordinate={{ latitude, longitude }}
+                            title={title}
+                            pinColor="#00C853"
+                        />
+                    </MapView>
+
+                    {/* Header */}
+                    <View style={[styles.modalHeader, { top: insets.top + 8 }]}>
                         <TouchableOpacity onPress={() => setIsFullscreen(false)} style={styles.closeButton}>
-                            <X size={24} color="#333" />
+                            <X size={24} color="#fff" />
                         </TouchableOpacity>
                         <Text style={styles.modalTitle}>{title || 'Map Preview'}</Text>
-                        <View style={{ width: 40 }} /> {/* Spacer */}
+                        <View style={{ width: 40 }} />
                     </View>
 
-                    <WebView
-                        source={{ html: getMapHtml(true) }}
-                        style={styles.webview}
-                        javaScriptEnabled={true}
-                        domStorageEnabled={true}
-                    />
-
                     {/* Coordinates Overlay */}
-                    <View style={styles.coordsOverlay}>
+                    <View style={[styles.coordsOverlay, { bottom: insets.bottom + 20 }]}>
                         <Text style={styles.coordsText}>
                             {latitude.toFixed(6)}, {longitude.toFixed(6)}
                         </Text>
                     </View>
-                </SafeAreaView>
+                </View>
             </Modal>
         </View>
     );
@@ -107,9 +106,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#f0f0f0',
         position: 'relative',
     },
-    webview: {
+    map: {
         flex: 1,
-        opacity: 0.99,
+        width: '100%',
     },
     enlargeButton: {
         position: 'absolute',
@@ -130,32 +129,39 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: '#fff',
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+        backgroundColor: '#000',
     },
     modalHeader: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-        backgroundColor: '#fff',
-        zIndex: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        zIndex: 10,
     },
     modalTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1a1a1a',
-        maxWidth: '70%',
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#fff',
+        textShadowColor: 'rgba(0,0,0,0.6)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+        maxWidth: '60%',
+        textAlign: 'center',
     },
     closeButton: {
-        padding: 8,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     coordsOverlay: {
         position: 'absolute',
-        bottom: 30,
         alignSelf: 'center',
         backgroundColor: '#fff',
         paddingVertical: 8,

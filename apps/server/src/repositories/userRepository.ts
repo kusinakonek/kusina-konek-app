@@ -1,7 +1,7 @@
 import { prisma } from "@kusinakonek/database";
 
 const defaultUserInclude = {
-  role: true
+  role: true,
 } as const;
 
 type DisplayNameUser = {
@@ -26,19 +26,31 @@ export const userRepository = {
   toDisplayName,
 
   getByUserId(userID: string) {
-    return prisma.user.findUnique({ where: { userID }, include: defaultUserInclude });
+    return prisma.user.findUnique({
+      where: { userID },
+      include: defaultUserInclude,
+    });
   },
 
   getByEmailHash(emailHash: string) {
-    return prisma.user.findUnique({ where: { emailHash }, include: defaultUserInclude });
+    return prisma.user.findUnique({
+      where: { emailHash },
+      include: defaultUserInclude,
+    });
   },
 
   getByPhoneNoHash(phoneNoHash: string) {
-    return prisma.user.findUnique({ where: { phoneNoHash }, include: defaultUserInclude });
+    return prisma.user.findUnique({
+      where: { phoneNoHash },
+      include: defaultUserInclude,
+    });
   },
 
   getFirstByEmail(email: string) {
-    return prisma.user.findFirst({ where: { email }, include: defaultUserInclude });
+    return prisma.user.findFirst({
+      where: { email },
+      include: defaultUserInclude,
+    });
   },
 
   create(data: any) {
@@ -46,6 +58,10 @@ export const userRepository = {
   },
 
   update(userID: string, data: any) {
-    return prisma.user.update({ where: { userID }, data, include: defaultUserInclude });
-  }
+    return prisma.user.update({
+      where: { userID },
+      data,
+      include: defaultUserInclude,
+    });
+  },
 };

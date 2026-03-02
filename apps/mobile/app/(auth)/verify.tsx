@@ -5,17 +5,19 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     Image,
     StatusBar,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
+import { useResendTimer } from '../../src/hooks/useResendTimer';
+import { useAlert } from '../../context/AlertContext';
 
 const OTP_LENGTH = 8;
 
@@ -23,19 +25,14 @@ export default function Verify() {
     const router = useRouter();
     const { email } = useLocalSearchParams<{ email: string }>();
     const { verifyOtp, resendOtp } = useAuth();
+    const { showAlert } = useAlert();
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
     const [resending, setResending] = useState(false);
-    const [countdown, setCountdown] = useState(60);
     const inputRefs = useRef<(TextInput | null)[]>([]);
 
-    // Countdown timer for resend button
-    useEffect(() => {
-        if (countdown <= 0) return;
-        const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-        return () => clearTimeout(timer);
-    }, [countdown]);
+    const { countdown, startTimer } = useResendTimer(email || '', 'signup');
 
     const handleChange = (value: string, index: number) => {
         // Only allow digits
@@ -72,12 +69,12 @@ export default function Verify() {
     const handleVerify = async (code?: string) => {
         const otpCode = code || otp.join('');
         if (otpCode.length !== OTP_LENGTH) {
-            Alert.alert('Error', 'Please enter the complete 8-digit code');
+            showAlert('Error', 'Please enter the complete 8-digit code', undefined, { type: 'warning' });
             return;
         }
 
         if (!email) {
-            Alert.alert('Error', 'No email found. Please try signing up again.');
+            showAlert('Error', 'No email found. Please try signing up again.', undefined, { type: 'error' });
             return;
         }
 
@@ -89,9 +86,9 @@ export default function Verify() {
             console.error(error);
             const message = error.message || 'Invalid verification code';
             if (message.includes('expired')) {
-                Alert.alert('Code Expired', 'Your verification code has expired. Please request a new one.');
+                showAlert('Code Expired', 'Your verification code has expired. Please request a new one.', undefined, { type: 'warning' });
             } else {
-                Alert.alert('Verification Failed', message);
+                showAlert('Verification Failed', message, undefined, { type: 'error' });
             }
             // Clear OTP inputs on failure
             setOtp(Array(OTP_LENGTH).fill(''));
@@ -107,10 +104,10 @@ export default function Verify() {
         setResending(true);
         try {
             await resendOtp(email);
-            setCountdown(60);
-            Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+            startTimer();
+            showAlert('Code Sent', 'A new verification code has been sent to your email.', undefined, { type: 'success' });
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to resend code');
+            showAlert('Error', error.message || 'Failed to resend code', undefined, { type: 'error' });
         } finally {
             setResending(false);
         }
@@ -124,92 +121,96 @@ export default function Verify() {
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
-            >
+
+            {/* Fixed Header */}
+            <View style={styles.fixedHeader}>
                 <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
                     <ArrowLeft size={24} color="#333" />
                 </TouchableOpacity>
-
-            <View style={styles.content}>
-                <View style={styles.header}>
-                    <Image
-                        source={require('../../assets/KusinaKonek-Logo.png')}
-                        style={styles.logo}
-                        resizeMode="contain"
-                    />
-                    <View style={styles.mailIconContainer}>
-                        <Mail size={32} color="#00C853" />
-                    </View>
-                    <Text style={styles.title}>Verify Your Email</Text>
-                    <Text style={styles.subtitle}>
-                        We sent an 8-digit verification code to
-                    </Text>
-                    <Text style={styles.emailText}>{maskedEmail}</Text>
-                    <Text style={styles.hintText}>
-                        Check your inbox (and spam folder) for the code
-                    </Text>
-                </View>
-
-                {/* OTP Input Boxes */}
-                <View style={styles.otpContainer}>
-                    {otp.map((digit, index) => (
-                        <TextInput
-                            key={index}
-                            ref={(ref) => { inputRefs.current[index] = ref; }}
-                            style={[
-                                styles.otpInput,
-                                digit ? styles.otpInputFilled : null,
-                            ]}
-                            value={digit}
-                            onChangeText={(value) => handleChange(value, index)}
-                            onKeyPress={(e) => handleKeyPress(e, index)}
-                            keyboardType="number-pad"
-                            maxLength={1}
-                            selectTextOnFocus
-                            autoFocus={index === 0}
-                        />
-                    ))}
-                </View>
-
-                {/* Verify Button */}
-                <TouchableOpacity
-                    style={[styles.verifyButton, loading && styles.buttonDisabled]}
-                    onPress={() => handleVerify()}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.verifyButtonText}>Verify Email</Text>
-                    )}
-                </TouchableOpacity>
-
-                {/* Resend Code */}
-                <View style={styles.resendContainer}>
-                    <Text style={styles.resendText}>Didn't receive the code? </Text>
-                    {countdown > 0 ? (
-                        <Text style={styles.countdownText}>Resend in {countdown}s</Text>
-                    ) : (
-                        <TouchableOpacity onPress={handleResend} disabled={resending}>
-                            <View style={styles.resendRow}>
-                                {resending ? (
-                                    <ActivityIndicator size="small" color="#00C853" />
-                                ) : (
-                                    <>
-                                        <RefreshCw size={14} color="#00C853" />
-                                        <Text style={styles.resendLink}> Resend</Text>
-                                    </>
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                </View>
             </View>
+
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.container}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
+                    <View style={styles.header}>
+                        <Image
+                            source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                        <View style={styles.mailIconContainer}>
+                            <Mail size={32} color="#00C853" />
+                        </View>
+                        <Text style={styles.title}>Verify Your Email</Text>
+                        <Text style={styles.subtitle}>
+                            We sent an 8-digit verification code to
+                        </Text>
+                        <Text style={styles.emailText}>{maskedEmail}</Text>
+                        <Text style={styles.hintText}>
+                            Check your inbox (and spam folder) for the code
+                        </Text>
+                    </View>
+
+                    {/* OTP Input Boxes */}
+                    <View style={styles.otpContainer}>
+                        {otp.map((digit, index) => (
+                            <TextInput
+                                key={index}
+                                ref={(ref) => { inputRefs.current[index] = ref; }}
+                                style={[
+                                    styles.otpInput,
+                                    digit ? styles.otpInputFilled : null,
+                                ]}
+                                value={digit}
+                                onChangeText={(value) => handleChange(value, index)}
+                                onKeyPress={(e) => handleKeyPress(e, index)}
+                                keyboardType="number-pad"
+                                maxLength={1}
+                                selectTextOnFocus
+                                autoFocus={index === 0}
+                            />
+                        ))}
+                    </View>
+
+                    {/* Verify Button */}
+                    <TouchableOpacity
+                        style={[styles.verifyButton, loading && styles.buttonDisabled]}
+                        onPress={() => handleVerify()}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.verifyButtonText}>Verify Email</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Resend Code */}
+                    <View style={styles.resendContainer}>
+                        <Text style={styles.resendText}>Didn't receive the code? </Text>
+                        {countdown > 0 ? (
+                            <Text style={styles.countdownText}>Resend in {countdown}s</Text>
+                        ) : (
+                            <TouchableOpacity onPress={handleResend} disabled={resending}>
+                                <View style={styles.resendRow}>
+                                    {resending ? (
+                                        <ActivityIndicator size="small" color="#00C853" />
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={14} color="#00C853" />
+                                            <Text style={styles.resendLink}> Resend</Text>
+                                        </>
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -224,15 +225,22 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
     },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
+    },
     backButton: {
-        marginLeft: 24,
-        marginTop: 12,
         alignSelf: 'flex-start',
+        padding: 4,
     },
     content: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
+        paddingTop: 8,
     },
     header: {
         alignItems: 'center',

@@ -1,4 +1,5 @@
 import { prisma } from "@kusinakonek/database";
+import { safeDecrypt } from "../utils/encryption";
 
 // ============================================================
 // Type Definitions
@@ -8,16 +9,22 @@ export interface DonorStats {
   totalDonated: number;
   availableItems: number;
   averageRating: number;
+  familiesHelped: number;
+  unreadNotifications: number;
 }
 
 export interface RecipientStats {
   availableFoods: number;
   locations: number;
   totalServings: number;
+  totalReceived: number;
+  activeNow: number;
+  unreadNotifications: number;
 }
 
 export interface DonorDonationItem {
   disID: string;
+  foodID: string;
   foodName: string;
   quantity: string;
   status: string;
@@ -25,6 +32,7 @@ export interface DonorDonationItem {
   timestamp: Date;
   claimedBy: string | null;
   rating: number | null;
+  image: string | null;
 }
 
 export interface RecipientFoodItem {
@@ -33,6 +41,8 @@ export interface RecipientFoodItem {
   quantity: string;
   status: string;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timestamp: Date;
   canGiveFeedback: boolean;
   myRating: number | null;
@@ -62,18 +72,21 @@ export const dashboardRepository = {
    * Counts: total donated, available items, average rating
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
-    const [totalDonated, availableItems, avgRating] = await Promise.all([
-      // Count completed distributions (donations that were delivered)
+    const [totalDonated, availableItems, avgRating, familiesHelped, unreadNotifications] = await Promise.all([
+      // Count distributions that have been claimed/on-the-way/completed
       prisma.distribution.count({
         where: {
           donorID: userID,
-          status: { in: ["DELIVERED", "COMPLETED"] },
+          status: { in: ["CLAIMED", "ON_THE_WAY", "COMPLETED"] },
         },
       }),
 
-      // Count food items the donor has available
-      prisma.food.count({
-        where: { userID: userID },
+      // Count distributions still available (PENDING)
+      prisma.distribution.count({
+        where: {
+          donorID: userID,
+          status: "PENDING",
+        },
       }),
 
       // Calculate average rating from feedback received
@@ -81,12 +94,32 @@ export const dashboardRepository = {
         where: { donorID: userID },
         _avg: { ratingScore: true },
       }),
+
+      // Count distinct recipients (families helped)
+      prisma.distribution.findMany({
+        where: {
+          donorID: userID,
+          recipientID: { not: null },
+        },
+        select: { recipientID: true },
+        distinct: ["recipientID"],
+      }),
+
+      // Count unread notifications
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
+      }),
     ]);
 
     return {
       totalDonated,
       availableItems,
       averageRating: Math.round((avgRating._avg.ratingScore ?? 0) * 10) / 10,
+      familiesHelped: familiesHelped.length,
+      unreadNotifications,
     };
   },
 
@@ -101,13 +134,19 @@ export const dashboardRepository = {
       where: { donorID: userID },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
-        recipient: true,
+      select: {
+        disID: true,
+        foodID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        food: { select: { foodName: true, image: true } },
+        location: { select: { barangay: true } },
+        recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
           where: { donorID: userID },
           take: 1,
+          select: { ratingScore: true },
         },
       },
     });
@@ -115,16 +154,17 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodID: d.foodID,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
+        location: safeDecrypt(d.location.barangay),
         timestamp: d.timestamp,
-        claimedBy:
-          d.recipient
-            ? `${d.recipient.firstName} ${d.recipient.lastName}`
-            : null,
+        claimedBy: d.recipient
+          ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
+          : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
+        image: d.food?.image || null,
       };
     });
   },
@@ -134,17 +174,16 @@ export const dashboardRepository = {
    * Counts: available foods, distinct locations, total servings
    */
   async getRecipientStats(userID: string): Promise<RecipientStats> {
-    const [availableFoods, locationData, servingsData] = await Promise.all([
-      // Count available distributions (pending - not yet completed)
+    // quantity is a String field, so we can't use _sum in aggregate.
+    // Fetch counts + quantities separately.
+    const [availableCount, locationCount, quantities, unreadNotifications] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
-          recipientID: null, // Only count items that haven't been claimed
+          recipientID: null,
         },
       }),
-
-      // Count distinct locations with available food
-      prisma.dropOffLocation.findMany({
+      prisma.dropOffLocation.count({
         where: {
           distributions: {
             some: {
@@ -152,28 +191,51 @@ export const dashboardRepository = {
             },
           },
         },
-        select: { locID: true },
       }),
-
-      // Sum total servings available (Manual sum since quantity is string)
       prisma.distribution.findMany({
         where: {
           status: "PENDING",
+          recipientID: null,
         },
         select: { quantity: true },
       }),
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
+      }),
     ]);
 
-    // Calculate total servings by parsing string quantities
-    const totalServings = servingsData.reduce((acc, curr) => {
-      const parsed = parseInt(curr.quantity, 10);
-      return acc + (isNaN(parsed) ? 0 : parsed);
+    // Parse and sum quantity strings manually
+    const totalServings = quantities.reduce((sum, d) => {
+      const parsed = parseInt(String(d.quantity), 10);
+      return sum + (isNaN(parsed) ? 0 : parsed);
     }, 0);
 
+    // Count completed distributions for this recipient (food received)
+    const totalReceived = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: "COMPLETED",
+      },
+    });
+
+    // Count active distributions for this recipient (claimed / on the way)
+    const activeNow = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: { in: ["CLAIMED", "ON_THE_WAY"] },
+      },
+    });
+
     return {
-      availableFoods,
-      locations: locationData.length,
+      availableFoods: availableCount,
+      locations: locationCount,
       totalServings,
+      totalReceived,
+      activeNow,
+      unreadNotifications,
     };
   },
 
@@ -186,14 +248,20 @@ export const dashboardRepository = {
   ): Promise<RecipientFoodItem[]> {
     const distributions = await prisma.distribution.findMany({
       where: { recipientID: userID },
-      orderBy: { timestamp: "desc" },
+      orderBy: { claimedAt: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        status: true,
+        timestamp: true,
+        claimedAt: true,
+        food: { select: { foodName: true } },
+        location: { select: { barangay: true, latitude: true, longitude: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
+          select: { ratingScore: true, comments: true },
         },
       },
     });
@@ -205,11 +273,13 @@ export const dashboardRepository = {
 
       return {
         disID: d.disID,
-        foodName: d.food.foodName,
+        foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
-        location: d.location.barangay,
-        timestamp: d.timestamp,
+        location: safeDecrypt(d.location.barangay),
+        latitude: d.location.latitude,
+        longitude: d.location.longitude,
+        timestamp: d.claimedAt || d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
         myComment: myFeedback?.comments ?? null,
@@ -228,9 +298,13 @@ export const dashboardRepository = {
       },
       orderBy: { timestamp: "desc" },
       take: limit,
-      include: {
-        food: true,
-        location: true,
+      select: {
+        disID: true,
+        quantity: true,
+        scheduledTime: true,
+        timestamp: true,
+        food: { select: { foodName: true, description: true, image: true } },
+        location: { select: { barangay: true, streetAddress: true } },
         donor: {
           select: {
             firstName: true,
@@ -244,15 +318,15 @@ export const dashboardRepository = {
 
     return distributions.map((d) => ({
       disID: d.disID,
-      foodName: d.food.foodName,
+      foodName: safeDecrypt(d.food.foodName),
       quantity: d.quantity,
-      description: d.food.description,
-      image: d.food.image,
-      location: d.location.barangay,
-      streetAddress: d.location.streetAddress,
+      description: d.food.description ? safeDecrypt(d.food.description) : null,
+      image: d.food.image ? safeDecrypt(d.food.image) : null,
+      location: safeDecrypt(d.location.barangay),
+      streetAddress: safeDecrypt(d.location.streetAddress),
       donorName: d.donor.isOrg
-        ? (d.donor.orgName ?? "Organization")
-        : `${d.donor.firstName} ${d.donor.lastName}`,
+        ? safeDecrypt(d.donor.orgName ?? "Organization")
+        : `${safeDecrypt(d.donor.firstName)} ${safeDecrypt(d.donor.lastName)}`,
       scheduledTime: d.scheduledTime,
       timestamp: d.timestamp,
     }));

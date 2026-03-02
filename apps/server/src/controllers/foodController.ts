@@ -70,13 +70,17 @@ export const foodController = {
   // Donation-specific controllers with encryption
   async createDonation(req: Request, res: Response, next: NextFunction) {
     try {
+      console.time(`ADD_DONATION_${req.user!.id}`);
+      console.log(`[FoodController] Starting donation submission...`);
       const input = req.body as CreateFoodInput;
       const result = await foodService.createDonation({
         userID: req.user!.id,
         input,
       });
+      console.timeEnd(`ADD_DONATION_${req.user!.id}`);
       return res.status(201).json(result);
     } catch (error) {
+      console.timeEnd(`ADD_DONATION_${req.user!.id}`);
       next(error);
     }
   },
@@ -140,6 +144,18 @@ export const foodController = {
     }
   },
 
+  async cancelDonation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await foodService.cancelDonation({
+        userID: req.user!.id,
+        foodID: req.params.foodID,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async requestDonation(req: Request, res: Response, next: NextFunction) {
     try {
       const input = req.body as RequestDonationInput;
@@ -148,6 +164,18 @@ export const foodController = {
         input,
       });
       return res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async confirmDonation(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await foodService.confirmDonation({
+        userID: req.user!.id,
+        foodID: req.params.foodID,
+      });
+      return res.status(200).json(result);
     } catch (error) {
       next(error);
     }

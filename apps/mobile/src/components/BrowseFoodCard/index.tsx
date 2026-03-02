@@ -1,9 +1,10 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { MapPin, Clock, Users } from "lucide-react-native";
+import { MapPin, Clock, Users, Navigation } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
-const DEFAULT_FOOD_IMAGE = require("../../../assets/KusinaKonek-Logo.png");
+const DEFAULT_FOOD_IMAGE = require("../../../assets/KUSINAKONEK-NEW-LOGO.png");
 
 export type BrowseFoodCardProps = {
   imageUri?: string | null;
@@ -12,6 +13,7 @@ export type BrowseFoodCardProps = {
   servings: number;
   barangay: string;
   timeAgo: string;
+  distanceKm?: number | null;
   onRequest?: () => void;
 };
 
@@ -22,10 +24,19 @@ export default function BrowseFoodCard({
   servings,
   barangay,
   timeAgo,
+  distanceKm,
   onRequest,
 }: BrowseFoodCardProps) {
+  const { colors } = useTheme();
+
+  const distanceLabel =
+    distanceKm != null
+      ? distanceKm < 1
+        ? `${Math.round(distanceKm * 1000)}m away`
+        : `${distanceKm} km away`
+      : null;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.row}>
         {/* Food Image */}
         <View style={styles.imageContainer}>
@@ -38,33 +49,42 @@ export default function BrowseFoodCard({
 
         {/* Food Info */}
         <View style={styles.info}>
-          <Text style={styles.foodName} numberOfLines={1}>
+          <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
             {foodName}
           </Text>
 
           {description ? (
-            <Text style={styles.description} numberOfLines={2}>
+            <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>
               {description}
             </Text>
           ) : null}
 
           <View style={styles.metaRow}>
-            <Users size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText}>{servings} servings</Text>
+            <Users size={14} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>{servings} servings</Text>
           </View>
 
           <View style={styles.metaRow}>
-            <MapPin size={14} color={theme.colors.mutedText} />
-            <Text style={styles.metaText} numberOfLines={1}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
               {barangay}
             </Text>
           </View>
 
+          {distanceLabel ? (
+            <View style={styles.metaRow}>
+              <Navigation size={14} color={colors.primary} />
+              <Text style={[styles.metaText, styles.distanceText]}>
+                {distanceLabel}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Bottom row: time + request button */}
           <View style={styles.bottomRow}>
             <View style={styles.timeRow}>
-              <Clock size={12} color={theme.colors.mutedText} />
-              <Text style={styles.timeText}>{timeAgo}</Text>
+              <Clock size={12} color={colors.textTertiary} />
+              <Text style={[styles.timeText, { color: colors.textTertiary }]}>{timeAgo}</Text>
             </View>
 
             <Pressable
@@ -141,6 +161,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.mutedText,
     flexShrink: 1,
+  },
+  distanceText: {
+    color: theme.colors.primary,
+    fontWeight: "600",
   },
   bottomRow: {
     flexDirection: "row",

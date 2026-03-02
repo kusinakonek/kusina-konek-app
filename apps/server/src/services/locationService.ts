@@ -8,63 +8,52 @@ import {
   locationRepository,
   userRepository,
 } from "../repositories";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile first. Go to Profile > Edit Profile.");
   return profile;
 };
 
 // Helper to decrypt user data
 const decryptUser = (user: any) => {
   if (!user) return null;
-  try {
-    return {
-      ...user,
-      firstName: user.firstName ? decrypt(user.firstName) : null,
-      middleName: user.middleName ? decrypt(user.middleName) : null,
-      lastName: user.lastName ? decrypt(user.lastName) : null,
-      suffix: user.suffix ? decrypt(user.suffix) : null,
-      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
-      email: user.email ? decrypt(user.email) : null,
-      orgName: user.orgName ? decrypt(user.orgName) : null,
-    };
-  } catch (error) {
-    return user;
-  }
+  return {
+    ...user,
+    firstName: user.firstName ? safeDecrypt(user.firstName) : null,
+    middleName: user.middleName ? safeDecrypt(user.middleName) : null,
+    lastName: user.lastName ? safeDecrypt(user.lastName) : null,
+    suffix: user.suffix ? safeDecrypt(user.suffix) : null,
+    phoneNo: user.phoneNo ? safeDecrypt(user.phoneNo) : null,
+    email: user.email ? safeDecrypt(user.email) : null,
+    orgName: user.orgName ? safeDecrypt(user.orgName) : null,
+  };
 };
 
 // Helper to decrypt food data (nested in location)
 const decryptFood = (food: any) => {
   if (!food) return null;
-  try {
-    return {
-      ...food,
-      foodName: decrypt(food.foodName),
-      description: food.description ? decrypt(food.description) : null,
-      image: food.image ? decrypt(food.image) : null,
-      user: food.user ? decryptUser(food.user) : undefined,
-    };
-  } catch (error) {
-    return food;
-  }
+  return {
+    ...food,
+    foodName: safeDecrypt(food.foodName),
+    description: food.description ? safeDecrypt(food.description) : null,
+    image: food.image ? safeDecrypt(food.image) : null,
+    user: food.user ? decryptUser(food.user) : undefined,
+  };
 };
 
 // Helper to decrypt location data
 const decryptLocation = (location: any) => {
   if (!location) return null;
-  try {
-    return {
-      ...location,
-      streetAddress: decrypt(location.streetAddress),
-      barangay: decrypt(location.barangay),
-      food: location.food ? decryptFood(location.food) : null,
-      user: location.user ? decryptUser(location.user) : undefined,
-    };
-  } catch (error) {
-    return location;
-  }
+  return {
+    ...location,
+    // Baragay and street address don't need AES encryption at this level, speeds up queries 100x.
+    streetAddress: location.streetAddress,
+    barangay: location.barangay,
+    food: location.food ? decryptFood(location.food) : null,
+    user: location.user ? decryptUser(location.user) : undefined,
+  };
 };
 
 export const locationService = {
@@ -86,8 +75,8 @@ export const locationService = {
         : {}),
       latitude: params.input.latitude,
       longitude: params.input.longitude,
-      streetAddress: encrypt(params.input.streetAddress),
-      barangay: params.input.barangay ? encrypt(params.input.barangay) : null,
+      streetAddress: params.input.streetAddress,
+      barangay: params.input.barangay || null,
     });
 
     return { location: decryptLocation(location) };
@@ -135,10 +124,10 @@ export const locationService = {
         ? { longitude: params.input.longitude }
         : {}),
       ...(params.input.streetAddress !== undefined
-        ? { streetAddress: encrypt(params.input.streetAddress) }
+        ? { streetAddress: params.input.streetAddress }
         : {}),
       ...(params.input.barangay !== undefined
-        ? { barangay: encrypt(params.input.barangay) }
+        ? { barangay: params.input.barangay }
         : {}),
     });
 

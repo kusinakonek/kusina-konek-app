@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { View, Modal as RNModal, StyleSheet, TouchableWithoutFeedback, ViewStyle } from 'react-native';
+import { useTheme } from '../../../context/ThemeContext';
 
 interface ModalProps {
     visible: boolean;
     onClose: () => void;
-    children: React.ReactNode;
     style?: ViewStyle;
     transparent?: boolean;
     animationType?: 'none' | 'slide' | 'fade';
 }
 
-export const Modal: React.FC<ModalProps> = ({
+export const Modal = ({
     visible,
     onClose,
     children,
     style,
     transparent = true,
     animationType = 'fade'
-}) => {
+}: PropsWithChildren<ModalProps>) => {
+    const { colors } = useTheme();
+
     return (
         <RNModal
             visible={visible}
@@ -28,8 +30,8 @@ export const Modal: React.FC<ModalProps> = ({
             <TouchableWithoutFeedback onPress={onClose}>
                 <View style={styles.overlay}>
                     <TouchableWithoutFeedback>
-                        <View style={[styles.content, style]}>
-                            {children}
+                        <View style={[styles.content, { backgroundColor: colors.card }, style]}>
+                            <>{children}</>
                         </View>
                     </TouchableWithoutFeedback>
                 </View>

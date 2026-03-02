@@ -16,7 +16,20 @@
     "db:studio": "npm --workspace packages/database run studio",
     "db:seed": "npm --workspace packages/database run seed"
   },
+  "overrides": {
+    "@types/react": "19.0.10",
+    "react-native-gesture-handler": "2.24.0",
+    "react-native-reanimated": "3.17.4",
+    "react-native-screens": "4.11.1",
+    "lucide-react-native": {
+      "react": "19.0.0"
+    }
+  },
   "devDependencies": {
-    "@types/react": "~19.0.10"
+    "@types/react": "19.0.10"
+  },
+  "dependencies": {
+    "expo": "~53.0.27",
+    "expo-dev-client": "~5.2.4"
   }
 }

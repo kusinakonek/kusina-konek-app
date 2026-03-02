@@ -5,7 +5,7 @@ export const createFoodSchema = z.object({
   dateCooked: z.string().datetime().optional(),
   description: z.string().min(1).optional(),
   quantity: z.string().min(1),
-  image: z.string().url().optional(),
+  image: z.string().optional(),
   locations: z
     .array(
       z.object({
@@ -17,13 +17,13 @@ export const createFoodSchema = z.object({
     )
     .optional(),
   scheduledTime: z.string().datetime(),
-  photoProof: z.string().url().optional(),
+  photoProof: z.string().optional(),
 });
 
 export const requestDonationSchema = z.object({
   foodID: z.string().uuid(),
   scheduledTime: z.string().datetime(),
-  photoProof: z.string().url().optional(),
+  photoProof: z.string().optional(),
 });
 
 export const updateFoodSchema = createFoodSchema.partial();

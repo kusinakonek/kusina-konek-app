@@ -1,17 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, MapPin, X } from 'lucide-react-native';
 
+// Conditionally import react-native-maps (not supported on web)
+let MapView: any = null;
+let Marker: any = null;
+if (Platform.OS !== 'web') {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+}
+
+// Define Region type for location state
+type Region = {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+};
+
 export default function AddFood() {
     const { user } = useAuth();
     const router = useRouter();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
 
     // Form State
@@ -34,7 +52,7 @@ export default function AddFood() {
         (async () => {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission to access location was denied');
+                showAlert('Location Error', 'Permission to access location was denied', undefined, { type: 'error' });
                 return;
             }
 
@@ -57,32 +75,34 @@ export default function AddFood() {
 
     const handleSubmit = async () => {
         if (!foodName || !quantity || !selectedLocation) {
-            Alert.alert('Error', 'Please fill in all required fields and select a location.');
+            showAlert('Error', 'Please fill in all required fields and select a location.', undefined, { type: 'warning' });
             return;
         }
 
         setLoading(true);
         try {
             const payload = {
-                food_name: foodName,
+                foodName: foodName,
                 description,
-                quantity: parseInt(quantity),
+                quantity: quantity.toString(),
                 unit,
-                pickup_location: locationName,
-                latitude: selectedLocation.lat,
-                longitude: selectedLocation.lng,
-                status: 'AVAILABLE'
+                locations: [{
+                    latitude: selectedLocation.lat,
+                    longitude: selectedLocation.lng,
+                    streetAddress: locationName || 'Selected Location',
+                    barangay: 'N/A'
+                }],
+                scheduledTime: new Date().toISOString(),
             };
 
-            // Using DISTRIBUTION endpoint based on inference, adapting if needed
-            await api.post(API_ENDPOINTS.DISTRIBUTION.ADD_DISTRIBUTION, payload);
+            await api.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
 
-            Alert.alert('Success', 'Food donation added successfully!', [
+            showAlert('Success', 'Food donation added successfully!', [
                 { text: 'OK', onPress: () => router.push('/(tabs)') }
-            ]);
+            ], { type: 'success' });
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Error', error.response?.data?.message || 'Failed to add food.');
+            showAlert('Error', error.response?.data?.message || 'Failed to add food.', undefined, { type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -140,19 +160,27 @@ export default function AddFood() {
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Pickup Location (Tap on Map) *</Text>
                     <View style={styles.mapContainer}>
-                        <MapView
-                            style={styles.map}
-                            region={location}
-                            onPress={handleMapPress}
-                            showsUserLocation
-                        >
-                            {selectedLocation && (
-                                <Marker
-                                    coordinate={{ latitude: selectedLocation.lat, longitude: selectedLocation.lng }}
-                                    title="Pickup Location"
-                                />
-                            )}
-                        </MapView>
+                        {Platform.OS !== 'web' && MapView ? (
+                            <MapView
+                                style={styles.map}
+                                region={location}
+                                onPress={handleMapPress}
+                                showsUserLocation
+                            >
+                                {selectedLocation && (
+                                    <Marker
+                                        coordinate={{ latitude: selectedLocation.lat, longitude: selectedLocation.lng }}
+                                        title="Pickup Location"
+                                    />
+                                )}
+                            </MapView>
+                        ) : (
+                            <View style={[styles.map, styles.webMapFallback]}>
+                                <MapPin size={32} color="#666" />
+                                <Text style={styles.webMapText}>Map not available on web.</Text>
+                                <Text style={styles.webMapSubtext}>Please use the mobile app to select a location.</Text>
+                            </View>
+                        )}
                     </View>
                     {selectedLocation && (
                         <Text style={styles.locationText}>Selected: {locationName}</Text>
@@ -185,5 +213,8 @@ const styles = StyleSheet.create({
     locationText: { fontSize: 14, color: '#666', marginTop: 5, fontStyle: 'italic' },
     submitButton: { backgroundColor: '#00C853', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 },
     disabledButton: { opacity: 0.7 },
-    submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
+    submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+    webMapFallback: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' },
+    webMapText: { fontSize: 16, color: '#666', marginTop: 10, fontWeight: '600' },
+    webMapSubtext: { fontSize: 14, color: '#999', marginTop: 4 }
 });

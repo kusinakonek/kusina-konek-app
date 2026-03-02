@@ -22,6 +22,13 @@ export const styles = StyleSheet.create({
         marginBottom: 30,
         alignItems: 'center',
     },
+    fixedHeader: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 8,
+        backgroundColor: '#fff',
+        zIndex: 10,
+    },
     logoImage: {
         width: 90,
         height: 90,
@@ -136,5 +143,22 @@ export const styles = StyleSheet.create({
     hintMet: {
         color: '#00C853',
         fontWeight: '600',
+    },
+    errorText: {
+        color: '#ff4444',
+        fontSize: 12,
+        marginTop: 4,
+        marginLeft: 4,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingHorizontal: 4,
+        marginVertical: 4,
+    },
+    checkboxLabel: {
+        fontSize: 14,
+        marginLeft: 8,
     },
 });

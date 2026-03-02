@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ArrowLeft } from "lucide-react-native";
 import { theme } from "../../constants/theme";
+import { useTheme } from "../../../context/ThemeContext";
 
 type CartHeaderProps = {
   itemCount: number;
@@ -9,19 +10,20 @@ type CartHeaderProps = {
 };
 
 export default function CartHeader({ itemCount, onBack }: CartHeaderProps) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border }]}>
       <Pressable
         onPress={onBack}
         style={styles.backButton}
         accessibilityRole="button"
         accessibilityLabel="Go back">
-        <ArrowLeft size={24} color={theme.colors.text} />
+        <ArrowLeft size={24} color={colors.text} />
       </Pressable>
 
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>My Cart</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: colors.text }]}>My Cart</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {itemCount} item{itemCount !== 1 ? "(s)" : ""}
         </Text>
       </View>

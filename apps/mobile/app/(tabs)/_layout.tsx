@@ -1,8 +1,18 @@
-import { Tabs } from "expo-router";
-import { Home, ShoppingCart, User, PlusCircle, Search } from "lucide-react-native";
-import { View, Text, StyleSheet } from "react-native";
+import { Tabs, router } from "expo-router";
+import { Home, ShoppingCart, User, Utensils } from "lucide-react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Image as RNImage,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
+import { useTheme } from "../../context/ThemeContext";
+import { wp, hp, fp } from "../../src/utils/responsive";
 
 function CartIcon({
   color,
@@ -14,7 +24,7 @@ function CartIcon({
   badgeCount?: number;
 }) {
   return (
-    <View>
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
       <ShoppingCart size={size} color={color} />
       {badgeCount != null && badgeCount > 0 && (
         <View style={styles.badge}>
@@ -27,9 +37,26 @@ function CartIcon({
   );
 }
 
+function FloatingActionButton() {
+  return (
+    <View style={styles.fabContainer} pointerEvents="none">
+      <View style={styles.fab}>
+        <RNImage
+          source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
+          style={{ width: wp(32), height: wp(32) }}
+          resizeMode="contain"
+        />
+      </View>
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const { role } = useAuth();
   const { items: cartItems } = useCart();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const isDonor = role === "DONOR";
   const isRecipient = role === "RECIPIENT";
 
   return (
@@ -37,23 +64,28 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#00C853",
-        tabBarInactiveTintColor: "#999",
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: "#f0f0f0",
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-          backgroundColor: '#fff',
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
+          borderTopWidth: 0,
+          height:
+            Platform.OS === "ios"
+              ? hp(85) + insets.bottom
+              : hp(65) + insets.bottom,
+          paddingBottom:
+            Platform.OS === "ios"
+              ? hp(25) + insets.bottom
+              : hp(8) + insets.bottom,
+          paddingTop: hp(8),
+          backgroundColor: colors.tabBar,
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.1,
-          shadowRadius: 4,
+          shadowRadius: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: fp(11),
+          fontWeight: "600",
         },
       }}>
       <Tabs.Screen
@@ -67,18 +99,41 @@ export default function TabLayout() {
       <Tabs.Screen
         name="action"
         options={{
-          title: role === 'DONOR' ? "Donate" : "Browse",
-          tabBarIcon: ({ color, size }) => (
-            role === 'DONOR' ? <PlusCircle size={size} color={color} /> : <Search size={size} color={color} />
-          ),
+          title: "",
+          ...(isDonor
+            ? {
+              tabBarButton: (props) => {
+                // Only extract necessary props to avoid type mismatches with spread
+                const { accessibilityState, accessibilityLabel, testID } =
+                  props;
+                return (
+                  <TouchableOpacity
+                    style={styles.fabContainer}
+                    onPress={() => router.push("/donate")}
+                    activeOpacity={0.8}
+                    accessibilityState={accessibilityState}
+                    accessibilityLabel={accessibilityLabel}
+                    testID={testID}>
+                    <View style={styles.fab}>
+                      <RNImage
+                        source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
+                        style={{ width: wp(32), height: wp(32) }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              },
+            }
+            : { href: null }),
         }}
       />
 
       <Tabs.Screen
         name="my-cart"
         options={{
-          title: "My Cart",
-          href: isRecipient ? "/(tabs)/my-cart" : null,
+          title: "Cart",
+          href: isRecipient ? undefined : null,
           tabBarIcon: ({ color, size }) => (
             <CartIcon color={color} size={size} badgeCount={cartItems.length} />
           ),
@@ -92,26 +147,64 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
+
+      {/* Hidden screens — accessible via navigation but not in tab bar */}
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          title: "Edit Profile",
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
+  fabContainer: {
+    position: "absolute",
+    top: wp(-28),
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fab: {
+    width: wp(56),
+    height: wp(56),
+    borderRadius: wp(28),
+    backgroundColor: "#00C853",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#00C853",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
   badge: {
     position: "absolute",
     top: -4,
     right: -8,
     backgroundColor: "#D32F2F",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: wp(10),
+    minWidth: wp(18),
+    height: wp(18),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: wp(4),
   },
   badgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: fp(10),
     fontWeight: "700",
   },
 });

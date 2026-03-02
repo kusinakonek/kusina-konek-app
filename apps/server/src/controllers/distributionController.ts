@@ -101,7 +101,22 @@ export const distributionController = {
 
   async listAvailable(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await distributionService.listAvailableDistributions();
+      // Exclude the authenticated user's own donations (anti-cheat)
+      const excludeDonorID = req.user?.id;
+
+      // Optional location query params for distance-based sorting
+      const lat = req.query.lat
+        ? parseFloat(req.query.lat as string)
+        : undefined;
+      const lng = req.query.lng
+        ? parseFloat(req.query.lng as string)
+        : undefined;
+
+      const result = await distributionService.listAvailableDistributions(
+        excludeDonorID,
+        lat,
+        lng,
+      );
       return res.status(200).json(result);
     } catch (error) {
       next(error);
@@ -127,6 +142,27 @@ export const distributionController = {
         userRole: req.user?.role,
         disID: req.params.disID,
         input,
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async claimLimits(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await distributionService.getClaimLimits(req.user!.id);
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async markOnTheWay(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await distributionService.markOnTheWay({
+        userID: req.user!.id,
+        disID: req.params.disID,
       });
       return res.status(200).json(result);
     } catch (error) {

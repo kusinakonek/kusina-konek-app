@@ -16,3 +16,12 @@ usersRouter.put(
   validateRequest(completeUserProfileSchema),
   userController.completeProfile
 );
+
+// PATCH - Switch user role (DONOR <-> RECIPIENT)
+usersRouter.patch("/role", authMiddleware, userController.switchRole);
+
+// PUT - Register/update Expo push token
+usersRouter.put("/push-token", authMiddleware, userController.updatePushToken);
+
+// DELETE - Delete user account
+usersRouter.delete("/account", authMiddleware, userController.deleteAccount);

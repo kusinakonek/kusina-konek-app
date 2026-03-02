@@ -47,5 +47,76 @@ export const userController = {
     } catch (error) {
       next(error);
     }
-  }
+  },
+  /**
+   * PUT /api/users/push-token
+   * Register or update the user's Expo push token for background notifications
+   */
+  async updatePushToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { pushToken, latitude, longitude } = req.body;
+      if (pushToken !== null && typeof pushToken !== "string") {
+        return res.status(400).json({ error: "pushToken must be a string or null" });
+      }
+
+      await userService.updatePushToken({
+        userID: req.user.id,
+        pushToken,
+        latitude,
+        longitude
+      });
+      return res.status(200).json({ message: "Push token and location updated" });
+    } catch (error) {
+      console.error("[updatePushToken] Error:", error);
+      next(error);
+    }
+  },
+
+  /**
+   * DELETE /api/users/account
+   * Delete the authenticated user's account and all associated data
+   */
+  async deleteAccount(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      await userService.deleteAccount(req.user.id);
+      return res.status(200).json({ message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("[deleteAccount] Error:", error);
+      next(error);
+    }
+  },
+
+  /**
+   * PATCH /api/users/role
+   * Switch the authenticated user's role (DONOR <-> RECIPIENT)
+   */
+  async switchRole(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { role } = req.body;
+      if (role !== "DONOR" && role !== "RECIPIENT") {
+        return res.status(400).json({ error: "Role must be 'DONOR' or 'RECIPIENT'" });
+      }
+
+      const result = await userService.switchRole({
+        userID: req.user.id,
+        roleName: role,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };

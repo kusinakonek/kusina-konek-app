@@ -28,6 +28,7 @@ export interface DonationFormData {
         address: string;
         latitude: number;
         longitude: number;
+        barangay?: string;
     } | null;
 }
 

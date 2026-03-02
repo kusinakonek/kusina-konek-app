@@ -13,75 +13,110 @@ import {
   locationRepository,
   userRepository,
 } from "../repositories";
-import { encrypt, decrypt } from "../utils/encryption";
+import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
+import { notificationService } from "./notificationService";
+
+/**
+ * Haversine formula: compute distance in km between two lat/lng points.
+ */
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile)
+    throw new HttpError(
+      400,
+      "Please complete your profile first. Go to Profile > Edit Profile.",
+    );
   return profile;
 };
 
-// Helper to decrypt user data
+// Helper to decrypt user data (only decrypt fields that exist)
 const decryptUser = (user: any) => {
   if (!user) return null;
-  try {
-    return {
-      ...user,
-      firstName: user.firstName ? decrypt(user.firstName) : null,
-      middleName: user.middleName ? decrypt(user.middleName) : null,
-      lastName: user.lastName ? decrypt(user.lastName) : null,
-      suffix: user.suffix ? decrypt(user.suffix) : null,
-      phoneNo: user.phoneNo ? decrypt(user.phoneNo) : null,
-      email: user.email ? decrypt(user.email) : null,
-      orgName: user.orgName ? decrypt(user.orgName) : null,
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return user;
-  }
+  const decrypted: any = { ...user };
+  if (user.firstName) decrypted.firstName = safeDecrypt(user.firstName);
+  if (user.middleName) decrypted.middleName = safeDecrypt(user.middleName);
+  if (user.lastName) decrypted.lastName = safeDecrypt(user.lastName);
+  if (user.suffix) decrypted.suffix = safeDecrypt(user.suffix);
+  if (user.phoneNo) decrypted.phoneNo = safeDecrypt(user.phoneNo);
+  if (user.email) decrypted.email = safeDecrypt(user.email);
+  if (user.orgName) decrypted.orgName = safeDecrypt(user.orgName);
+  return decrypted;
 };
 
-// Helper to decrypt distribution data
+// Helper to decrypt location data (only decrypt fields that exist)
+const decryptLocation = (location: any) => {
+  if (!location) return null;
+  const decrypted: any = { ...location };
+  if (location.streetAddress)
+    decrypted.streetAddress = safeDecrypt(location.streetAddress);
+  if (location.barangay) decrypted.barangay = safeDecrypt(location.barangay);
+  return decrypted;
+};
+
+// Helper to decrypt distribution data (optimized)
 const decryptDistribution = (distribution: any) => {
-  try {
-    return {
-      ...distribution,
-      photoProof: distribution.photoProof
-        ? decrypt(distribution.photoProof)
-        : null,
-      donor: decryptUser(distribution.donor),
-      recipient: decryptUser(distribution.recipient),
-      location: distribution.location
-        ? {
-            ...distribution.location,
-            streetAddress: decrypt(distribution.location.streetAddress),
-            barangay: decrypt(distribution.location.barangay),
-          }
-        : null,
-      food: distribution.food
-        ? {
-            ...distribution.food,
-            foodName: decrypt(distribution.food.foodName),
-            description: distribution.food.description
-              ? decrypt(distribution.food.description)
-              : null,
-            image: distribution.food.image
-              ? decrypt(distribution.food.image)
-              : null,
-            user: decryptUser(distribution.food.user),
-          }
-        : null,
-      feedbacks:
-        distribution.feedbacks?.map((feedback: any) => ({
-          ...feedback,
-          donor: decryptUser(feedback.donor),
-          recipient: decryptUser(feedback.recipient),
-        })) || [],
-    };
-  } catch (error) {
-    // If decryption fails, return original (data might not be encrypted)
-    return distribution;
+  const decrypted: any = { ...distribution };
+
+  if (distribution.photoProof) {
+    decrypted.photoProof = safeDecrypt(distribution.photoProof);
   }
+
+  if (distribution.donor) {
+    decrypted.donor = decryptUser(distribution.donor);
+  }
+
+  if (distribution.recipient) {
+    decrypted.recipient = decryptUser(distribution.recipient);
+  }
+
+  if (distribution.location) {
+    decrypted.location = decryptLocation(distribution.location);
+  }
+
+  if (distribution.food) {
+    decrypted.food = {
+      ...distribution.food,
+      foodName: safeDecrypt(distribution.food.foodName),
+      description: distribution.food.description
+        ? safeDecrypt(distribution.food.description)
+        : null,
+      image: distribution.food.image
+        ? safeDecrypt(distribution.food.image)
+        : null,
+    };
+    if (distribution.food.user) {
+      decrypted.food.user = decryptUser(distribution.food.user);
+    }
+  }
+
+  if (distribution.feedbacks?.length) {
+    decrypted.feedbacks = distribution.feedbacks.map((feedback: any) => ({
+      ...feedback,
+      donor: decryptUser(feedback.donor),
+      recipient: decryptUser(feedback.recipient),
+    }));
+  }
+
+  return decrypted;
 };
 
 export const distributionService = {
@@ -125,6 +160,16 @@ export const distributionService = {
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
+
+    // Notify all recipients that new food is available
+    notificationService
+      .broadcastToRecipients(
+        "🍱 New Food Available!",
+        `${safeDecrypt(food.foodName) || "Food"} is now available near you.`,
+        { screen: "BrowseFood" },
+      )
+      .catch((e) => console.error("Broadcast error:", e));
+
     return { distribution: decryptedDistribution };
   },
 
@@ -153,11 +198,58 @@ export const distributionService = {
     return { distributions: decryptedDistributions };
   },
 
-  async listAvailableDistributions() {
-    // No auth required - public endpoint for browsing available distributions
-    const distributions = await distributionRepository.listAvailable();
-    const decryptedDistributions = distributions.map(decryptDistribution);
-    return { distributions: decryptedDistributions };
+  async listAvailableDistributions(
+    excludeDonorID?: string,
+    userLat?: number,
+    userLng?: number,
+  ) {
+    // Filter by today onwards so recipients only see current/future distributions
+    const now = new Date();
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    const distributions = await distributionRepository.listAvailable(
+      excludeDonorID,
+      startOfDay,
+    );
+    const decrypted = distributions.map(decryptDistribution);
+
+    // If user location is provided, compute distance and sort by nearest
+    if (
+      userLat !== undefined &&
+      userLng !== undefined &&
+      !isNaN(userLat) &&
+      !isNaN(userLng)
+    ) {
+      const withDistance = decrypted.map((d: any) => {
+        const loc = d.location;
+        if (loc?.latitude != null && loc?.longitude != null) {
+          const dist = haversineKm(
+            userLat,
+            userLng,
+            loc.latitude,
+            loc.longitude,
+          );
+          return { ...d, distanceKm: Math.round(dist * 10) / 10 };
+        }
+        return { ...d, distanceKm: null };
+      });
+
+      // Sort: items with distance first (ascending), then items without distance
+      withDistance.sort((a: any, b: any) => {
+        if (a.distanceKm == null && b.distanceKm == null) return 0;
+        if (a.distanceKm == null) return 1;
+        if (b.distanceKm == null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+
+      return { distributions: withDistance };
+    }
+
+    return { distributions: decrypted };
   },
 
   async listDistributionsForRecipient(recipientID: string) {
@@ -254,6 +346,45 @@ export const distributionService = {
     return { distribution: decryptedDistribution };
   },
 
+  /**
+   * Recipient marks they are on the way to pick up the food.
+   * Changes status to ON_THE_WAY and notifies the donor.
+   */
+  async markOnTheWay(params: { userID: string; disID: string }) {
+    await ensureProfile(params.userID);
+
+    const existing = await distributionRepository.getById(params.disID);
+    if (!existing) throw new HttpError(404, "Distribution not found");
+
+    if (existing.recipientID !== params.userID) {
+      throw new HttpError(403, "Only the recipient can mark as on the way");
+    }
+
+    if (existing.status !== "CLAIMED") {
+      throw new HttpError(409, "Distribution must be in CLAIMED status");
+    }
+
+    const distribution = await distributionRepository.updateStatus(
+      params.disID,
+      "ON_THE_WAY",
+    );
+
+    // Notify donor
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "🚶 Recipient is on the way!",
+        "Someone is heading to pick up your food donation.",
+        "ON_THE_WAY",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
+
+    const decryptedDistribution = decryptDistribution(distribution);
+    return { distribution: decryptedDistribution };
+  },
+
   async completeDistribution(params: {
     userID: string;
     disID: string;
@@ -279,8 +410,63 @@ export const distributionService = {
       status: "COMPLETED",
     });
 
+    // Notify donor that food was successfully received
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "✅ Food Delivered!",
+        "Your food donation has been successfully received by the recipient.",
+        "DELIVERY_CONFIRMED",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
+
     const decryptedDistribution = decryptDistribution(updated);
     return { distribution: decryptedDistribution };
+  },
+
+  /**
+   * Get the recipient's claim usage (daily, weekly, monthly counts).
+   * Limits: 1/day, 3/week, 5/month. Resets each calendar month.
+   */
+  async getClaimLimits(userID: string) {
+    const now = new Date();
+
+    // Start of today (midnight)
+    const startOfDay = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    // Start of current week (Monday)
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const startOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - mondayOffset,
+    );
+
+    // Start of current month
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [dailyClaims, weeklyClaims, monthlyClaims] = await Promise.all([
+      distributionRepository.countClaimsSince(userID, startOfDay),
+      distributionRepository.countClaimsSince(userID, startOfWeek),
+      distributionRepository.countClaimsSince(userID, startOfMonth),
+    ]);
+
+    return {
+      dailyClaims,
+      weeklyClaims,
+      monthlyClaims,
+      maxDaily: 1,
+      maxWeekly: 3,
+      maxMonthly: 5,
+      canClaim: dailyClaims < 1 && weeklyClaims < 3 && monthlyClaims < 5,
+    };
   },
 
   async requestDistribution(params: {
@@ -293,6 +479,23 @@ export const distributionService = {
 
     if ((params.userRole as Role | undefined) !== "RECIPIENT") {
       throw new HttpError(403, "Only recipients can request distributions");
+    }
+
+    // --- Claim frequency limits: 1/day, 3/week, 5/month ---
+    const limits = await this.getClaimLimits(params.userID);
+    if (!limits.canClaim) {
+      let reason = "claim limit";
+      if (limits.monthlyClaims >= limits.maxMonthly) {
+        reason = `monthly limit of ${limits.maxMonthly} claims`;
+      } else if (limits.weeklyClaims >= limits.maxWeekly) {
+        reason = `weekly limit of ${limits.maxWeekly} claims`;
+      } else if (limits.dailyClaims >= limits.maxDaily) {
+        reason = `daily limit of ${limits.maxDaily} claim`;
+      }
+      throw new HttpError(
+        429,
+        `You have reached your ${reason}. Please try again later.`,
+      );
     }
 
     const existing = await distributionRepository.getById(params.disID);
@@ -312,19 +515,33 @@ export const distributionService = {
     const updated = await distributionRepository.update(params.disID, {
       recipient: { connect: { userID: params.userID } },
       status: "CLAIMED",
+      claimedAt: new Date(),
       ...(params.input.scheduledTime
         ? {
-            scheduledTime: new Date(params.input.scheduledTime),
-          }
+          scheduledTime: new Date(params.input.scheduledTime),
+        }
         : {}),
       ...(params.input.photoProof
         ? {
-            photoProof: params.input.photoProof,
-          }
+          photoProof: params.input.photoProof,
+        }
         : {}),
     });
 
     const decryptedDistribution = decryptDistribution(updated);
+
+    // Notify donor that their food was claimed
+    notificationService
+      .notifyUser(
+        existing.donorID,
+        "🎉 Your food was claimed!",
+        "Someone picked up your ulam. They will be on their way soon.",
+        "CLAIM_ALERT",
+        { screen: "DonorHome" },
+        params.disID,
+      )
+      .catch((e) => console.error("Notify error:", e));
+
     return { distribution: decryptedDistribution };
   },
 };

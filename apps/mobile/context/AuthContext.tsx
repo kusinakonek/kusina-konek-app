@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 import { Session, User } from '@supabase/supabase-js';
-import * as Crypto from 'expo-crypto';
 
 // Define the shape of the AuthContext
 interface AuthContextType {
@@ -18,6 +17,11 @@ interface AuthContextType {
     signUp: (email: string, password: string, metadata?: any) => Promise<void>;
     verifyOtp: (email: string, token: string) => Promise<void>;
     resendOtp: (email: string) => Promise<void>;
+    sendRecoveryOtp: (email: string) => Promise<void>;
+    verifyRecoveryOtp: (email: string, token: string) => Promise<void>;
+    updatePassword: (password: string) => Promise<void>;
+    sendDeleteAccountOtp: (email: string) => Promise<void>;
+    verifyDeleteAccountOtp: (email: string, token: string) => Promise<void>;
     pendingSignup: { email: string; password: string; metadata?: any } | null;
 }
 
@@ -35,17 +39,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Get initial session
         const initAuth = async () => {
             try {
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                setSession(currentSession);
-                setUser(currentSession?.user ?? null);
-                setUserToken(currentSession?.access_token ?? null);
+                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+                if (error || !currentSession) {
+                    // Session is invalid/expired — clear stale state silently
+                    setSession(null);
+                    setUser(null);
+                    setUserToken(null);
+                } else {
+                    setSession(currentSession);
+                    setUser(currentSession.user);
+                    setUserToken(currentSession.access_token);
+                }
 
                 const storedRole = await AsyncStorage.getItem('userRole');
                 if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
                     setRoleState(storedRole);
                 }
-            } catch (e) {
-                console.error('Failed to load auth data', e);
+            } catch (e: any) {
+                // Refresh token errors (e.g. "Refresh Token Not Found") end up here
+                console.log('Auth init error (expected on fresh start):', e?.message || e);
+
+                // If the error is related to invalid tokens, strictly clear everything
+                if (e?.message?.includes('Refresh Token Not Found') || e?.message?.includes('Invalid Refresh Token')) {
+                    await AsyncStorage.removeItem('userRole');
+                    await supabase.auth.signOut(); // Ensure Supabase client is also cleared
+                }
+
+                setSession(null);
+                setUser(null);
+                setUserToken(null);
+                setRoleState(null);
             } finally {
                 setIsLoading(false);
             }
@@ -55,6 +78,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            // Ignore TOKEN_REFRESHED failures — they happen when refresh token is stale
+            if (event === 'TOKEN_REFRESHED' && !newSession) {
+                console.log('Token refresh failed, ignoring');
+                return;
+            }
+
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);
@@ -75,6 +104,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setRole = async (newRole: 'DONOR' | 'RECIPIENT') => {
         setRoleState(newRole);
         await AsyncStorage.setItem('userRole', newRole);
+        // Sync role to database
+        try {
+            const axiosClient = (await import('../src/api/axiosClient')).default;
+            await axiosClient.patch('/users/role', { role: newRole });
+        } catch (error) {
+            console.error('Failed to sync role to database:', error);
+        }
     };
 
     const signIn = async (email: string, password: string) => {
@@ -91,13 +127,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        // Get role from user metadata or stored role
-        const userRole = data.user?.user_metadata?.role || role;
-        if (userRole === 'DONOR') {
-            router.replace('/(donor)');
-        } else {
-            router.replace('/(tabs)');
-        }
+        // Keep the role the user selected on the welcome screen.
+        // Do NOT override with user_metadata.role — the same account
+        // can switch between DONOR and RECIPIENT freely.
+        // `role` is already set by the welcome screen's setRole() call.
+        // Both roles use the tabs view
+        router.replace('/(tabs)');
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -155,35 +190,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 await createUserProfile(data.user.id, pendingSignup.password, pendingSignup.metadata);
             } catch (e) {
                 console.error('Error creating user profile:', e);
-                // Don't block login — profile creation is secondary
+            }
+            // Save role
+            if (pendingSignup.metadata?.role) {
+                await setRole(pendingSignup.metadata.role as 'DONOR' | 'RECIPIENT');
             }
             setPendingSignup(null);
-            // Route based on role from signup metadata
-            if (pendingSignup.metadata?.role === 'DONOR') {
-                router.replace('/(donor)');
-                return;
-            }
         }
 
-        // Default to recipient tabs
+        // Both roles use the tabs view
         router.replace('/(tabs)');
     };
 
-    // Helper: Create user profile in database via RPC
-    // Sends raw data — encryption (AES-256) and bcrypt happen server-side in PostgreSQL
+    // Helper: Create user profile in database via the Node.js API
+    // The backend handles encryption with AES-256-GCM consistently
     const createUserProfile = async (userId: string, password: string, metadata?: any) => {
         const normalizedEmail = metadata?.email || pendingSignup?.email || '';
         const phone = metadata?.phone_no || '';
-
-        // SHA-256 hashes for indexed lookup fields (unique constraints in DB)
-        const emailHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            normalizedEmail
-        );
-        const phoneNoHash = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            phone || `no-phone-${userId}`
-        );
 
         // Split full name into first and last
         const nameParts = (metadata?.full_name || '').trim().split(' ');
@@ -191,34 +214,119 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
         const selectedRole = metadata?.role || 'RECIPIENT';
+        // Organization fields - commented out for now
+        // const isOrg = metadata?.isOrg || false;
+        // const orgName = metadata?.orgName || '';
+        const isOrg = false;
+        const orgName = '';
 
-        // Call the RPC function — raw data sent over HTTPS
-        // The PostgreSQL function handles:
-        //   - AES-256 encryption for PII fields (firstName, lastName, email, phoneNo)
-        //   - bcrypt hashing for password
-        const { error: rpcError } = await supabase.rpc('create_user_profile', {
-            p_user_id: userId,
-            p_role_name: selectedRole,
-            p_first_name: firstName,
-            p_last_name: lastName || firstName,
-            p_phone_no: phone,
-            p_phone_no_hash: phoneNoHash,
-            p_email: normalizedEmail,
-            p_email_hash: emailHash,
-            p_password: password,
+        // Use the backend API which encrypts consistently with Node.js AES-256-GCM
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        if (!token) {
+            throw new Error('No auth token available to create profile');
+        }
+
+        const axiosClient = (await import('../src/api/axiosClient')).default;
+
+        const barangay = metadata?.barangay || '';
+
+        const response = await axiosClient.put('/users/profile', {
+            firstName,
+            lastName: lastName || firstName,
+            phoneNo: phone || `no-phone-${userId}`,
+            role: selectedRole,
+            isOrg,
+            orgName: isOrg && orgName ? orgName : null,
+            password,
+            ...(barangay ? {
+                address: {
+                    latitude: 0,
+                    longitude: 0,
+                    streetAddress: '',
+                    barangay,
+                }
+            } : {}),
         });
 
-        if (rpcError) {
-            console.error('Failed to create user profile:', rpcError);
-            throw rpcError;
+        if (response.status !== 200) {
+            throw new Error('Failed to create user profile via API');
         }
     };
 
-    // Resend OTP email
+    // Resend OTP email (for signup)
     const resendOtp = async (email: string) => {
         const { error } = await supabase.auth.resend({
             type: 'signup',
             email,
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Send recovery OTP (for forgot password)
+    const sendRecoveryOtp = async (email: string) => {
+        // Use resetPasswordForEmail to trigger the "Reset Password" template
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Verify recovery OTP (logs user in)
+    const verifyRecoveryOtp = async (email: string, token: string) => {
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'recovery', // Changed from 'email' (Magic Link) to 'recovery' (Reset Password)
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        if (data.session) {
+            setSession(data.session);
+            setUser(data.user);
+            setUserToken(data.session.access_token);
+        }
+    };
+
+    // Send OTP for Account Deletion
+    const sendDeleteAccountOtp = async (email: string) => {
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                shouldCreateUser: false,
+            }
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Verify OTP for Account Deletion (ensures user owns the email)
+    const verifyDeleteAccountOtp = async (email: string, token: string) => {
+        const { error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Update user password
+    const updatePassword = async (password: string) => {
+        const { error } = await supabase.auth.updateUser({
+            password
         });
 
         if (error) {
@@ -240,7 +348,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return (
         <AuthContext.Provider value={{
             userToken, session, user, isLoading, role, setRole,
-            signIn, signOut, signUp, verifyOtp, resendOtp, pendingSignup,
+            signIn, signOut, signUp, verifyOtp, resendOtp,
+            sendRecoveryOtp, verifyRecoveryOtp, updatePassword,
+            sendDeleteAccountOtp, verifyDeleteAccountOtp,
+            pendingSignup,
         }}>
             {children}
         </AuthContext.Provider>

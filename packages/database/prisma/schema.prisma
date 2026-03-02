@@ -34,7 +34,12 @@ model User {
   isOrg       Boolean  @default(false)
   orgName     String?
   password    String
-  DateAdded   DateTime @default(now())
+  pushToken   String?  // Expo push token for push notifications
+  averageRating Float    @default(0)
+  ratingCount   Int      @default(0)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime @default(now())
+  DateAdded     DateTime @default(now())
 
   // Relations
   foods           Food[]
@@ -48,6 +53,27 @@ model User {
   // Feedback relations
   givenFeedback   Feedback[] @relation("DonorFeedbacks")
   receivedFeedback Feedback[] @relation("RecipientFeedbacks")
+  
+  // Notification relations
+  notifications   Notification[]
+
+  @@index([emailHash])
+  @@index([phoneNoHash])
+}
+
+model Notification {
+  notificationID String   @id @default(uuid())
+  userID         String
+  user           User     @relation(fields: [userID], references: [userID])
+  type           String   // e.g., "CLAIM_ALERT"
+  title          String
+  message        String
+  isRead         Boolean  @default(false)
+  entityID       String?  // e.g. disID or foodID
+  createdAt      DateTime @default(now())
+  
+  @@index([userID])
+  @@index([isRead])
 }
 
 
@@ -116,8 +142,14 @@ model Distribution {
   scheduledTime DateTime
   actualTime    DateTime?
   timestamp     DateTime @default(now())
+  claimedAt     DateTime?
   
   feedbacks     Feedback[]
+  
+  @@index([donorID, status])
+  @@index([recipientID, claimedAt])
+  @@index([status, recipientID])
+  @@index([timestamp])
 }
 
 model Feedback {
@@ -129,7 +161,11 @@ model Feedback {
   disID         String
   distribution  Distribution @relation(fields: [disID], references: [disID])
   ratingScore   Int
+  
+  @@index([donorID])
+  @@index([disID])
   comments      String?
+  photoUrl      String?
   timestamp     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
