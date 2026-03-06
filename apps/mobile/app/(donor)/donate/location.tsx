@@ -122,6 +122,7 @@ export default function LocationScreen() {
         quantity: formData.quantity,
         dateCooked: new Date().toISOString(),
         image: imageBase64,
+        availabilityDuration: formData.availableDurationUnit === 'minutes' ? durationValue : durationValue * 60,
         locations: [
           {
             latitude:

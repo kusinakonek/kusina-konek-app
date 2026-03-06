@@ -127,7 +127,7 @@ function startInactivityScheduler() {
  * All time comparisons use Philippine time (Asia/Manila, UTC+8).
  */
 function startFoodExpiryScheduler() {
-  const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const INTERVAL_MS = 1 * 60 * 1000; // 1 minute
 
   setInterval(async () => {
     try {
