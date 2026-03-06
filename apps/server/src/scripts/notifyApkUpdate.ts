@@ -79,14 +79,15 @@ function buildEmailHtml(): string {
               <p style="color:#333; font-size:16px; line-height:1.6; margin-top:0;">Hi there!</p>
               
               <p style="color:#333; font-size:16px; line-height:1.6;">
-                We're excited to let you know that a <strong>new version of KusinaKonek</strong> is now available for download!
+                We're excited to let you know that a <strong>new version of KusinaKonek (v1.0.3)</strong> is now available for download!
               </p>
 
               <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New:</h3>
               <ul style="color:#555; font-size:14px; line-height:1.8;">
-                <li>Bug fixes and performance improvements</li>
-                <li>Enhanced user experience</li>
-                <li>New features and updates</li>
+                <li><strong>Fixed Food Expiration:</strong> Donations now correctly cancel and expire based on the exact availability duration you set.</li>
+                <li><strong>Donor Notifications:</strong> Get real-time push notifications when your food donation expires and is removed.</li>
+                <li><strong>Visual Improvements:</strong> Added accurate, branded loading screens when posting your donation or fetching data.</li>
+                <li><strong>App Stability:</strong> Small bug fixes throughout the application for a smoother experience.</li>
               </ul>
 
               <!-- CTA Button -->
