@@ -268,8 +268,8 @@ export default function DonorHome() {
           <View style={{ height: hp(20) }} />
         </ScrollView>
         {loading && !refreshing && (
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#00C853" />
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background }}>
+            <LoadingScreen message="" />
           </View>
         )}
       </View>

@@ -37,6 +37,7 @@ import { useFoodCache } from "../../../context/FoodCacheContext";
 import SuccessModal from "../../../src/components/SuccessModal";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAlert } from "../../../context/AlertContext";
+import LoadingScreen from "../../../src/components/LoadingScreen";
 
 export default function LocationScreen() {
   const router = useRouter();
@@ -142,6 +143,7 @@ export default function LocationScreen() {
           },
         ],
         scheduledTime: calculatedScheduledTime,
+        expireAt: calculatedScheduledTime,
       };
 
       await axiosClient.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
@@ -422,13 +424,19 @@ export default function LocationScreen() {
                 !formData.customLocation?.name)
             }>
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <Text style={styles.submitText}>Confirming...</Text>
             ) : (
               <Text style={styles.submitText}>Confirm & Submit Donation</Text>
             )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {submitting && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+          <LoadingScreen message="Confirming donation..." />
+        </View>
+      )}
 
       <SuccessModal
         visible={showSuccessModal}

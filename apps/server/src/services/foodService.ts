@@ -182,6 +182,7 @@ export const foodService = {
       quantity: params.input.quantity,
       image: params.input.image,
       availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes
+      expireAt: params.input.expireAt ? new Date(params.input.expireAt) : null,
     };
 
     // Create food first

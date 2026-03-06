@@ -8,6 +8,7 @@ import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, MapPin, X } from 'lucide-react-native';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 // Conditionally import react-native-maps (not supported on web)
 let MapView: any = null;
@@ -261,9 +262,15 @@ export default function AddFood() {
                     onPress={handleSubmit}
                     disabled={loading}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Post Donation</Text>}
+                    <Text style={styles.submitButtonText}>{loading ? 'Posting...' : 'Post Donation'}</Text>
                 </TouchableOpacity>
             </ScrollView>
+            
+            {loading && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+                    <LoadingScreen message="Adding food donation..." />
+                </View>
+            )}
         </SafeAreaView>
     );
 }

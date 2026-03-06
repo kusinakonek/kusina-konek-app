@@ -156,7 +156,17 @@ function startFoodExpiryScheduler() {
       if (pendingDistributions.length === 0) return;
 
       const expiredDistributions = pendingDistributions.filter((dist) => {
-        const food = dist.food as any;
+        const food = dist.food;
+        
+        // If we have an explicit expireAt field, use it
+        if (food.expireAt) {
+          const expireTime = new Date(food.expireAt);
+          // Convert current time to UTC for direct comparison since Prisma returns UTC DTOs
+          const nowUTC = new Date();
+          return nowUTC >= expireTime;
+        }
+        
+        // Fallback for old records without expireAt
         const durationMinutes = food.availabilityDuration ?? 240; // default 4 hours
         const foodTimestamp = new Date(food.timestamp);
         // Convert food timestamp to PH time for comparison
