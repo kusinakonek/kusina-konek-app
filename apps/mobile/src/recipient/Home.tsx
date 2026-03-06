@@ -340,9 +340,7 @@ export default function RecipientHome() {
         {/* Hero Banner */}
         <View style={styles.heroContainer}>
           <ImageBackground
-            source={{
-              uri: "https://images.unsplash.com/photo-1593113598332-cd288d649433?q=80&w=1000&auto=format&fit=crop",
-            }}
+            source={require("../../assets/homepage-header.png")}
             style={styles.heroImage}
             imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
             <View style={styles.heroOverlay}>

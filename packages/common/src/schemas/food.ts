@@ -6,6 +6,7 @@ export const createFoodSchema = z.object({
   description: z.string().min(1).optional(),
   quantity: z.string().min(1),
   image: z.string().optional(),
+  availabilityDuration: z.number().min(15).max(4320).optional(), // minutes (15 min to 72 hours)
   locations: z
     .array(
       z.object({

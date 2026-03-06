@@ -66,6 +66,10 @@ export default function FoodDetailsScreen() {
             showAlert('Error', 'Please enter the quantity', undefined, { type: 'warning' });
             return;
         }
+        if (!formData.availableDurationValue.trim()) {
+            showAlert('Error', 'Please enter how long the food is available', undefined, { type: 'warning' });
+            return;
+        }
         if (!formData.imageUri) {
             showAlert('Error', 'An actual photo of the food is required to proceed.', undefined, { type: 'warning' });
             return;
@@ -140,6 +144,48 @@ export default function FoodDetailsScreen() {
                                         updateFormData({ quantity: numericText });
                                     }}
                                 />
+
+                                {/* Duration */}
+                                <View style={{ marginBottom: 16 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                        <Text style={[styles.imageLabel, { color: colors.text, marginBottom: 0 }]}>Availability Duration</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Input
+                                                label=""
+                                                placeholder="e.g., 2, 30"
+                                                value={formData.availableDurationValue}
+                                                keyboardType="phone-pad"
+                                                containerStyle={{ marginBottom: 0 }}
+                                                onChangeText={(text) => {
+                                                    const numericText = text.replace(/[^0-9]/g, '');
+                                                    updateFormData({ availableDurationValue: numericText });
+                                                }}
+                                            />
+                                        </View>
+                                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                            <TouchableOpacity 
+                                                style={[
+                                                    styles.unitToggle, 
+                                                    formData.availableDurationUnit === 'minutes' && styles.unitToggleActive
+                                                ]}
+                                                onPress={() => updateFormData({ availableDurationUnit: 'minutes' })}
+                                            >
+                                                <Text style={[styles.unitText, formData.availableDurationUnit === 'minutes' && styles.unitTextActive]}>Mins</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={[
+                                                    styles.unitToggle, 
+                                                    formData.availableDurationUnit === 'hours' && styles.unitToggleActive
+                                                ]}
+                                                onPress={() => updateFormData({ availableDurationUnit: 'hours' })}
+                                            >
+                                                <Text style={[styles.unitText, formData.availableDurationUnit === 'hours' && styles.unitTextActive]}>Hrs</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
 
                                 {/* Image Upload */}
                                 <View style={{ marginBottom: 20 }}>
@@ -316,5 +362,28 @@ const styles = StyleSheet.create({
         color: '#e53935',
         fontSize: 15,
         fontWeight: '600',
+    },
+    unitToggle: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        backgroundColor: '#f5f5f5',
+        height: 48,
+        justifyContent: 'center',
+    },
+    unitToggleActive: {
+        backgroundColor: '#E8F5E9',
+        borderColor: '#00C853',
+    },
+    unitText: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '500',
+    },
+    unitTextActive: {
+        color: '#00C853',
+        fontWeight: 'bold',
     },
 });

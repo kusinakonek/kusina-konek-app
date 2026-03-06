@@ -108,6 +108,13 @@ export default function LocationScreen() {
       // imageUri is already a base64 data URI captured at photo time
       const imageBase64 = formData.imageUri || undefined;
 
+      // Calculate scheduledTime based on duration input
+      const durationValue = parseInt(formData.availableDurationValue) || 1;
+      const durationMs = formData.availableDurationUnit === 'minutes' 
+          ? durationValue * 60 * 1000 
+          : durationValue * 3600 * 1000;
+      const calculatedScheduledTime = new Date(Date.now() + durationMs).toISOString();
+
       const payload = {
         foodName: formData.foodName,
         description: formData.description,
@@ -134,7 +141,7 @@ export default function LocationScreen() {
                 : formData.customLocation?.barangay || undefined,
           },
         ],
-        scheduledTime: new Date(Date.now() + 3600 * 1000).toISOString(), // Default 1 hour from now
+        scheduledTime: calculatedScheduledTime,
       };
 
       await axiosClient.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
@@ -387,8 +394,10 @@ export default function LocationScreen() {
               <View style={styles.noteBox}>
                 <Text style={styles.noteLabel}>Note:</Text>
                 <Text style={styles.noteText}>
-                  Please drop off your donation within 2 hours of submitting this
-                  form. Make sure the food is properly packaged and labeled.
+                  This food is scheduled to be available until {" "}
+                  {formData.availableDurationValue} {formData.availableDurationUnit}.
+                  Please drop off your donation as soon as possible.
+                  Make sure the food is properly packaged and labeled.
                 </Text>
               </View>
             </View>

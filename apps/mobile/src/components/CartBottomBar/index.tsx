@@ -22,11 +22,11 @@ export default function CartBottomBar({
         style={[styles.pickUpButton, disabled && styles.pickUpButtonDisabled]}
         onPress={disabled ? undefined : onPickUp}
         accessibilityRole="button"
-        accessibilityLabel="Pick up Ulam(s)"
+        accessibilityLabel="Pick up Food(s)"
         disabled={disabled}>
         <Text
           style={[styles.pickUpText, disabled && styles.pickUpTextDisabled]}>
-          Pick up Ulam(s)
+          Pick up Food(s)
         </Text>
       </Pressable>
 

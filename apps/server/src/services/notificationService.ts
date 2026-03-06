@@ -264,15 +264,18 @@ export const notificationService = {
 
       console.log(`[PushNotification:Broadcast] Sending to ${tokensToSend.length} recipients`);
 
-      for (const recipient of tokensToSend) {
-        try {
-          await this.sendPushNotification(recipient.pushToken!, title, message, {
+      // Send all push notifications in parallel for performance
+      const results = await Promise.allSettled(
+        tokensToSend.map((recipient) =>
+          this.sendPushNotification(recipient.pushToken!, title, message, {
             ...data,
             type: "NEW_FOOD",
-          });
-        } catch (error) {
-          console.error(`[PushNotification:Broadcast] Error for user ${recipient.userID}:`, error);
-        }
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        console.warn(`[PushNotification:Broadcast] ${failed}/${tokensToSend.length} push(es) failed`);
       }
     } catch (error) {
       console.error("[PushNotification:Broadcast] Error broadcasting to recipients", error);
@@ -338,15 +341,18 @@ export const notificationService = {
 
       console.log(`[PushNotification:Nearby] Sending push to ${withTokens.length} recipients with tokens`);
 
-      for (const recipient of withTokens) {
-        try {
-          await this.sendPushNotification(recipient.pushToken!, title, message, {
+      // Send all push notifications in parallel for performance
+      const results = await Promise.allSettled(
+        withTokens.map((recipient) =>
+          this.sendPushNotification(recipient.pushToken!, title, message, {
             ...data,
             type: "NEW_FOOD",
-          });
-        } catch (error) {
-          console.error(`[PushNotification:Nearby] Error for user ${recipient.userID}:`, error);
-        }
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        console.warn(`[PushNotification:Nearby] ${failed}/${withTokens.length} push(es) failed`);
       }
     } catch (error) {
       console.error("[PushNotification:Nearby] Error notifying nearby recipients", error);

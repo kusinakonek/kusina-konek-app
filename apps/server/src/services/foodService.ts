@@ -181,6 +181,7 @@ export const foodService = {
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
+      availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes
     };
 
     // Create food first
