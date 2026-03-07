@@ -222,6 +222,8 @@ export default function LocationScreen() {
                   color={formData.locationType === "barangay" ? "#fff" : colors.text}
                 />
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
                   style={[
                     styles.toggleText,
                     { color: colors.text },
@@ -243,6 +245,8 @@ export default function LocationScreen() {
                   color={formData.locationType === "custom" ? "#fff" : colors.text}
                 />
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
                   style={[
                     styles.toggleText,
                     { color: colors.text },
@@ -507,7 +511,7 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     marginBottom: 20,
   },
   toggleButton: {
@@ -515,9 +519,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 4,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderRadius: 25,
     backgroundColor: "#f5f5f5",
     borderWidth: 1,
@@ -528,7 +532,7 @@ const styles = StyleSheet.create({
     borderColor: "#00C853",
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#333",
   },
