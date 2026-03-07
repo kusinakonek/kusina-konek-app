@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { NotificationProvider, useNotification } from "../context/NotificationContext";
 import { NotificationBanner } from "../src/components/NotificationBanner";
 import { AlertProvider } from "../context/AlertContext";
+import NoConnectionModal from "../src/components/NoConnectionModal";
 
 function AppContent() {
   const { notification, clearNotification } = useNotification();
@@ -33,8 +34,9 @@ function AppContent() {
             message={notification?.request?.content?.body || ""}
             onClose={clearNotification}
           />
-        </CartProvider>
+      </CartProvider>
       </FoodCacheProvider>
+      <NoConnectionModal />
     </>
   );
 }

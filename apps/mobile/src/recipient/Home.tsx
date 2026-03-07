@@ -340,7 +340,7 @@ export default function RecipientHome() {
         {/* Hero Banner */}
         <View style={styles.heroContainer}>
           <ImageBackground
-            source={require("../../assets/homepage-header.png")}
+            source={require("../../assets/recipient-hero-banner.png")}
             style={styles.heroImage}
             imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
             <View style={styles.heroOverlay}>
