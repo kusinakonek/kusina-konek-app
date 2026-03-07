@@ -6,12 +6,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Alert } from "react-native";
 import { router } from "expo-router";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
 import ClaimsConfirmedModal from "../src/components/ClaimsConfirmedModal";
 import { useFoodCache } from "./FoodCacheContext";
+import { useAlert } from "./AlertContext";
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -75,6 +75,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Access food cache context to invalidate when items are picked up
   const { invalidateCache } = useFoodCache();
 
+  // Access custom alert system for styled, themed alerts
+  const { showAlert } = useAlert();
+
   // Periodically purge expired items (every 30 s)
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -84,9 +87,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           (item) => now - item.addedAt < RESERVATION_DURATION_MS,
         );
         if (valid.length !== prev.length) {
-          Alert.alert(
+          showAlert(
             "Items Expired",
             "Some items were removed from your cart because the 15-minute reservation expired.",
+            undefined,
+            { type: "warning" },
           );
         }
         return valid;
@@ -96,7 +101,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [showAlert]);
 
   const addItem = useCallback((distribution: Omit<CartItem, "addedAt">) => {
     setItems((prev) => {
@@ -138,7 +143,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
 
     if (validItems.length === 0) {
-      Alert.alert("Expired", "All items have expired. Please add food again.");
+      showAlert(
+        "Expired",
+        "All items have expired. Please add food again.",
+        undefined,
+        { type: "warning" },
+      );
       setItems([]);
       return;
     }
@@ -194,20 +204,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     if (notFoundItems.length > 0 && succeeded.length === 0 && realFailed.length === 0) {
       // All items were expired/unavailable
-      Alert.alert(
+      showAlert(
         "Food No Longer Available",
         "The food you selected has expired or been claimed by someone else. The list has been refreshed.",
+        undefined,
+        { type: "warning" },
       );
     } else if (failed.length > 0 && succeeded.length > 0) {
-      Alert.alert(
+      showAlert(
         "Partial Success",
         `${succeeded.length} item(s) claimed successfully.\n${failed.length} item(s) failed: ${failed.map((f) => f.error).join(", ")}`,
-        [{ text: "OK", onPress: () => router.push("/(tabs)") }],
+        [{ text: "OK", style: "default", onPress: () => router.push("/(tabs)") }],
+        { type: "info" },
       );
     } else if (realFailed.length > 0) {
-      Alert.alert(
+      showAlert(
         "Request Failed",
         `Could not claim items: ${realFailed.map((f) => f.error).join(", ")}`,
+        undefined,
+        { type: "error" },
       );
     } else {
       // All items claimed successfully — show success modal
@@ -222,7 +237,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setClaimedItems(claimedData);
       setShowSuccessModal(true);
     }
-  }, [items, invalidateCache]);
+  }, [items, invalidateCache, showAlert]);
 
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
