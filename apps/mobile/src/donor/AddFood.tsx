@@ -8,6 +8,7 @@ import api from '../../lib/api';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, MapPin, X } from 'lucide-react-native';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 // Conditionally import react-native-maps (not supported on web)
 let MapView: any = null;
@@ -37,6 +38,19 @@ export default function AddFood() {
     const [description, setDescription] = useState('');
     const [quantity, setQuantity] = useState('');
     const [unit, setUnit] = useState('servings');
+    const [selectedDuration, setSelectedDuration] = useState(240); // default 4 hours in minutes
+    const [isCustomDuration, setIsCustomDuration] = useState(false);
+    const [customDurationText, setCustomDurationText] = useState('');
+
+    const DURATION_PRESETS = [
+        { label: '30min', value: 30 },
+        { label: '1h', value: 60 },
+        { label: '2h', value: 120 },
+        { label: '4h', value: 240 },
+        { label: '8h', value: 480 },
+        { label: '12h', value: 720 },
+        { label: '24h', value: 1440 },
+    ];
 
     // Location State
     const [location, setLocation] = useState<Region>({
@@ -86,6 +100,7 @@ export default function AddFood() {
                 description,
                 quantity: quantity.toString(),
                 unit,
+                availabilityDuration: selectedDuration,
                 locations: [{
                     latitude: selectedLocation.lat,
                     longitude: selectedLocation.lng,
@@ -158,6 +173,61 @@ export default function AddFood() {
                 </View>
 
                 <View style={styles.formGroup}>
+                    <Text style={styles.label}>Availability Duration *</Text>
+                    <View style={styles.chipContainer}>
+                        {DURATION_PRESETS.map((preset) => (
+                            <TouchableOpacity
+                                key={preset.value}
+                                style={[
+                                    styles.chip,
+                                    !isCustomDuration && selectedDuration === preset.value && styles.chipSelected
+                                ]}
+                                onPress={() => {
+                                    setSelectedDuration(preset.value);
+                                    setIsCustomDuration(false);
+                                    setCustomDurationText('');
+                                }}
+                            >
+                                <Text style={[
+                                    styles.chipText,
+                                    !isCustomDuration && selectedDuration === preset.value && styles.chipTextSelected
+                                ]}>{preset.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={[
+                                styles.chip,
+                                isCustomDuration && styles.chipSelected
+                            ]}
+                            onPress={() => setIsCustomDuration(true)}
+                        >
+                            <Text style={[
+                                styles.chipText,
+                                isCustomDuration && styles.chipTextSelected
+                            ]}>Custom</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {isCustomDuration && (
+                        <View style={styles.customDurationRow}>
+                            <TextInput
+                                style={[styles.input, { flex: 1 }]}
+                                placeholder="Enter minutes (min 15)"
+                                keyboardType="numeric"
+                                value={customDurationText}
+                                onChangeText={(text) => {
+                                    setCustomDurationText(text);
+                                    const mins = parseInt(text, 10);
+                                    if (!isNaN(mins) && mins >= 15) {
+                                        setSelectedDuration(mins);
+                                    }
+                                }}
+                            />
+                            <Text style={styles.minutesLabel}>minutes</Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.formGroup}>
                     <Text style={styles.label}>Pickup Location (Tap on Map) *</Text>
                     <View style={styles.mapContainer}>
                         {Platform.OS !== 'web' && MapView ? (
@@ -192,9 +262,15 @@ export default function AddFood() {
                     onPress={handleSubmit}
                     disabled={loading}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Post Donation</Text>}
+                    <Text style={styles.submitButtonText}>{loading ? 'Posting...' : 'Post Donation'}</Text>
                 </TouchableOpacity>
             </ScrollView>
+            
+            {loading && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+                    <LoadingScreen message="Adding food donation..." />
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -216,5 +292,12 @@ const styles = StyleSheet.create({
     submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
     webMapFallback: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' },
     webMapText: { fontSize: 16, color: '#666', marginTop: 10, fontWeight: '600' },
-    webMapSubtext: { fontSize: 14, color: '#999', marginTop: 4 }
+    webMapSubtext: { fontSize: 14, color: '#999', marginTop: 4 },
+    chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 5 },
+    chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#f9f9f9' },
+    chipSelected: { backgroundColor: '#00C853', borderColor: '#00C853' },
+    chipText: { fontSize: 14, color: '#333', fontWeight: '500' },
+    chipTextSelected: { color: '#fff' },
+    customDurationRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+    minutesLabel: { fontSize: 14, color: '#666', fontWeight: '500' },
 });

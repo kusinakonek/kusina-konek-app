@@ -46,7 +46,7 @@ export default function CartTab() {
   };
 
   /**
-   * When "Pick up Ulam(s)" is pressed, show the recipient disclaimer first.
+   * When "Pick up Food(s)" is pressed, show the recipient disclaimer first.
    */
   const handlePickUpPress = () => {
     setShowDisclaimerModal(true);

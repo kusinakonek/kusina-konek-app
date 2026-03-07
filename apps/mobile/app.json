@@ -3,17 +3,17 @@
     "name": "kusinakonek",
     "slug": "kusinakonek",
     "scheme": "kusinakonek",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/KUSINAKONEK-NEW-LOGO.png",
+    "icon": "./assets/splash.png",
     "notification": {
-      "icon": "./assets/KUSINAKONEK-NEW-LOGO.png",
+      "icon": "./assets/splash.png",
       "color": "#00C853"
     },
     "splash": {
-      "image": "./assets/KUSINAKONEK-NEW-LOGO.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#00C853"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -34,8 +34,8 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/KUSINAKONEK-NEW-LOGO.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/splash.png",
+        "backgroundColor": "#00C853"
       },
       "config": {
         "googleMaps": {

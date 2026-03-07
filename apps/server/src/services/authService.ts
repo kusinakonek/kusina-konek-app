@@ -59,9 +59,6 @@ export const authService = {
     });
 
     if (error) {
-      // Rollback Prisma user if Supabase fails
-      await prisma.address.deleteMany({ where: { UserID: newUser.userID } });
-      await prisma.user.delete({ where: { userID: newUser.userID } });
       console.error("[Auth Error]:", error.message);
       throw new HttpError(400, error.message);
     }

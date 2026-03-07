@@ -212,9 +212,7 @@ export default function DonorHome() {
           }>
           <View style={styles.heroContainer}>
             <ImageBackground
-              source={{
-                uri: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop",
-              }}
+              source={require("../../assets/homepage-header.png")}
               style={styles.heroImage}
               imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
               <View style={styles.heroOverlay}>
@@ -270,8 +268,8 @@ export default function DonorHome() {
           <View style={{ height: hp(20) }} />
         </ScrollView>
         {loading && !refreshing && (
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#00C853" />
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background }}>
+            <LoadingScreen message="" />
           </View>
         )}
       </View>

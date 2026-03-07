@@ -34,6 +34,7 @@ export const useSignupLogic = () => {
         confirmPassword: '',
         barangay: '',
         phoneNo: '',
+        agreedToTerms: false,
         // Organization fields - commented out for now
         // isOrg: false,
         // orgName: '',
@@ -76,6 +77,11 @@ export const useSignupLogic = () => {
 
         if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
             showAlert('Error', 'Please fill in all required fields', undefined, { type: 'warning' });
+            return;
+        }
+
+        if (!formData.agreedToTerms) {
+            showAlert('Terms Required', 'You must accept the terms of participation to register.', undefined, { type: 'warning' });
             return;
         }
 

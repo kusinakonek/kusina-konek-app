@@ -6,6 +6,8 @@ export const createFoodSchema = z.object({
   description: z.string().min(1).optional(),
   quantity: z.string().min(1),
   image: z.string().optional(),
+  availabilityDuration: z.number().optional(), // Added for backwards compatibility but not strictly needed if expireAt is used
+  expireAt: z.string().datetime().optional(), // New field for precise expiration time
   locations: z
     .array(
       z.object({

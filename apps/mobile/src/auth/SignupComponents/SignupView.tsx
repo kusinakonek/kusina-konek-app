@@ -209,8 +209,24 @@ export default function SignupView() {
                         </TouchableOpacity>
                         */}
 
+                        {/* Registration Agreement */}
                         <TouchableOpacity
-                            style={[styles.button, loading && styles.buttonDisabled]}
+                            style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16, gap: 10, paddingHorizontal: 4 }}
+                            onPress={() => handleChange('agreedToTerms', !formData.agreedToTerms)}
+                            activeOpacity={0.7}
+                        >
+                            {formData.agreedToTerms ? (
+                                <CheckSquare size={22} color="#00C853" style={{ marginTop: 2 }} />
+                            ) : (
+                                <Square size={22} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                            )}
+                            <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: colors.textSecondary }}>
+                                By registering, I accept the terms of participation both as a recipient and as a donor.
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.button, (loading || !formData.agreedToTerms) && styles.buttonDisabled]}
                             onPress={handleSignup}
                             disabled={loading}
                         >

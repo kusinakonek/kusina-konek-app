@@ -18,6 +18,8 @@ export interface DonationFormData {
     foodName: string;
     description: string;
     quantity: string;
+    availableDurationValue: string;
+    availableDurationUnit: 'minutes' | 'hours';
     imageUri: string | null;
 
     // Step 3: Drop-off location
@@ -134,6 +136,8 @@ const initialFormData: DonationFormData = {
     foodName: '',
     description: '',
     quantity: '',
+    availableDurationValue: '',
+    availableDurationUnit: 'hours',
     imageUri: null,
     locationType: 'barangay',
     selectedBarangay: null,
@@ -160,7 +164,9 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
             case 1:
                 return formData.selectedFood !== null || formData.isCustomFood;
             case 2:
-                return formData.foodName.trim() !== '' && formData.quantity.trim() !== '';
+                return formData.foodName.trim() !== '' && 
+                       formData.quantity.trim() !== '' && 
+                       formData.availableDurationValue.trim() !== '';
             case 3:
                 return (
                     (formData.locationType === 'barangay' && formData.selectedBarangay !== null) ||
