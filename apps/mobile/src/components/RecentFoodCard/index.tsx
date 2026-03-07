@@ -134,7 +134,7 @@ export default function RecentFoodCard({
       {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && (
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => onCancel(item.id)}>
+          onPress={() => onCancel(item.foodID || item.id)}>
           <Text style={styles.cancelButtonText}>Cancel Donation</Text>
         </TouchableOpacity>
       )}

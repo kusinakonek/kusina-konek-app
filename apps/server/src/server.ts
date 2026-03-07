@@ -120,6 +120,111 @@ function startInactivityScheduler() {
   console.log("[Inactivity] Inactivity scheduler started (checks every 24 hours)");
 }
 
+/**
+ * Food expiry scheduler: every 5 minutes, check for PENDING food donations
+ * whose availability duration has elapsed without being claimed.
+ * Auto-cancels them and notifies the donor via Firebase push notification.
+ * All time comparisons use Philippine time (Asia/Manila, UTC+8).
+ */
+function startFoodExpiryScheduler() {
+  const INTERVAL_MS = 1 * 60 * 1000; // 1 minute
+
+  setInterval(async () => {
+    try {
+      // Current time in PH timezone (UTC+8)
+      const nowPH = new Date(Date.now() + 8 * 60 * 60 * 1000);
+
+      // Find all PENDING distributions with their food data
+      const pendingDistributions = await prisma.distribution.findMany({
+        where: {
+          status: "PENDING",
+          recipientID: null,
+        },
+        include: {
+          food: true,
+          donor: {
+            select: {
+              userID: true,
+              firstName: true,
+              lastName: true,
+              pushToken: true,
+            },
+          },
+        },
+      });
+
+      if (pendingDistributions.length === 0) return;
+
+      const expiredDistributions = pendingDistributions.filter((dist) => {
+        const food = dist.food;
+        
+        // If we have an explicit expireAt field, use it
+        if (food.expireAt) {
+          const expireTime = new Date(food.expireAt);
+          // Convert current time to UTC for direct comparison since Prisma returns UTC DTOs
+          const nowUTC = new Date();
+          return nowUTC >= expireTime;
+        }
+        
+        // Fallback for old records without expireAt
+        const durationMinutes = food.availabilityDuration ?? 240; // default 4 hours
+        const foodTimestamp = new Date(food.timestamp);
+        // Convert food timestamp to PH time for comparison
+        const foodTimePH = new Date(foodTimestamp.getTime() + 8 * 60 * 60 * 1000);
+        const expiryTimePH = new Date(foodTimePH.getTime() + durationMinutes * 60 * 1000);
+        return nowPH >= expiryTimePH;
+      });
+
+      if (expiredDistributions.length === 0) return;
+
+      console.log(`[FoodExpiry] Found ${expiredDistributions.length} expired donation(s) to cancel`);
+
+      for (const dist of expiredDistributions) {
+        try {
+          // Delete distribution first (foreign key constraint)
+          await prisma.distribution.delete({
+            where: { disID: dist.disID },
+          });
+
+          // Check if food has any other distributions; if not, delete the food too
+          const otherDist = await prisma.distribution.findFirst({
+            where: { foodID: dist.food.foodID },
+          });
+
+          if (!otherDist) {
+            // Delete locations first
+            await prisma.dropOffLocation.deleteMany({
+              where: { foodID: dist.food.foodID },
+            });
+            await prisma.food.delete({
+              where: { foodID: dist.food.foodID },
+            });
+          }
+
+          // Notify the donor
+          const foodName = dist.food.foodName || "Food donation";
+          await notificationService.notifyUser(
+            dist.donor.userID,
+            "⏰ Food Expired",
+            `Your food "${foodName}" was not claimed and has expired. It has been automatically removed.`,
+            "FOOD_EXPIRED",
+            {},
+            dist.disID,
+          );
+
+          console.log(`[FoodExpiry] Cancelled "${foodName}" (disID: ${dist.disID}), notified donor ${dist.donor.userID}`);
+        } catch (err) {
+          console.error(`[FoodExpiry] Error cancelling distribution ${dist.disID}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error("[FoodExpiry] Error during food expiry check:", error);
+    }
+  }, INTERVAL_MS);
+
+  console.log("[FoodExpiry] Food expiry scheduler started (checks every 5 min, PH timezone)");
+}
+
 const start = async () => {
   try {
     await prisma.$connect();
@@ -132,6 +237,7 @@ const start = async () => {
 
   startAutoRevertScheduler();
   startInactivityScheduler();
+  startFoodExpiryScheduler();
 
   app.listen(env.PORT, "0.0.0.0", () => {
     // eslint-disable-next-line no-console

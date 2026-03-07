@@ -181,6 +181,8 @@ export const foodService = {
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
+      availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes
+      expireAt: params.input.expireAt ? new Date(params.input.expireAt) : null,
     };
 
     // Create food first
@@ -431,7 +433,12 @@ export const foodService = {
       throw new HttpError(400, "Cannot cancel a donation that has already been claimed or completed");
     }
 
-    // Delete associated locations first
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
     const locations = await locationService.listLocationsForFood({
       userID: params.userID,
       foodID: params.foodID,
@@ -444,12 +451,7 @@ export const foodService = {
       });
     }
 
-    // Delete distribution if it exists (prisma constraints might cascade this, but safe to be explicit)
-    if (distribution) {
-      await distributionRepository.delete(distribution.disID);
-    }
-
-    // Finally delete the food/donation itself
+    // 3) Finally delete the food/donation itself
     await foodRepository.delete(params.foodID);
 
     return {

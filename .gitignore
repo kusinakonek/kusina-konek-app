@@ -33,6 +33,9 @@ coverage/
 .vscode/
 .idea/
 
+# Firebase service account keys (DO NOT COMMIT)
+apps/mobile/kusinakonek-1d6cf-firebase-adminsdk-fbsvc-bfd6fd417f.json
+
 *.log
 npm-debug.log*
 yarn-debug.log*

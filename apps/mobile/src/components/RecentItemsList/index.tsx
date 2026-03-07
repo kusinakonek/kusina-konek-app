@@ -12,6 +12,7 @@ import RecentFoodCard from "../RecentFoodCard";
 // Define a common interface for items (donations or claims)
 export interface RecentItem {
   id: string;
+  foodID?: string;
   title: string;
   quantity: string;
   location: string;

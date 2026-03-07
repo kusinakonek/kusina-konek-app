@@ -21,29 +21,14 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
     const isSmall = width < 360;
     const isLandscape = width > height;
 
-    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const spinAnim = useRef(new Animated.Value(0)).current;
     const dotAnim1 = useRef(new Animated.Value(0)).current;
     const dotAnim2 = useRef(new Animated.Value(0)).current;
     const dotAnim3 = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Logo pulse animation
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 1.08,
-                    duration: 900,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseAnim, {
-                    toValue: 1,
-                    duration: 900,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-            ]),
-        ).start();
+        // Optional: you can remove the spin loop entirely, or just keep it for reference.
+        // For now, I'm bypassing starting the spin animation on `spinAnim`.
 
         // Bouncing dots animation
         const animateDot = (anim: Animated.Value, delay: number) =>
@@ -71,22 +56,29 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
         animateDot(dotAnim3, 300).start();
     }, []);
 
-    const logoSize = isSmall ? width * 0.22 : isLandscape ? height * 0.18 : width * 0.24;
+    const logoSize = isSmall ? width * 0.28 : isLandscape ? height * 0.22 : width * 0.32;
     const dotSize = isSmall ? 7 : 9;
+
+    const spinRotation = spinAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
 
     const { colors, isDark } = useTheme();
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.content}>
-                <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <Animated.View style={[
+                    // { transform: [{ rotate: spinRotation }] }, // Removed rotation
+                    { marginBottom: height * 0.025 },
+                    styles.logoShadow
+                ]}>
                     <Image
-                        source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
+                        source={require('../../assets/loading screen.png')}
                         style={{
-                            width: logoSize,
+                            width: logoSize, 
                             height: logoSize,
-                            marginBottom: height * 0.025,
-                            tintColor: isDark ? undefined : undefined // Optional: if you have a white logo for dark mode
                         }}
                         resizeMode="contain"
                     />
@@ -124,6 +116,13 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    logoShadow: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 8,
     },
     content: {
         alignItems: 'center',

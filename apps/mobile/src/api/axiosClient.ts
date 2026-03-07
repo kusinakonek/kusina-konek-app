@@ -28,12 +28,31 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// In-memory session cache to avoid redundant supabase.auth.getSession() calls
+let cachedToken: string | null = null;
+let cachedTokenExpiry = 0;
+const TOKEN_CACHE_TTL = 50 * 1000; // 50 seconds
+
+// In-memory role cache to avoid AsyncStorage reads on every request
+let cachedRole: string | null = null;
+let cachedRoleExpiry = 0;
+const ROLE_CACHE_TTL = 30 * 1000; // 30 seconds
+
 axiosClient.interceptors.request.use(async (config) => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
+  const now = Date.now();
+
+  // Use cached token if fresh
+  if (cachedToken && now < cachedTokenExpiry) {
+    config.headers.Authorization = `Bearer ${cachedToken}`;
+  } else {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      cachedToken = session.access_token;
+      cachedTokenExpiry = now + TOKEN_CACHE_TTL;
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
   }
 
   // Disable HTTP caching for GET requests so profile/dashboard data is always fresh
@@ -42,15 +61,20 @@ axiosClient.interceptors.request.use(async (config) => {
     config.headers["Pragma"] = "no-cache";
   }
 
-  // Add current role from AsyncStorage to headers
-  // This allows the backend to use the current role instead of the JWT metadata role
-  try {
-    const currentRole = await AsyncStorage.getItem("userRole");
-    if (currentRole) {
-      config.headers["X-User-Role"] = currentRole;
+  // Use cached role if fresh
+  if (cachedRole && now < cachedRoleExpiry) {
+    config.headers["X-User-Role"] = cachedRole;
+  } else {
+    try {
+      const currentRole = await AsyncStorage.getItem("userRole");
+      if (currentRole) {
+        cachedRole = currentRole;
+        cachedRoleExpiry = now + ROLE_CACHE_TTL;
+        config.headers["X-User-Role"] = currentRole;
+      }
+    } catch (error) {
+      console.log("Failed to get role from AsyncStorage:", error);
     }
-  } catch (error) {
-    console.log("Failed to get role from AsyncStorage:", error);
   }
 
   return config;

@@ -97,6 +97,8 @@ model Food {
   description   String?
   quantity      String
   image         String?
+  availabilityDuration Int? @default(240) // Duration in minutes, default 4 hours
+  expireAt      DateTime? // The exact time when this food expires and should be cancelled
   timestamp     DateTime @default(now())
 
   // Relations

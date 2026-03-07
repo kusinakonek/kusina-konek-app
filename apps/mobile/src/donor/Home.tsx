@@ -24,6 +24,7 @@ import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import CancelDonationModal from "../components/CancelDonationModal";
+import SuccessModal from "../components/SuccessModal";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -35,6 +36,8 @@ export default function DonorHome() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [cancelledFoodName, setCancelledFoodName] = useState('');
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -114,6 +117,7 @@ export default function DonorHome() {
   const getRecentItems = (): RecentItem[] => {
     return (dashboardData?.recentDonations || []).map((d: any) => ({
       id: d.disID || d.id,
+      foodID: d.foodID,
       title: d.foodName || "Food Donation",
       quantity: `${d.quantity} servings`,
       location: d.location || "Location",
@@ -133,10 +137,16 @@ export default function DonorHome() {
 
   const confirmCancelDonation = async () => {
     if (!donationToCancel) return;
+    // Find the food name before cancelling for the success message
+    const items = getRecentItems();
+    const cancelledItem = items.find((i) => (i.foodID || i.id) === donationToCancel);
+    const foodName = cancelledItem?.title || 'Donation';
     setLoading(true);
     try {
       await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
-      fetchDashboardData();
+      setCancelledFoodName(foodName);
+      await fetchDashboardData();
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error("Failed to cancel donation:", error);
       const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
@@ -202,9 +212,7 @@ export default function DonorHome() {
           }>
           <View style={styles.heroContainer}>
             <ImageBackground
-              source={{
-                uri: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop",
-              }}
+              source={require("../../assets/homepage-header.png")}
               style={styles.heroImage}
               imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
               <View style={styles.heroOverlay}>
@@ -260,8 +268,8 @@ export default function DonorHome() {
           <View style={{ height: hp(20) }} />
         </ScrollView>
         {loading && !refreshing && (
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#00C853" />
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background }}>
+            <LoadingScreen message="" />
           </View>
         )}
       </View>
@@ -273,6 +281,14 @@ export default function DonorHome() {
           setDonationToCancel(null);
         }}
         onConfirm={confirmCancelDonation}
+      />
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Donation Cancelled"
+        message={`"${cancelledFoodName}" has been successfully removed from your donations.`}
+        buttonText="Got it"
+        onClose={() => setShowSuccessModal(false)}
       />
     </SafeAreaView>
   );

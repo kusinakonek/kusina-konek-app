@@ -24,6 +24,7 @@ export interface RecipientStats {
 
 export interface DonorDonationItem {
   disID: string;
+  foodID: string;
   foodName: string;
   quantity: string;
   status: string;
@@ -135,6 +136,7 @@ export const dashboardRepository = {
       take: limit,
       select: {
         disID: true,
+        foodID: true,
         quantity: true,
         status: true,
         timestamp: true,
@@ -152,6 +154,7 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
+        foodID: d.foodID,
         foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
