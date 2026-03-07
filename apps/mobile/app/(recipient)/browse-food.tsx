@@ -357,7 +357,16 @@ export default function BrowseFood() {
             onPress={() => router.push("/(recipient)/food-map")}
             accessibilityRole="button"
             accessibilityLabel="View Map">
-            <Map size={wp(22)} color={theme.colors.primary} />
+            <View>
+              <Map size={wp(22)} color={theme.colors.primary} />
+              {filteredDistributions.length > 0 && (
+                <View style={styles.mapBadge}>
+                  <Text style={styles.mapBadgeText}>
+                    {filteredDistributions.length > 9 ? "9+" : filteredDistributions.length}
+                  </Text>
+                </View>
+              )}
+            </View>
           </Pressable>
 
           <Pressable
@@ -570,6 +579,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(4),
   },
   cartBadgeText: {
+    color: "#fff",
+    fontSize: fp(10),
+    fontWeight: "700",
+  },
+  mapBadge: {
+    position: "absolute",
+    top: -4,
+    right: -8,
+    backgroundColor: "#D32F2F",
+    borderRadius: wp(10),
+    minWidth: wp(18),
+    height: wp(18),
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: wp(4),
+  },
+  mapBadgeText: {
     color: "#fff",
     fontSize: fp(10),
     fontWeight: "700",
