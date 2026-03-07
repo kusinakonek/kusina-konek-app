@@ -145,7 +145,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     setIsPickingUp(true);
 
-    const results: { disID: string; success: boolean; error?: string }[] = [];
+    const results: { disID: string; success: boolean; error?: string; notFound?: boolean }[] = [];
 
     for (const item of validItems) {
       try {
@@ -155,9 +155,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         );
         results.push({ disID: item.disID, success: true });
       } catch (err: any) {
-        const msg =
-          err?.response?.data?.message ?? err?.message ?? "Request failed";
-        results.push({ disID: item.disID, success: false, error: msg });
+        const status = err?.response?.status;
+        if (status === 404) {
+          // Distribution was deleted (expired) — treat as unavailable
+          results.push({
+            disID: item.disID,
+            success: false,
+            error: `"${item.food?.foodName ?? "Food"}" is no longer available`,
+            notFound: true,
+          });
+        } else {
+          const msg =
+            err?.response?.data?.message ?? err?.message ?? "Request failed";
+          results.push({ disID: item.disID, success: false, error: msg });
+        }
       }
     }
 
@@ -165,26 +176,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const succeeded = results.filter((r) => r.success);
     const failed = results.filter((r) => !r.success);
+    const notFoundItems = results.filter((r) => r.notFound);
 
-    // Remove successfully claimed items from cart
-    if (succeeded.length > 0) {
-      const claimedIds = new Set(succeeded.map((r) => r.disID));
-      setItems((prev) => prev.filter((i) => !claimedIds.has(i.disID)));
-
+    // Remove successfully claimed items AND unavailable (404) items from cart
+    const idsToRemove = new Set([
+      ...succeeded.map((r) => r.disID),
+      ...notFoundItems.map((r) => r.disID),
+    ]);
+    if (idsToRemove.size > 0) {
+      setItems((prev) => prev.filter((i) => !idsToRemove.has(i.disID)));
       // Invalidate food cache so browse food will show updated list
       invalidateCache();
     }
 
-    if (failed.length > 0 && succeeded.length > 0) {
+    // Only count non-404 failures as real errors
+    const realFailed = failed.filter((r) => !r.notFound);
+
+    if (notFoundItems.length > 0 && succeeded.length === 0 && realFailed.length === 0) {
+      // All items were expired/unavailable
+      Alert.alert(
+        "Food No Longer Available",
+        "The food you selected has expired or been claimed by someone else. The list has been refreshed.",
+      );
+    } else if (failed.length > 0 && succeeded.length > 0) {
       Alert.alert(
         "Partial Success",
         `${succeeded.length} item(s) claimed successfully.\n${failed.length} item(s) failed: ${failed.map((f) => f.error).join(", ")}`,
         [{ text: "OK", onPress: () => router.push("/(tabs)") }],
       );
-    } else if (failed.length > 0) {
+    } else if (realFailed.length > 0) {
       Alert.alert(
         "Request Failed",
-        `Could not claim items: ${failed.map((f) => f.error).join(", ")}`,
+        `Could not claim items: ${realFailed.map((f) => f.error).join(", ")}`,
       );
     } else {
       // All items claimed successfully — show success modal
