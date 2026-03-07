@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -18,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
 import { useResendTimer } from '../../src/hooks/useResendTimer';
+import { useAlert } from '../../context/AlertContext';
 
 const OTP_LENGTH = 8;
 
@@ -25,6 +25,7 @@ export default function Verify() {
     const router = useRouter();
     const { email } = useLocalSearchParams<{ email: string }>();
     const { verifyOtp, resendOtp } = useAuth();
+    const { showAlert } = useAlert();
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
@@ -68,12 +69,12 @@ export default function Verify() {
     const handleVerify = async (code?: string) => {
         const otpCode = code || otp.join('');
         if (otpCode.length !== OTP_LENGTH) {
-            Alert.alert('Error', 'Please enter the complete 8-digit code');
+            showAlert('Error', 'Please enter the complete 8-digit code', undefined, { type: 'warning' });
             return;
         }
 
         if (!email) {
-            Alert.alert('Error', 'No email found. Please try signing up again.');
+            showAlert('Error', 'No email found. Please try signing up again.', undefined, { type: 'error' });
             return;
         }
 
@@ -85,9 +86,9 @@ export default function Verify() {
             console.error(error);
             const message = error.message || 'Invalid verification code';
             if (message.includes('expired')) {
-                Alert.alert('Code Expired', 'Your verification code has expired. Please request a new one.');
+                showAlert('Code Expired', 'Your verification code has expired. Please request a new one.', undefined, { type: 'warning' });
             } else {
-                Alert.alert('Verification Failed', message);
+                showAlert('Verification Failed', message, undefined, { type: 'error' });
             }
             // Clear OTP inputs on failure
             setOtp(Array(OTP_LENGTH).fill(''));
@@ -104,9 +105,9 @@ export default function Verify() {
         try {
             await resendOtp(email);
             startTimer();
-            Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+            showAlert('Code Sent', 'A new verification code has been sent to your email.', undefined, { type: 'success' });
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to resend code');
+            showAlert('Error', error.message || 'Failed to resend code', undefined, { type: 'error' });
         } finally {
             setResending(false);
         }
@@ -138,7 +139,7 @@ export default function Verify() {
                 <ScrollView contentContainerStyle={styles.content}>
                     <View style={styles.header}>
                         <Image
-                            source={require('../../assets/KusinaKonek-Logo.png')}
+                            source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />

@@ -9,6 +9,11 @@ import Constants from "expo-constants";
  *   We grab the machine's IP directly from Expo's connection info,
  *   so NO manual IP configuration is needed by any team member.
  *
+ *   Priority order:
+ *     1. Auto-detect from Expo dev server (always correct, zero config)
+ *     2. EXPO_PUBLIC_API_HOST env var (fallback only)
+ *     3. Platform-specific defaults (emulator/localhost)
+ *
  *   Just run `npm run dev` (server) + `npx expo start` (mobile) and it works.
  *
  * In PRODUCTION (APK):
@@ -30,7 +35,12 @@ const getDevHostIp = (): string | null => {
 
     if (debuggerHost) {
       const host = debuggerHost.split(":")[0];
-      if (host && host !== "undefined") {
+      if (
+        host &&
+        host !== "undefined" &&
+        host !== "localhost" &&
+        host !== "127.0.0.1"
+      ) {
         return host;
       }
     }
@@ -55,22 +65,30 @@ const getApiBaseUrl = (): string => {
 
   // --- DEVELOPMENT ---
 
-  // Priority 1: Explicit env var (if someone sets EXPO_PUBLIC_API_HOST manually)
+  // Priority 0: Explicit Override (e.g. for Ngrok)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    console.log(`📡 API URL (override): ${process.env.EXPO_PUBLIC_API_URL}`);
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // Priority 1: Auto-detect from Expo's dev server (RECOMMENDED — zero config!)
+  // Expo knows the machine's IP because it serves the JS bundle over it.
+  // This always gives the CURRENT correct IP, even if .env is stale/cached.
+  const autoHost = getDevHostIp();
+  if (autoHost) {
+    const url = `http://${autoHost}:${API_PORT}/api`;
+    console.log(`📡 API URL (auto-detected): ${url}`);
+    return url;
+  }
+
+  // Priority 2: Fallback to explicit env var (e.g. when Expo hostUri isn't available)
   const envHost = process.env.EXPO_PUBLIC_API_HOST;
   if (envHost) {
     if (envHost.startsWith("http")) {
       return envHost.endsWith("/api") ? envHost : `${envHost}/api`;
     }
     const url = `http://${envHost}:${API_PORT}/api`;
-    console.log(`📡 API URL (from env): ${url}`);
-    return url;
-  }
-
-  // Priority 2: Auto-detect from Expo's dev server (RECOMMENDED — zero config!)
-  const autoHost = getDevHostIp();
-  if (autoHost) {
-    const url = `http://${autoHost}:${API_PORT}/api`;
-    console.log(`📡 API URL (auto-detected): ${url}`);
+    console.log(`📡 API URL (from env fallback): ${url}`);
     return url;
   }
 
@@ -87,5 +105,5 @@ const getApiBaseUrl = (): string => {
 
 export const API_CONFIG = {
   baseURL: getApiBaseUrl(),
-  timeout: 30000,
+  timeout: 120000,
 };

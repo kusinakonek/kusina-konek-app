@@ -7,8 +7,8 @@
   "scripts": {
     "predev": "node -e \"const fs=require('fs'); const path=require('path'); const {execSync}=require('child_process'); const root=path.resolve(__dirname,'../..'); const prismaClientIndex=path.join(root,'node_modules','.prisma','client','index.js'); const tmpEngine=path.join(root,'node_modules','.prisma','client','query_engine-windows.dll.node.tmp'); if(fs.existsSync(prismaClientIndex)){ try{ const dir=path.dirname(prismaClientIndex); const tmp=fs.readdirSync(dir).find(f=>f.startsWith('query_engine-windows.dll.node.tmp')); if(tmp){ try{ fs.unlinkSync(path.join(dir,tmp)); }catch{} } }catch{} console.log('Prisma Client already generated; skipping.'); process.exit(0);} execSync('npm --workspace packages/database run generate',{cwd:root,stdio:'inherit'});\"",
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/server.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "start": "node dist/apps/server/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "npx dotenv -e ../../.env -- prisma generate --schema=../../packages/database/prisma/schema.prisma",
     "db:migrate": "npx dotenv -e ../../.env -- prisma migrate dev --schema=../../packages/database/prisma/schema.prisma",
@@ -23,7 +23,9 @@
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "expo-server-sdk": "^5.0.0",
     "express": "^4.19.2",
+    "firebase-admin": "^13.6.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
@@ -39,6 +41,7 @@
     "dotenv-cli": "^11.0.0",
     "prisma": "^5.20.0",
     "ts-node-dev": "^2.0.0",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.6.2"
   },

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d8943c07-cbc7-4ae8-86a2-783ff4283c00"
+      }
+    },
+    "owner": "testproject73s-organization",
+    "android": {
+      "package": "com.kusinakonek.kusinakonek"
+    }
+  }
+}

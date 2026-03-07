@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -16,16 +17,30 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import EmptyRecentFood from "../components/EmptyRecentFood";
-import { Package, MapPin, Utensils, Search } from "lucide-react-native";
+import { Package, MapPin, Utensils, Search, Bell } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
+import LoadingScreen from "../components/LoadingScreen";
+import { RecentFoodSkeleton } from "../components/SkeletonLoader";
+import { useTheme } from "../../context/ThemeContext";
+import FeedbackModal from "../components/FeedbackModal";
+import { useAlert } from "../../context/AlertContext";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
+  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+
+  // Feedback Modal State
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -44,6 +59,14 @@ export default function RecipientHome() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Handle auto-refresh when a notification is received
+  useEffect(() => {
+    if (notification) {
+      console.log("[RecipientHome] Notification received, auto-refreshing stats...");
+      fetchDashboardData();
+    }
+  }, [notification, fetchDashboardData]);
 
   // Refetch dashboard data whenever the screen comes into focus
   // This ensures recently requested food appears after pickup
@@ -65,9 +88,27 @@ export default function RecipientHome() {
       quantity: `${f.quantity} servings`,
       location: f.location,
       time: f.timeAgo,
-      status: f.status?.toLowerCase(),
+      // Map API status values to UI status values
+      status: (() => {
+        switch (f.status?.toUpperCase()) {
+          case "PENDING":
+            return "pending";
+          case "CLAIMED":
+            return "claimed";
+          case "ON_THE_WAY":
+            return "on-the-way";
+          case "COMPLETED":
+            return "completed";
+          case "DELIVERED":
+            return "completed";
+          default:
+            return f.status?.toLowerCase();
+        }
+      })() as RecentItem["status"],
       rating: f.myRating,
       showFeedback: f.canGiveFeedback,
+      latitude: f.latitude ?? null,
+      longitude: f.longitude ?? null,
     }));
   };
 
@@ -76,21 +117,187 @@ export default function RecipientHome() {
     user?.email?.split("@")[0] ||
     "there";
 
+  if (loading && !refreshing) {
+    return <LoadingScreen message="Loading dashboard..." />;
+  }
+
+  const handleConfirmDonation = async (id: string) => {
+    showAlert(
+      "Confirm Receipt",
+      "Have you successfully received this food?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Confirm",
+          style: "default",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(id));
+              // Don't show success alert yet, show Feedback Modal instead
+              setSelectedDisID(id);
+              setFeedbackVisible(true);
+            } catch (error) {
+              console.error("Failed to confirm donation", error);
+              showAlert("Error", "Failed to confirm. Please try again.");
+              setLoading(false);
+            } finally {
+              // Only stop loading if we are NOT showing the modal (error case)
+              // If success, we keep loading state or just handle it?
+              // Actually, we want to hide global loading and show modal.
+              setLoading(false);
+            }
+          },
+        },
+      ],
+      { type: 'warning' }
+    );
+  };
+
+  const handleSubmitFeedback = async (
+    rating: number,
+    comment: string,
+    photo: string,
+  ) => {
+    if (!selectedDisID) return;
+
+    setSubmittingFeedback(true);
+    try {
+      await axiosClient.post(API_ENDPOINTS.FEEDBACK.CREATE, {
+        disID: selectedDisID,
+        ratingScore: rating,
+        comments: comment,
+        photoUrl: photo,
+      });
+
+      setFeedbackVisible(false);
+      showAlert("Thank You!", "Your feedback has been submitted.", undefined, { type: 'success' });
+      fetchDashboardData();
+      setSelectedDisID(null);
+    } catch (error) {
+      console.error("Feedback submit error:", error);
+      showAlert("Error", "Failed to submit feedback. Please try again.", undefined, { type: 'error' });
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleMarkOnTheWay = async (id: string) => {
+    showAlert("On the Way", "Are you heading to pick up this food now?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, I'm On My Way",
+        style: "default",
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
+            fetchDashboardData();
+
+            // Find the item's lat/lng and open navigation
+            const item = getRecentItems().find((i) => i.id === id);
+            if (
+              item?.latitude != null &&
+              item?.longitude != null &&
+              item.latitude !== 0 &&
+              item.longitude !== 0
+            ) {
+              const lat = item.latitude;
+              const lng = item.longitude;
+              const url = Platform.select({
+                ios: `maps://app?daddr=${lat},${lng}`,
+                android: `google.navigation:q=${lat},${lng}`,
+                default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+              });
+              showAlert(
+                "Navigate to Pickup",
+                "The donor has been notified. Open maps for directions?",
+                [
+                  { text: "Not Now", style: "cancel" },
+                  {
+                    text: "Open Maps",
+                    style: "default",
+                    onPress: () => {
+                      Linking.openURL(url!).catch(() =>
+                        Linking.openURL(
+                          `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+                        ),
+                      );
+                    },
+                  },
+                ],
+                { type: 'info' }
+              );
+            } else {
+              showAlert(
+                "Great!",
+                "The donor has been notified you're on your way.",
+                undefined,
+                { type: 'success' }
+              );
+            }
+          } catch (error) {
+            console.error("Failed to mark on the way", error);
+            showAlert("Error", "Failed to update status. Please try again.", undefined, { type: 'error' });
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ], { type: 'info' });
+  };
+
+  const handleFeedback = (id: string) => {
+    setSelectedDisID(id);
+    setFeedbackVisible(true);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => router.push("/(recipient)/browse-food")}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
+        <View style={styles.headerLeft}>
           <Image
-            source={require("../../assets/KusinaKonek-Logo.png")}
+            source={require("../../assets/KUSINAKONEK-NEW-LOGO.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.appName}>KusinaKonek</Text>
-            <Text style={styles.dashboardTitle}>RECIPIENT Dashboard</Text>
+            <Text style={[styles.appName, { color: colors.text }]}>
+              KusinaKonek
+            </Text>
+            <Text
+              style={[styles.dashboardTitle, { color: colors.textSecondary }]}>
+              Recipient Dashboard
+            </Text>
           </View>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/notifications")}
+          style={{ padding: 8, position: "relative" }}>
+          <Bell size={wp(24)} color="#00C853" />
+          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+            <View
+              style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                backgroundColor: "#FF3B30",
+                width: wp(16),
+                height: wp(16),
+                borderRadius: wp(8),
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 1.5,
+                borderColor: colors.headerBg,
+              }}
+            >
+              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -106,14 +313,24 @@ export default function RecipientHome() {
         }>
         {/* Greeting */}
         <View style={styles.greetingRow}>
-          <View style={styles.greetingAvatar}>
+          <View
+            style={[
+              styles.greetingAvatar,
+              { backgroundColor: isDark ? "#1a3a1a" : "#E8F5E9" },
+            ]}>
             <Text style={styles.greetingAvatarText}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={styles.greetingName}>Hi {userName}!</Text>
-            <Text style={styles.greetingSubtitle}>
+            <Text style={[styles.greetingName, { color: colors.text }]}>
+              Hi {userName}!
+            </Text>
+            <Text
+              style={[
+                styles.greetingSubtitle,
+                { color: colors.textSecondary },
+              ]}>
               Discover bunch of different free{" "}
               <Text style={styles.greenText}>ULAM</Text>.
             </Text>
@@ -140,23 +357,46 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View style={styles.recipientStatsCard}>
+        <View
+          style={[
+            styles.recipientStatsCard,
+            {
+              backgroundColor: colors.primaryLight,
+              borderColor: colors.border,
+            },
+          ]}>
           <View style={styles.recipientStatsIconContainer}>
-            <Package size={wp(48)} color="#2962FF" />
+            <Package size={wp(48)} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.recipientStatsValue}>
+            <Text style={[styles.recipientStatsValue, { color: colors.text }]}>
               {dashboardData?.stats?.availableFoods || 0}
             </Text>
-            <Text style={styles.recipientStatsLabel}>Available Foods</Text>
+            <Text style={[styles.recipientStatsLabel, { color: colors.text }]}>
+              Available Foods
+            </Text>
             <View style={styles.recipientStatsMeta}>
               <MapPin size={wp(12)} color="#00C853" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text
+                style={[
+                  styles.recipientStatsMetaText,
+                  { color: colors.textSecondary },
+                ]}>
                 {dashboardData?.stats?.locations || 0} locations
               </Text>
-              <Text style={styles.recipientStatsMetaDot}>•</Text>
-              <Utensils size={wp(12)} color="#2962FF" />
-              <Text style={styles.recipientStatsMetaText}>
+              <Text
+                style={[
+                  styles.recipientStatsMetaDot,
+                  { color: colors.textTertiary },
+                ]}>
+                •
+              </Text>
+              <Utensils size={wp(12)} color={colors.primary} />
+              <Text
+                style={[
+                  styles.recipientStatsMetaText,
+                  { color: colors.textSecondary },
+                ]}>
                 {dashboardData?.stats?.totalServings || 0}+ servings
               </Text>
             </View>
@@ -172,17 +412,25 @@ export default function RecipientHome() {
         </TouchableOpacity>
 
         {/* Recent Food */}
-        {getRecentItems().length > 0 ? (
+        {loading && !refreshing ? (
+          <RecentFoodSkeleton count={3} />
+        ) : getRecentItems().length > 0 ? (
           <RecentItemsList
-            items={getRecentItems()}
+            items={getRecentItems().slice(0, 4)}
             role="RECIPIENT"
-            onSeeAll={() => {}}
+            onSeeAll={() => router.push("/(recipient)/all-recent-foods")}
+            onConfirm={handleConfirmDonation}
+            onMarkOnTheWay={handleMarkOnTheWay}
+            onFeedback={handleFeedback}
           />
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Recent Food</Text>
-              <TouchableOpacity onPress={() => {}}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                My Recent Food
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(recipient)/all-recent-foods")}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
@@ -196,6 +444,14 @@ export default function RecipientHome() {
 
         <View style={{ height: hp(20) }} />
       </ScrollView>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackVisible}
+        onClose={() => setFeedbackVisible(false)}
+        onSubmit={handleSubmitFeedback}
+        isSubmitting={submittingFeedback}
+      />
     </SafeAreaView>
   );
 }

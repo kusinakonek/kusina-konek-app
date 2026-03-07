@@ -11,7 +11,8 @@ export default function DonorLayout() {
                     animation: 'slide_from_right',
                 }}
             >
-                <Stack.Screen name="donate" />
+                <Stack.Screen name="donate/index" />
+                <Stack.Screen name="all-recent-donations" />
             </Stack>
         </DonationProvider>
     );

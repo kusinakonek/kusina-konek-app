@@ -47,45 +47,14 @@ export const authService = {
     const encryptedPhoneNo = phoneNo ? encrypt(phoneNo) : encrypt("0000000000");
     const phoneNoHash = phoneNo ? sha256Hex(phoneNo) : sha256Hex(`placeholder_${Date.now()}`);
 
-    // Create user in Prisma database with transaction (User + Address)
-    // Note: roleID is null - users select their role at login time
-    const newUser = await prisma.$transaction(async (tx) => {
-      // Create User record without roleID (role is selected at login)
-      const user = await tx.user.create({
-        data: {
-          firstName: encryptedFirstName,
-          lastName: encryptedLastName,
-          phoneNo: encryptedPhoneNo,
-          phoneNoHash: phoneNoHash,
-          email: encryptedEmail,
-          emailHash: emailHash,
-          password: hashedPassword,
-          isOrg: false
-        }
-      });
-
-      // Create Address record with barangay
-      await tx.address.create({
-        data: {
-          UserID: user.userID,
-          latitude: 0,
-          longitude: 0,
-          streetAddress: "",
-          barangay: barangay
-        }
-      });
-
-      return user;
-    });
-
-    // Create user in Supabase Auth (for session management)
+    // Step 1: Create user in Supabase Auth FIRST to get the auth user ID
+    // This ID will be used as the Prisma userID so they always match.
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: {
         display_name: fullName,
-        prisma_user_id: newUser.userID
       }
     });
 
@@ -96,6 +65,56 @@ export const authService = {
       console.error("[Auth Error]:", error.message);
       throw new HttpError(400, error.message);
     }
+
+    const supabaseUserId = data.user.id;
+
+    // Step 2: Create user in Prisma database using the Supabase auth user ID
+    // This ensures req.user.id (from JWT) always matches the Prisma userID
+    let newUser;
+    try {
+      newUser = await prisma.$transaction(async (tx) => {
+        // Create User record with Supabase auth ID as the primary key
+        const user = await tx.user.create({
+          data: {
+            userID: supabaseUserId,
+            firstName: encryptedFirstName,
+            lastName: encryptedLastName,
+            phoneNo: encryptedPhoneNo,
+            phoneNoHash: phoneNoHash,
+            email: encryptedEmail,
+            emailHash: emailHash,
+            password: hashedPassword,
+            isOrg: false
+          }
+        });
+
+        // Create Address record with barangay
+        await tx.address.create({
+          data: {
+            UserID: user.userID,
+            latitude: 0,
+            longitude: 0,
+            streetAddress: "",
+            barangay: barangay
+          }
+        });
+
+        return user;
+      });
+    } catch (prismaError) {
+      // Rollback Supabase user if Prisma fails
+      await supabaseAdmin.auth.admin.deleteUser(supabaseUserId);
+      console.error("[Prisma Error]:", prismaError);
+      throw new HttpError(500, "Failed to create user profile");
+    }
+
+    // Update Supabase user metadata with the prisma_user_id (same ID now)
+    await supabaseAdmin.auth.admin.updateUserById(supabaseUserId, {
+      user_metadata: {
+        display_name: fullName,
+        prisma_user_id: newUser.userID
+      }
+    });
 
     return {
       message: "Account created successfully.",
@@ -136,10 +155,27 @@ export const authService = {
 
     // Lookup user by emailHash (since email is encrypted in DB)
     const emailHash = sha256Hex(email.toLowerCase());
-    const profile = await userRepository.getByEmailHash(emailHash);
+    let profile = await userRepository.getByEmailHash(emailHash);
 
     // Import safeDecrypt function for decrypting user data
     const { safeDecrypt } = await import("../utils/encryption");
+
+    // Auto-link: if the Prisma userID doesn't match the Supabase auth ID,
+    // update it so all ensureProfile(req.user.id) lookups work correctly.
+    // This handles users who signed up before Supabase ID was used as Prisma PK.
+    if (profile && profile.userID !== data.user.id) {
+      try {
+        await prisma.user.update({
+          where: { userID: profile.userID },
+          data: { userID: data.user.id }
+        });
+        // Re-fetch the updated profile
+        profile = await userRepository.getByEmailHash(emailHash);
+      } catch (linkError) {
+        console.warn("[Auth] Could not auto-link Prisma userID to Supabase ID:", linkError);
+        // Continue with the old profile — dashboard (email-based) still works
+      }
+    }
 
     // Update Supabase user metadata with the selected role for this session
     await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
@@ -148,6 +184,19 @@ export const authService = {
         role: selectedRole // Use the role selected at login
       }
     });
+
+    // Update user's lastLoginAt and ensure isActive is true
+    try {
+      await prisma.user.update({
+        where: { userID: profile?.userID || data.user.id },
+        data: {
+          lastLoginAt: new Date(),
+          isActive: true
+        }
+      });
+    } catch (updateError) {
+      console.error("[Auth] Failed to update lastLoginAt and isActive status:", updateError);
+    }
 
     return {
       message: "Signed in successfully",
@@ -299,6 +348,34 @@ export const authService = {
     return {
       message: "If an account with this email exists and is unverified, a verification email has been sent"
     };
+  },
+
+  /**
+   * Check if email or phone number is available
+   */
+  async checkAvailability(email?: string, phoneNo?: string) {
+    const result = {
+      emailAvailable: true,
+      phoneAvailable: true
+    };
+
+    if (email) {
+      const emailHash = sha256Hex(email.toLowerCase());
+      const user = await userRepository.getByEmailHash(emailHash);
+      if (user) {
+        result.emailAvailable = false;
+      }
+    }
+
+    if (phoneNo) {
+      const phoneNoHash = sha256Hex(phoneNo);
+      const user = await userRepository.getByPhoneNoHash(phoneNoHash);
+      if (user) {
+        result.phoneAvailable = false;
+      }
+    }
+
+    return result;
   }
 };
 

@@ -1,16 +1,15 @@
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 
 interface CardProps {
-    children: React.ReactNode;
     style?: ViewStyle;
     variant?: 'elevated' | 'outlined' | 'flat';
 }
 
-export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated' }) => {
+export const Card = ({ children, style, variant = 'elevated' }: PropsWithChildren<CardProps>) => {
     return (
         <View style={[styles.card, styles[variant], style]}>
-            {children}
+            <>{children}</>
         </View>
     );
 };

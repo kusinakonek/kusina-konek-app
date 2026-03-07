@@ -102,15 +102,16 @@ export const distributionRepository = {
     });
   },
 
-  listAvailable(excludeDonorID?: string) {
+  listAvailable(excludeDonorID?: string, fromDate?: Date) {
     return prisma.distribution.findMany({
       where: {
         status: "PENDING",
         recipientID: null,
         ...(excludeDonorID ? { donorID: { not: excludeDonorID } } : {}),
+        ...(fromDate ? { scheduledTime: { gte: fromDate } } : {}),
       },
-      orderBy: { timestamp: "desc" },
-      take: 50,
+      orderBy: { scheduledTime: "asc" },
+      take: 100,
       select: listSelect,
     });
   },
@@ -121,6 +122,25 @@ export const distributionRepository = {
       orderBy: { claimedAt: "desc" },
       take: 50,
       select: listSelect,
+    });
+  },
+
+  /**
+   * Count how many distributions a recipient has claimed since a given date.
+   */
+  countClaimsSince(recipientID: string, since: Date) {
+    return prisma.distribution.count({
+      where: {
+        recipientID,
+        claimedAt: { gte: since },
+        status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED", "COMPLETED"] },
+      },
+    });
+  },
+
+  delete(disID: string) {
+    return prisma.distribution.delete({
+      where: { disID },
     });
   },
 };

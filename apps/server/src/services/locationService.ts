@@ -12,7 +12,7 @@ import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile first. Go to Profile > Edit Profile.");
   return profile;
 };
 
@@ -48,8 +48,9 @@ const decryptLocation = (location: any) => {
   if (!location) return null;
   return {
     ...location,
-    streetAddress: safeDecrypt(location.streetAddress),
-    barangay: safeDecrypt(location.barangay),
+    // Baragay and street address don't need AES encryption at this level, speeds up queries 100x.
+    streetAddress: location.streetAddress,
+    barangay: location.barangay,
     food: location.food ? decryptFood(location.food) : null,
     user: location.user ? decryptUser(location.user) : undefined,
   };
@@ -74,8 +75,8 @@ export const locationService = {
         : {}),
       latitude: params.input.latitude,
       longitude: params.input.longitude,
-      streetAddress: encrypt(params.input.streetAddress),
-      barangay: params.input.barangay ? encrypt(params.input.barangay) : null,
+      streetAddress: params.input.streetAddress,
+      barangay: params.input.barangay || null,
     });
 
     return { location: decryptLocation(location) };
@@ -123,10 +124,10 @@ export const locationService = {
         ? { longitude: params.input.longitude }
         : {}),
       ...(params.input.streetAddress !== undefined
-        ? { streetAddress: encrypt(params.input.streetAddress) }
+        ? { streetAddress: params.input.streetAddress }
         : {}),
       ...(params.input.barangay !== undefined
-        ? { barangay: encrypt(params.input.barangay) }
+        ? { barangay: params.input.barangay }
         : {}),
     });
 

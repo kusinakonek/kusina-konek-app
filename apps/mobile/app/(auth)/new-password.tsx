@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -17,44 +16,43 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
+import SuccessModal from '../../src/components/SuccessModal';
+import { useAlert } from '../../context/AlertContext';
 
 export default function NewPassword() {
     const router = useRouter();
     const { updatePassword } = useAuth();
+    const { showAlert } = useAlert();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleUpdatePassword = async () => {
         if (!password || !confirmPassword) {
-            Alert.alert('Error', 'Please fill in both fields');
+            showAlert('Error', 'Please fill in both fields', undefined, { type: 'warning' });
             return;
         }
 
         if (password.length < 6) {
-            Alert.alert('Error', 'Password must be at least 6 characters long');
+            showAlert('Error', 'Password must be at least 6 characters long', undefined, { type: 'warning' });
             return;
         }
 
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            showAlert('Error', 'Passwords do not match', undefined, { type: 'error' });
             return;
         }
 
         setLoading(true);
         try {
             await updatePassword(password);
-            Alert.alert('Success', 'Your password has been updated successfully', [
-                {
-                    text: 'Login Now',
-                    onPress: () => router.replace('/(auth)/login'),
-                },
-            ]);
+            setShowSuccessModal(true);
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Error', error.message || 'Failed to update password');
+            showAlert('Error', error.message || 'Failed to update password', undefined, { type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -140,6 +138,18 @@ export default function NewPassword() {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+
+            <SuccessModal
+                visible={showSuccessModal}
+                title="Password Updated"
+                message="Your password has been updated successfully."
+                buttonText="Login Now"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    router.replace('/(auth)/login');
+                }}
+            />
         </SafeAreaView>
     );
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../../context/AuthContext';
+import { useAlert } from '../../../../context/AlertContext';
 
 // Password strength checker
 const getPasswordStrength = (password: string) => {
@@ -22,6 +22,7 @@ const getPasswordStrength = (password: string) => {
 export const useSignupLogic = () => {
     const router = useRouter();
     const { signUp, role } = useAuth(); // Assuming useAuth is accessible
+    const { showAlert } = useAlert();
 
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -33,54 +34,115 @@ export const useSignupLogic = () => {
         confirmPassword: '',
         barangay: '',
         phoneNo: '',
+        // Organization fields - commented out for now
+        // isOrg: false,
+        // orgName: '',
+        isOrg: false as const,
+        orgName: '' as const,
     });
+
+    const [emailError, setEmailError] = useState('');
+    const [phoneError, setPhoneError] = useState('');
 
     const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password]);
 
-    const handleChange = (key: string, value: string) => {
+    const handleChange = (key: string, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
+        // Clear errors when user types
+        if (key === 'email') setEmailError('');
+        if (key === 'phoneNo') setPhoneError('');
+    };
+
+    const checkAvailability = async (email: string, phoneNo: string) => {
+        try {
+            // Dynamic import to avoid circular dependencies if any, though likely not needed here -- fixed path
+            const axiosClient = (await import('../../../api/axiosClient')).default;
+
+            const response = await axiosClient.post('/auth/availability', {
+                email,
+                phoneNo
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('Availability check failed:', error);
+            // Default to true if check fails to not block signup (let backend handle final check)
+            return { emailAvailable: true, phoneAvailable: true };
+        }
     };
 
     const handleSignup = async () => {
-        const { fullName, email, password, confirmPassword, barangay, phoneNo } = formData;
+        const { fullName, email, password, confirmPassword, barangay, phoneNo, isOrg, orgName } = formData;
 
-        if (!fullName || !email || !password || !confirmPassword || !barangay) {
-            Alert.alert('Error', 'Please fill in all required fields');
+        if (!fullName || !email || !password || !confirmPassword || !barangay || !phoneNo) {
+            showAlert('Error', 'Please fill in all required fields', undefined, { type: 'warning' });
             return;
         }
 
+        // Organization validation - commented out for now
+        // if (isOrg && !orgName.trim()) {
+        //     showAlert('Error', 'Please enter your Organization/LGU name', undefined, { type: 'warning' });
+        //     return;
+        // }
+
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            showAlert('Error', 'Passwords do not match', undefined, { type: 'error' });
             return;
         }
 
         if (password.length < 8) {
-            Alert.alert('Error', 'Password must be at least 8 characters');
+            showAlert('Error', 'Password must be at least 8 characters', undefined, { type: 'warning' });
             return;
         }
 
         if (!role) {
-            Alert.alert('Error', 'No role selected. Please restart the app.');
+            showAlert('Error', 'No role selected. Please restart the app.', undefined, { type: 'error' });
             return;
         }
 
         setLoading(true);
+        setEmailError('');
+        setPhoneError('');
+
         try {
+            // Pre-check availability
+            const availability = await checkAvailability(email.trim().toLowerCase(), phoneNo);
+
+            let hasError = false;
+            if (!availability.emailAvailable) {
+                setEmailError('Email is already in use');
+                hasError = true;
+            }
+            if (!availability.phoneAvailable) {
+                setPhoneError('Phone number is already in use');
+                hasError = true;
+            }
+
+            if (hasError) {
+                setLoading(false);
+                return;
+            }
+
             await signUp(email.trim().toLowerCase(), password, {
                 full_name: fullName,
                 display_name: fullName,
                 barangay,
                 phone_no: phoneNo,
                 role,
+                // Organization fields - commented out for now
+                // isOrg,
+                // orgName,
+                isOrg: false,
+                orgName: '',
             });
             // Navigation happens inside signUp usually, or allow handling here
         } catch (error: any) {
             console.error(error);
             const message = error.message || 'Something went wrong';
             if (message.includes('already registered')) {
-                Alert.alert('Signup Failed', 'An account with this email already exists');
+                showAlert('Signup Failed', 'An account with this email already exists', undefined, { type: 'error' });
             } else {
-                Alert.alert('Signup Failed', message);
+                showAlert('Signup Failed', message, undefined, { type: 'error' });
             }
         } finally {
             setLoading(false);
@@ -98,6 +160,8 @@ export const useSignupLogic = () => {
         handleSignup,
         passwordStrength,
         role,
-        router
+        router,
+        emailError,
+        phoneError
     };
 };

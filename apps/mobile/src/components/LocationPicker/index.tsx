@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import { Map } from 'lucide-react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Linking, Platform } from 'react-native';
+import { Map, Navigation2, ExternalLink } from 'lucide-react-native';
 import InteractiveMap from '../../../src/components/InteractiveMap';
 import Input from '../../../src/components/Input';
 
@@ -9,6 +9,7 @@ export interface LocationValue {
     longitude: number;
     name: string;
     address: string;
+    barangay?: string;
 }
 
 interface LocationPickerProps {
@@ -25,7 +26,10 @@ export default function LocationPicker({
     placeholder = 'e.g., SM City Naga, Naga City Hall'
 }: LocationPickerProps) {
 
-    const handleLocationSelect = (location: { latitude: number; longitude: number; address: string }) => {
+    const handleLocationSelect = (location: {
+        latitude: number; longitude: number; address: string;
+        barangay?: string; landmark?: string; fullAddress?: string;
+    }) => {
         // Handle loading state
         if (!location.address) {
             onChange({
@@ -33,20 +37,47 @@ export default function LocationPicker({
                 longitude: location.longitude,
                 name: 'Fetching location...',
                 address: 'Fetching address details...',
+                barangay: '',
             });
             return;
         }
 
-        // Parse address
-        const addressParts = location.address.split(',');
-        const name = addressParts[0]?.trim() || 'Selected Location';
+        // Landmark: use detected landmark, or fall back to first part of address
+        const landmark = location.landmark || location.address.split(',')[0]?.trim() || 'Selected Location';
+
+        // Full structured address from Nominatim
+        const fullAddress = location.fullAddress || location.address;
 
         onChange({
             latitude: location.latitude,
             longitude: location.longitude,
-            name,
-            address: location.address,
+            name: landmark,
+            address: fullAddress,
+            barangay: location.barangay || '',
         });
+    };
+
+    const openGoogleMapsNavigation = (lat: number, lng: number) => {
+        const destination = `${lat},${lng}`;
+        const googleMapsAppUrl = Platform.select({
+            android: `google.navigation:q=${destination}&mode=d`,
+            ios: `comgooglemaps://?daddr=${destination}&directionsmode=driving`,
+        });
+        const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+
+        if (googleMapsAppUrl) {
+            Linking.canOpenURL(googleMapsAppUrl)
+                .then((supported) => {
+                    if (supported) {
+                        Linking.openURL(googleMapsAppUrl);
+                    } else {
+                        Linking.openURL(googleMapsWebUrl);
+                    }
+                })
+                .catch(() => Linking.openURL(googleMapsWebUrl));
+        } else {
+            Linking.openURL(googleMapsWebUrl);
+        }
     };
 
     return (
@@ -65,24 +96,52 @@ export default function LocationPicker({
                 />
             </View>
 
-            {/* Coordinates Display */}
+            {/* Coordinates Display + Navigate Button */}
             {value && value.latitude !== 0 && (
-                <View style={styles.coordsContainer}>
-                    <View style={styles.coordItem}>
-                        <Text style={styles.coordLabel}>Latitude</Text>
-                        <Text style={styles.coordValue}>{value.latitude.toFixed(6)}</Text>
+                <>
+                    <View style={styles.coordsContainer}>
+                        <View style={styles.coordItem}>
+                            <Text style={styles.coordLabel}>Latitude</Text>
+                            <Text style={styles.coordValue}>{value.latitude.toFixed(6)}</Text>
+                        </View>
+                        <View style={styles.coordItem}>
+                            <Text style={styles.coordLabel}>Longitude</Text>
+                            <Text style={styles.coordValue}>{value.longitude.toFixed(6)}</Text>
+                        </View>
                     </View>
-                    <View style={styles.coordItem}>
-                        <Text style={styles.coordLabel}>Longitude</Text>
-                        <Text style={styles.coordValue}>{value.longitude.toFixed(6)}</Text>
+                    <TouchableOpacity
+                        style={styles.navigateButton}
+                        onPress={() => openGoogleMapsNavigation(value.latitude, value.longitude)}
+                    >
+                        <Navigation2 size={16} color="#fff" />
+                        <Text style={styles.navigateText}>Navigate with Google Maps</Text>
+                        <ExternalLink size={12} color="rgba(255,255,255,0.7)" />
+                    </TouchableOpacity>
+
+                    {/* Notice */}
+                    <View style={styles.noticeBox}>
+                        <Text style={styles.noticeText}>
+                            Notice: Please double-check if the suggested Barangay and Landmark are correct based on your pinned location. You can edit them if needed.
+                        </Text>
                     </View>
-                </View>
+                </>
             )}
 
-            {/* Landmark / Location Name */}
+            {/* Barangay (auto-detected from map pin) */}
             <Input
-                label="Landmark / Location Name"
-                placeholder={placeholder}
+                label="Barangay"
+                placeholder="Auto-detected from map pin"
+                value={value?.barangay || ''}
+                onChangeText={(text) => onChange({
+                    ...(value || { latitude: 0, longitude: 0, name: '', address: '' }),
+                    barangay: text,
+                })}
+            />
+
+            {/* Landmark / Nearest Store / Street */}
+            <Input
+                label="Landmark / Nearest Store"
+                placeholder="e.g., SM City Naga, Jollibee, or street name"
                 value={value?.name || ''}
                 onChangeText={(text) => onChange({
                     ...(value || { latitude: 0, longitude: 0, address: '' }),
@@ -90,10 +149,10 @@ export default function LocationPicker({
                 })}
             />
 
-            {/* Address / Description */}
+            {/* Full Address */}
             <Input
-                label="Address / Description"
-                placeholder="Provide specific details (e.g., near the main entrance)"
+                label="Complete Address"
+                placeholder="Zone/Street, Barangay, Municipality, Province, Region, Zip, Country"
                 multiline
                 numberOfLines={3}
                 value={value?.address || ''}
@@ -101,7 +160,7 @@ export default function LocationPicker({
                     ...(value || { latitude: 0, longitude: 0, name: '' }),
                     address: text,
                 })}
-                style={{ height: 80 }} // Override default minHeight if needed, or stick with Input default
+                style={{ height: 80 }}
             />
         </View>
     );
@@ -148,6 +207,40 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#2E7D32',
         fontFamily: 'monospace',
+    },
+    navigateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#4285F4',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        marginBottom: 16,
+        shadowColor: '#4285F4',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    navigateText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    noticeBox: {
+        backgroundColor: '#FFF3E0',
+        padding: 12,
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: '#FF9800',
+        marginBottom: 16,
+    },
+    noticeText: {
+        color: '#E65100',
+        fontSize: 12,
+        lineHeight: 18,
     },
 
 });

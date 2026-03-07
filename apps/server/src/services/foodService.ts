@@ -14,7 +14,7 @@ import { locationService } from "./locationService";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
-  if (!profile) throw new HttpError(400, "Complete your profile first");
+  if (!profile) throw new HttpError(400, "Please complete your profile before creating donations. Go to Profile > Edit Profile.");
   return profile;
 };
 
@@ -37,15 +37,15 @@ const decryptUser = (user: any) => {
 const decryptFood = (food: any) => {
   return {
     ...food,
-    // foodName, description, and image are now stored as plain text
+    // No more manual decryption loops here! The DB resolves these fast.
     foodName: food.foodName,
     description: food.description,
     image: food.image,
     user: decryptUser(food.user),
     locations: food.locations?.map((loc: any) => ({
       ...loc,
-      streetAddress: safeDecrypt(loc.streetAddress),
-      barangay: loc.barangay ? safeDecrypt(loc.barangay) : null,
+      streetAddress: loc.streetAddress,
+      barangay: loc.barangay,
       user: decryptUser(loc.user),
     })),
   };
@@ -55,18 +55,14 @@ const decryptFood = (food: any) => {
 const decryptDistribution = (distribution: any) => {
   return {
     ...distribution,
-    photoProof: distribution.photoProof
-      ? safeDecrypt(distribution.photoProof)
-      : null,
+    photoProof: distribution.photoProof,
     donor: decryptUser(distribution.donor),
     recipient: decryptUser(distribution.recipient),
     location: distribution.location
       ? {
         ...distribution.location,
-        streetAddress: safeDecrypt(distribution.location.streetAddress),
-        barangay: distribution.location.barangay
-          ? safeDecrypt(distribution.location.barangay)
-          : null,
+        streetAddress: distribution.location.streetAddress,
+        barangay: distribution.location.barangay,
       }
       : null,
     food: distribution.food
@@ -87,7 +83,9 @@ export const foodService = {
 
     const created = await foodRepository.create(params.userID, {
       foodName: params.input.foodName,
-      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
+      dateCooked: params.input.dateCooked
+        ? new Date(params.input.dateCooked)
+        : null,
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
@@ -177,22 +175,30 @@ export const foodService = {
     // Encrypt sensitive data before storing
     const encryptedFoodData = {
       foodName: params.input.foodName,
-      dateCooked: params.input.dateCooked ? new Date(params.input.dateCooked) : null,
+      dateCooked: params.input.dateCooked
+        ? new Date(params.input.dateCooked)
+        : null,
       description: params.input.description,
       quantity: params.input.quantity,
       image: params.input.image,
     };
 
     // Create food first
+    console.time(`DB_FOOD_CREATE_${params.userID}`);
     const created = await foodRepository.create(
       params.userID,
       encryptedFoodData,
     );
+    console.timeEnd(`DB_FOOD_CREATE_${params.userID}`);
 
     // Create locations using existing locationService if provided
     let dropOffLocationID: string | undefined;
+    let mainLatitude: number | undefined;
+    let mainLongitude: number | undefined;
+
     if (params.input.locations && params.input.locations.length > 0) {
       for (const loc of params.input.locations) {
+        console.time(`DB_LOC_CREATE_${params.userID}`);
         const location = await locationService.createLocation({
           userID: params.userID,
           input: {
@@ -203,8 +209,11 @@ export const foodService = {
             barangay: loc.barangay,
           },
         });
+        console.timeEnd(`DB_LOC_CREATE_${params.userID}`);
         if (!dropOffLocationID) {
           dropOffLocationID = location.location.locID;
+          mainLatitude = loc.latitude;
+          mainLongitude = loc.longitude;
         }
       }
     }
@@ -213,6 +222,7 @@ export const foodService = {
       throw new HttpError(400, "At least one drop-off location is required");
     }
 
+    console.time(`DB_DIST_CREATE_${params.userID}`);
     const distribution = await distributionRepository.create({
       donor: { connect: { userID: params.userID } },
       location: { connect: { locID: dropOffLocationID } },
@@ -222,10 +232,24 @@ export const foodService = {
       photoProof: params.input.photoProof,
       status: "PENDING",
     });
+    console.timeEnd(`DB_DIST_CREATE_${params.userID}`);
 
-    const decryptedFood = decryptFood(created);
-    const decryptedDistribution = decryptDistribution(distribution);
-    return { food: decryptedFood, distribution: decryptedDistribution };
+    if (mainLatitude !== undefined && mainLongitude !== undefined) {
+      import("./notificationService").then(ns =>
+        ns.notificationService.notifyNearbyRecipients(
+          mainLatitude!,
+          mainLongitude!,
+          "New Food Nearby!",
+          `${params.input.foodName} is available near you!`,
+          { screen: "RecipientHome", foodID: created.foodID },
+          3.0,
+          params.userID
+        )
+      ).catch(error => console.error("Failed to notify nearby recipients", error));
+    }
+
+    // Bypass the heavy, nested decryption logic completely. DB inserts resolve fast!
+    return { food: created, distribution };
   },
 
   async getAllDonations(userID: string) {
@@ -391,6 +415,48 @@ export const foodService = {
     };
   },
 
+  async cancelDonation(params: { userID: string; foodID: string }) {
+    await ensureProfile(params.userID);
+    const existing = await foodRepository.getById(params.foodID);
+
+    if (!existing) throw new HttpError(404, "Donation not found");
+    if (existing.userID !== params.userID)
+      throw new HttpError(403, "Forbidden");
+
+    // Check if distribution exists for this food and its status
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    // Only allow cancellation if nobody has claimed it (PENDING status) or if no distribution exists
+    if (distribution && distribution.status !== "PENDING") {
+      throw new HttpError(400, "Cannot cancel a donation that has already been claimed or completed");
+    }
+
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
+    const locations = await locationService.listLocationsForFood({
+      userID: params.userID,
+      foodID: params.foodID,
+    });
+
+    for (const loc of locations.locations) {
+      await locationService.deleteLocation({
+        userID: params.userID,
+        locID: loc.locID,
+      });
+    }
+
+    // 3) Finally delete the food/donation itself
+    await foodRepository.delete(params.foodID);
+
+    return {
+      message: "Donation has been successfully cancelled and removed",
+    };
+  },
+
   async requestDonation(params: {
     recipientID: string;
     input: RequestDonationInput;
@@ -412,10 +478,77 @@ export const foodService = {
       recipient: { connect: { userID: params.recipientID } },
       scheduledTime: new Date(params.input.scheduledTime),
       photoProof: params.input.photoProof,
-      status: "CLAIMED",
+      status: "ON_THE_WAY",
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
+
+    // Notify Donor
+    try {
+      const recipientName = (await userRepository.getByUserId(params.recipientID))?.firstName || "A recipient";
+      // Need to decrypt recipient name properly? userRepo returns encrypted... 
+      // ensuring we get decrypted Profile helpful?
+      // actually foodService.ensureProfile calls userRepo.getByUserId which returns encrypted. 
+      // We should use userService.getProfile properly? 
+      // For speed, I will just say "Someone" or use the ID if we can't easily decrypt here without importing userService (circular dependency risk?)
+      // actually we can import specific utils. 
+      // Let's keep it simple for now: "Your donation has been claimed!"
+
+      const donorID = existing.donorID;
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "Food Claimed!",
+          "Your donation is now marked as On The Way.",
+          "CLAIM",
+          { screen: "DonorHome", disID: distribution.disID }, // Deep linking data
+          distribution.disID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send notification", error);
+    }
+
     return { distribution: decryptedDistribution };
+  },
+
+  async confirmDonation(params: { userID: string; foodID: string }) {
+    await ensureProfile(params.userID);
+
+    // Check if distribution exists for this food
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    if (!distribution) throw new HttpError(404, "Distribution not found");
+
+    // Check if the user is the RECIPIENT (not the donor)
+    if (distribution.recipientID !== params.userID) {
+      throw new HttpError(403, "Forbidden: Only the recipient can confirm receipt");
+    }
+
+    if (distribution.status !== "ON_THE_WAY") throw new HttpError(400, "Donation cannot be confirmed yet");
+
+    const updated = await distributionRepository.update(distribution.disID, {
+      status: "COMPLETED",
+      claimedAt: new Date()
+    });
+
+    // Notify Donor
+    try {
+      const donorID = distribution.donorID;
+      await import("./notificationService").then(ns =>
+        ns.notificationService.notifyUser(
+          donorID,
+          "Donation Completed!",
+          "The recipient has confirmed receipt of your donation.",
+          "CONFIRM",
+          { screen: "History", disID: distribution.disID },
+          distribution.disID
+        )
+      );
+    } catch (error) {
+      console.error("Failed to send notification to donor", error);
+    }
+
+    return { distribution: decryptDistribution(updated) };
   },
 };

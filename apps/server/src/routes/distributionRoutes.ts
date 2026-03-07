@@ -13,7 +13,11 @@ import { distributionController } from "../controllers/distributionController";
 export const distributionRouter = Router();
 
 // Get available distributions (authenticated - excludes user's own donations)
-distributionRouter.get("/available", authMiddleware, distributionController.listAvailable);
+distributionRouter.get(
+  "/available",
+  authMiddleware,
+  distributionController.listAvailable,
+);
 
 // Create distribution
 distributionRouter.post(
@@ -31,6 +35,13 @@ distributionRouter.get(
   "/mine",
   authMiddleware,
   distributionController.listMine,
+);
+
+// Get claim limits for current user
+distributionRouter.get(
+  "/claim-limits",
+  authMiddleware,
+  distributionController.claimLimits,
 );
 
 // Get distribution by ID
@@ -70,4 +81,11 @@ distributionRouter.post(
   authMiddleware,
   validateRequest(requestDistributionSchema),
   distributionController.request,
+);
+
+// Recipient marks they are on the way to pick up food
+distributionRouter.post(
+  "/:disID/on-the-way",
+  authMiddleware,
+  distributionController.markOnTheWay,
 );

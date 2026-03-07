@@ -9,16 +9,22 @@ export interface DonorStats {
   totalDonated: number;
   availableItems: number;
   averageRating: number;
+  familiesHelped: number;
+  unreadNotifications: number;
 }
 
 export interface RecipientStats {
   availableFoods: number;
   locations: number;
   totalServings: number;
+  totalReceived: number;
+  activeNow: number;
+  unreadNotifications: number;
 }
 
 export interface DonorDonationItem {
   disID: string;
+  foodID: string;
   foodName: string;
   quantity: string;
   status: string;
@@ -26,6 +32,7 @@ export interface DonorDonationItem {
   timestamp: Date;
   claimedBy: string | null;
   rating: number | null;
+  image: string | null;
 }
 
 export interface RecipientFoodItem {
@@ -34,6 +41,8 @@ export interface RecipientFoodItem {
   quantity: string;
   status: string;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   timestamp: Date;
   canGiveFeedback: boolean;
   myRating: number | null;
@@ -63,18 +72,21 @@ export const dashboardRepository = {
    * Counts: total donated, available items, average rating
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
-    const [totalDonated, availableItems, avgRating] = await Promise.all([
-      // Count completed distributions (donations that were delivered)
+    const [totalDonated, availableItems, avgRating, familiesHelped, unreadNotifications] = await Promise.all([
+      // Count distributions that have been claimed/on-the-way/completed
       prisma.distribution.count({
         where: {
           donorID: userID,
-          status: { in: ["DELIVERED", "COMPLETED"] },
+          status: { in: ["CLAIMED", "ON_THE_WAY", "COMPLETED"] },
         },
       }),
 
-      // Count food items the donor has available
-      prisma.food.count({
-        where: { userID: userID },
+      // Count distributions still available (PENDING)
+      prisma.distribution.count({
+        where: {
+          donorID: userID,
+          status: "PENDING",
+        },
       }),
 
       // Calculate average rating from feedback received
@@ -82,12 +94,32 @@ export const dashboardRepository = {
         where: { donorID: userID },
         _avg: { ratingScore: true },
       }),
+
+      // Count distinct recipients (families helped)
+      prisma.distribution.findMany({
+        where: {
+          donorID: userID,
+          recipientID: { not: null },
+        },
+        select: { recipientID: true },
+        distinct: ["recipientID"],
+      }),
+
+      // Count unread notifications
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
+      }),
     ]);
 
     return {
       totalDonated,
       availableItems,
       averageRating: Math.round((avgRating._avg.ratingScore ?? 0) * 10) / 10,
+      familiesHelped: familiesHelped.length,
+      unreadNotifications,
     };
   },
 
@@ -104,10 +136,11 @@ export const dashboardRepository = {
       take: limit,
       select: {
         disID: true,
+        foodID: true,
         quantity: true,
         status: true,
         timestamp: true,
-        food: { select: { foodName: true } },
+        food: { select: { foodName: true, image: true } },
         location: { select: { barangay: true } },
         recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
@@ -121,6 +154,7 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
+        foodID: d.foodID,
         foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
@@ -130,6 +164,7 @@ export const dashboardRepository = {
           ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
           : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
+        image: d.food?.image || null,
       };
     });
   },
@@ -141,7 +176,7 @@ export const dashboardRepository = {
   async getRecipientStats(userID: string): Promise<RecipientStats> {
     // quantity is a String field, so we can't use _sum in aggregate.
     // Fetch counts + quantities separately.
-    const [availableCount, locationCount, quantities] = await Promise.all([
+    const [availableCount, locationCount, quantities, unreadNotifications] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
@@ -164,6 +199,12 @@ export const dashboardRepository = {
         },
         select: { quantity: true },
       }),
+      prisma.notification.count({
+        where: {
+          userID,
+          isRead: false,
+        },
+      }),
     ]);
 
     // Parse and sum quantity strings manually
@@ -172,10 +213,29 @@ export const dashboardRepository = {
       return sum + (isNaN(parsed) ? 0 : parsed);
     }, 0);
 
+    // Count completed distributions for this recipient (food received)
+    const totalReceived = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: "COMPLETED",
+      },
+    });
+
+    // Count active distributions for this recipient (claimed / on the way)
+    const activeNow = await prisma.distribution.count({
+      where: {
+        recipientID: userID,
+        status: { in: ["CLAIMED", "ON_THE_WAY"] },
+      },
+    });
+
     return {
       availableFoods: availableCount,
       locations: locationCount,
       totalServings,
+      totalReceived,
+      activeNow,
+      unreadNotifications,
     };
   },
 
@@ -197,7 +257,7 @@ export const dashboardRepository = {
         timestamp: true,
         claimedAt: true,
         food: { select: { foodName: true } },
-        location: { select: { barangay: true } },
+        location: { select: { barangay: true, latitude: true, longitude: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
@@ -217,6 +277,8 @@ export const dashboardRepository = {
         quantity: d.quantity,
         status: d.status.toLowerCase(),
         location: safeDecrypt(d.location.barangay),
+        latitude: d.location.latitude,
+        longitude: d.location.longitude,
         timestamp: d.claimedAt || d.timestamp,
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,

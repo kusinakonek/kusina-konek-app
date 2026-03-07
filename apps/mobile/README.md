@@ -50,26 +50,27 @@ chmod +x scripts/setup-dev-env.sh
 
 **Manual Setup:**
 
-1. Copy `.env.example` to `.env` in the **root folder** (not in apps/mobile)
+1. Copy `apps/mobile/.env.example` to `apps/mobile/.env`
 2. Find your local IP address:
    - **Windows**: Run `ipconfig` in PowerShell and look for your WiFi/Ethernet IPv4 Address
    - **Mac/Linux**: Run `ifconfig | grep "inet "` and look for your local IP
 3. Update `EXPO_PUBLIC_API_HOST` in the root `.env` with your IP address
 
-Example root `.env` (partial):
+Example `apps/mobile/.env` (partial):
 
 ```
 EXPO_PUBLIC_API_HOST=10.142.135.110
-EXPO_PUBLIC_API_PORT=3000
+EXPO_PUBLIC_API_PORT=3001
 ```
 
 **Important Notes:**
 
-- Environment configuration is **centralized in the root** `.env` file
-- Each team member needs their own `.env` with their machine's IP
-- `.env` is gitignored, so you won't conflict with other developers
+- Expo reads `EXPO_PUBLIC_*` variables from `apps/mobile/.env` (or your shell env)
+- The backend server uses the monorepo root `.env` for secrets/DB config
+- Each team member needs their own `apps/mobile/.env` with their machine's IP
+- `.env` files are gitignored, so you won't conflict with other developers
 - If your IP changes (e.g., different WiFi network), run the setup script again
-- Make sure your backend server is running on port 3000 (or update accordingly)
+- Make sure your backend server is running on the same port as `EXPO_PUBLIC_API_PORT`
 - Your device/emulator must be on the same network as your development machine
 
 ### 3. Run the Application (from repo root)

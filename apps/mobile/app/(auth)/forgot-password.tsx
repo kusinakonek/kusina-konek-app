@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -17,16 +16,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Mail, ArrowRight } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 
 export default function ForgotPassword() {
     const router = useRouter();
     const { sendRecoveryOtp } = useAuth();
+    const { showAlert } = useAlert();
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSendCode = async () => {
         if (!email) {
-            Alert.alert('Error', 'Please enter your email address');
+            showAlert('Error', 'Please enter your email address', undefined, { type: 'warning' });
             return;
         }
 
@@ -40,7 +41,7 @@ export default function ForgotPassword() {
             });
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Error', error.message || 'Failed to send recovery code');
+            showAlert('Error', error.message || 'Failed to send recovery code', undefined, { type: 'error' });
         } finally {
             setLoading(false);
         }

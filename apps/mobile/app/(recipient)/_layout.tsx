@@ -14,6 +14,18 @@ export default function RecipientLayout() {
           animation: "slide_from_right",
         }}
       />
+      <Stack.Screen
+        name="all-recent-foods"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="food-map"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
     </Stack>
   );
 }

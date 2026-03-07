@@ -20,6 +20,8 @@ interface AuthContextType {
     sendRecoveryOtp: (email: string) => Promise<void>;
     verifyRecoveryOtp: (email: string, token: string) => Promise<void>;
     updatePassword: (password: string) => Promise<void>;
+    sendDeleteAccountOtp: (email: string) => Promise<void>;
+    verifyDeleteAccountOtp: (email: string, token: string) => Promise<void>;
     pendingSignup: { email: string; password: string; metadata?: any } | null;
 }
 
@@ -102,6 +104,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setRole = async (newRole: 'DONOR' | 'RECIPIENT') => {
         setRoleState(newRole);
         await AsyncStorage.setItem('userRole', newRole);
+        // Sync role to database
+        try {
+            const axiosClient = (await import('../src/api/axiosClient')).default;
+            await axiosClient.patch('/users/role', { role: newRole });
+        } catch (error) {
+            console.error('Failed to sync role to database:', error);
+        }
     };
 
     const signIn = async (email: string, password: string) => {
@@ -205,6 +214,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
         const selectedRole = metadata?.role || 'RECIPIENT';
+        // Organization fields - commented out for now
+        // const isOrg = metadata?.isOrg || false;
+        // const orgName = metadata?.orgName || '';
+        const isOrg = false;
+        const orgName = '';
 
         // Use the backend API which encrypts consistently with Node.js AES-256-GCM
         const { data: sessionData } = await supabase.auth.getSession();
@@ -215,12 +229,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const axiosClient = (await import('../src/api/axiosClient')).default;
+
+        const barangay = metadata?.barangay || '';
+
         const response = await axiosClient.put('/users/profile', {
             firstName,
             lastName: lastName || firstName,
             phoneNo: phone || `no-phone-${userId}`,
             role: selectedRole,
-            isOrg: false,
+            isOrg,
+            orgName: isOrg && orgName ? orgName : null,
+            password,
+            ...(barangay ? {
+                address: {
+                    latitude: 0,
+                    longitude: 0,
+                    streetAddress: '',
+                    barangay,
+                }
+            } : {}),
         });
 
         if (response.status !== 200) {
@@ -242,12 +269,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Send recovery OTP (for forgot password)
     const sendRecoveryOtp = async (email: string) => {
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-                shouldCreateUser: false, // Ensure we don't create new users
-            }
-        });
+        // Use resetPasswordForEmail to trigger the "Reset Password" template
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
 
         if (error) {
             throw error;
@@ -259,7 +282,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data, error } = await supabase.auth.verifyOtp({
             email,
             token,
-            type: 'email',
+            type: 'recovery', // Changed from 'email' (Magic Link) to 'recovery' (Reset Password)
         });
 
         if (error) {
@@ -270,6 +293,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(data.session);
             setUser(data.user);
             setUserToken(data.session.access_token);
+        }
+    };
+
+    // Send OTP for Account Deletion
+    const sendDeleteAccountOtp = async (email: string) => {
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                shouldCreateUser: false,
+            }
+        });
+
+        if (error) {
+            throw error;
+        }
+    };
+
+    // Verify OTP for Account Deletion (ensures user owns the email)
+    const verifyDeleteAccountOtp = async (email: string, token: string) => {
+        const { error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+
+        if (error) {
+            throw error;
         }
     };
 
@@ -300,6 +350,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             userToken, session, user, isLoading, role, setRole,
             signIn, signOut, signUp, verifyOtp, resendOtp,
             sendRecoveryOtp, verifyRecoveryOtp, updatePassword,
+            sendDeleteAccountOtp, verifyDeleteAccountOtp,
             pendingSignup,
         }}>
             {children}
