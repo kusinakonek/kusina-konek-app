@@ -16,7 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 const nodemailer = require('nodemailer');
 
 // ─── CONFIG: Edit these values ───────────────────────────────
-const APK_LINK = 'https://expo.dev/artifacts/eas/kLS5SNUDz53rjB8yz92Cdh.apk';
+const APK_LINK = 'https://expo.dev/artifacts/eas/7Q84FsfThZy4HJdyvG7i8X.apk';
 const EMAIL_SUBJECT = '🎉 KusinaKonek New Update Available — Download Now!';
 // ─────────────────────────────────────────────────────────────
 
@@ -84,10 +84,11 @@ function buildEmailHtml(): string {
 
               <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New:</h3>
               <ul style="color:#555; font-size:14px; line-height:1.8;">
-                <li><strong>Fixed Food Expiration:</strong> Donations now correctly cancel and expire based on the exact availability duration you set.</li>
-                <li><strong>Donor Notifications:</strong> Get real-time push notifications when your food donation expires and is removed.</li>
-                <li><strong>Visual Improvements:</strong> Added accurate, branded loading screens when posting your donation or fetching data.</li>
-                <li><strong>App Stability:</strong> Small bug fixes throughout the application for a smoother experience.</li>
+                <li><strong>Food Availability Timer:</strong> Donors can now set an exact time limit for how long their food donation will be available before expiring.</li>
+                <li><strong>Unclaimed Notifications:</strong> Added automatic notifications to alert donors if their food donation expires without being claimed.</li>
+                <li><strong>Responsive Design:</strong> Fixed layout issues to ensure buttons look great on all screen sizes.</li>
+                <li><strong>Enhanced Visuals:</strong> Updated app logos, icons, and loading screens for a fresher experience.</li>
+                <li><strong>Profile Syncing:</strong> Your role (Donor/Recipient) now syncs instantly when you switch it in your profile.</li>
               </ul>
 
               <!-- CTA Button -->
