@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Star, MapPin, Calendar, User } from 'lucide-react-native';
+import { ArrowLeft, Star, MapPin, Calendar, User, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { wp, hp, fp } from '../../src/utils/responsive';
 import axiosClient from '../../src/api/axiosClient';
@@ -95,6 +95,15 @@ export default function ReviewDetailsScreen() {
     // Recipient might be nested in distribution or on root depending on query include
     const recipientUser = feedback.recipient || distribution?.recipient;
 
+    const handleChat = () => {
+        const id = params.disID || feedback?.disID || distribution?.id;
+        if (!id) return;
+        router.push({
+            pathname: '/(donor)/chat',
+            params: { disID: id },
+        });
+    };
+
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -102,7 +111,9 @@ export default function ReviewDetailsScreen() {
                     <ArrowLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Review Details</Text>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={handleChat} style={styles.backButton}>
+                    <MessageCircle size={24} color={colors.primary} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>

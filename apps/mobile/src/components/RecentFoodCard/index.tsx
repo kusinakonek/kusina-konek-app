@@ -11,6 +11,8 @@ interface RecentFoodCardProps {
   onMarkOnTheWay?: (id: string) => void;
   onFeedback?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onTrack?: (id: string) => void;
+  onPressCard?: (id: string) => void;
 }
 
 export default function RecentFoodCard({
@@ -20,12 +22,14 @@ export default function RecentFoodCard({
   onMarkOnTheWay,
   onFeedback,
   onCancel,
+  onTrack,
+  onPressCard,
 }: RecentFoodCardProps) {
   const { colors } = useTheme();
 
   const handlePress = () => {
-    if (item.rating && item.role === "DONOR" && onFeedback) {
-      onFeedback(item.id);
+    if (onPressCard) {
+      onPressCard(item.id);
     }
   };
 
@@ -36,7 +40,7 @@ export default function RecentFoodCard({
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
       activeOpacity={0.7}
-      disabled={!item.rating}
+      disabled={!onPressCard}
       onPress={handlePress}>
 
       <View style={styles.cardHeader}>

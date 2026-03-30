@@ -1,0 +1,8 @@
+app/(recipient)/active-details.tsx(6,26): error TS2307: Cannot find module '../../../context/ThemeContext' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(7,26): error TS2307: Cannot find module '../../../context/AlertContext' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(8,25): error TS2307: Cannot find module '../../../src/api/axiosClient' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(9,31): error TS2307: Cannot find module '../../../src/api/endpoints' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(10,30): error TS2307: Cannot find module '../../../context/FoodCacheContext' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(11,27): error TS2307: Cannot find module '../../../src/components/FeedbackModal' or its corresponding type declarations.
+app/(recipient)/active-details.tsx(171,63): error TS2322: Type '{ flex: number; } | { flexDirection: "row"; alignItems: "center"; justifyContent: "space-between"; paddingHorizontal: number; paddingVertical: number; borderBottomWidth: number; } | { width: number; height: number; justifyContent: "center"; } | ... 24 more ... | { ...; }' is not assignable to type 'Falsy | ViewStyle | RegisteredStyle<ViewStyle> | RecursiveArray<Falsy | ViewStyle | RegisteredStyle<ViewStyle>> | readonly (Falsy | ... 1 more ... | RegisteredStyle<...>)[]'.
+  Type '{ fontSize: number; fontWeight: "700"; }' is not assignable to type 'Falsy | ViewStyle | RegisteredStyle<ViewStyle> | RecursiveArray<Falsy | ViewStyle | RegisteredStyle<ViewStyle>> | readonly (Falsy | ... 1 more ... | RegisteredStyle<...>)[]'.

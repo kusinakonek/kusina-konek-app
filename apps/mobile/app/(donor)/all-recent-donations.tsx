@@ -85,7 +85,7 @@ export default function AllRecentDonations() {
         if (!donationToCancel) return;
         setLoading(true);
         try {
-            await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+            await axiosClient.delete(API_ENDPOINTS.FOOD.DELETE_DONATION(donationToCancel));
             await fetchRecentDonations();
         } catch (error: any) {
             console.error("Failed to cancel donation:", error);
@@ -104,6 +104,7 @@ export default function AllRecentDonations() {
             role="DONOR"
             onFeedback={handleFeedbackNavigation}
             onCancel={handleCancelDonation}
+            onPressCard={handleFeedbackNavigation}
         />
     );
 

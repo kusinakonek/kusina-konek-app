@@ -530,12 +530,15 @@ export const distributionService = {
 
     const decryptedDistribution = decryptDistribution(updated);
 
+    const recipientUser = await userRepository.getByUserId(params.userID);
+    const recipientName = recipientUser ? `${safeDecrypt(recipientUser.firstName)} ${safeDecrypt(recipientUser.lastName)}` : "Someone";
+
     // Notify donor that their food was claimed
     notificationService
       .notifyUser(
         existing.donorID,
         "🎉 Your food was claimed!",
-        "Someone picked up your ulam. They will be on their way soon.",
+        `${recipientName} picked up your ulam. They will be on their way soon.`,
         "CLAIM_ALERT",
         { screen: "DonorHome" },
         params.disID,
