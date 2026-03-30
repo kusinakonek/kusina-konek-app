@@ -538,7 +538,7 @@ export const distributionService = {
       .notifyUser(
         existing.donorID,
         "🎉 Your food was claimed!",
-        `${recipientName} picked up your ulam. They will be on their way soon.`,
+        `${recipientName} picked up your food. They will be on their way soon.`,
         "CLAIM_ALERT",
         { screen: "DonorHome" },
         params.disID,

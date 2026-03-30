@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ export default function Chat() {
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [donorName, setDonorName] = useState<string>('Chat');
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
@@ -137,7 +139,7 @@ export default function Chat() {
       <View
         style={[
           styles.messageContainer,
-          isOwnMessage ? styles.ownMessage : styles.otherMessage,
+          isOwnMessage ? styles.ownMessage : [styles.otherMessage, { backgroundColor: isDark ? '#333' : '#e9e9e9' }],
         ]}>
         {!isOwnMessage && item.sender && (
           <Text style={[styles.senderName, { color: colors.primary }]}>
@@ -146,7 +148,9 @@ export default function Chat() {
         )}
 
         {item.messageType === 'IMAGE' && item.imageUrl && (
-          <Image source={{ uri: item.imageUrl }} style={styles.messageImage} resizeMode="cover" />
+          <Pressable onPress={() => setZoomedImage(item.imageUrl!)}>
+            <Image source={{ uri: item.imageUrl }} style={styles.messageImage} resizeMode="cover" />
+          </Pressable>
         )}
 
         {item.content && (
@@ -277,6 +281,18 @@ export default function Chat() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Zoomed Image Modal */}
+      <Modal visible={!!zoomedImage} transparent={true} animationType="fade" onRequestClose={() => setZoomedImage(null)}>
+        <View style={styles.modalBackground}>
+          <Pressable style={styles.modalCloseArea} onPress={() => setZoomedImage(null)} />
+          <Image source={{ uri: zoomedImage || undefined }} style={styles.modalImage} resizeMode="contain" />
+          <Pressable style={styles.modalCloseButton} onPress={() => setZoomedImage(null)}>
+            <X size={28} color="#fff" />
+          </Pressable>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -433,5 +449,25 @@ export default function Chat() {
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseArea: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  modalImage: {
+    width: '100%',
+    height: '80%',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    padding: 8,
   },
 });

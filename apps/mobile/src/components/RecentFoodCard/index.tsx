@@ -12,7 +12,7 @@ interface RecentFoodCardProps {
   onFeedback?: (id: string) => void;
   onCancel?: (id: string) => void;
   onTrack?: (id: string) => void;
-  onPressCard?: (id: string) => void;
+  onPressCard?: (item: RecentItem) => void;
 }
 
 export default function RecentFoodCard({
@@ -29,7 +29,7 @@ export default function RecentFoodCard({
 
   const handlePress = () => {
     if (onPressCard) {
-      onPressCard(item.id);
+      onPressCard(item);
     }
   };
 

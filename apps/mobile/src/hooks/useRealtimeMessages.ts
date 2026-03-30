@@ -39,7 +39,9 @@ export function useRealtimeMessages(disID: string | null) {
     }
 
     try {
-      setLoading(true);
+      if (messages.length === 0) {
+        setLoading(true);
+      }
       setError(null);
       const response = await axiosClient.get(
         API_ENDPOINTS.MESSAGE.GET_BY_DISTRIBUTION(disID)
@@ -58,37 +60,16 @@ export function useRealtimeMessages(disID: string | null) {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Set up Realtime subscription
+  // Set up rapid polling interval instead of blocked websocket
   useEffect(() => {
     if (!disID) return;
 
-    // Create channel for this distribution
-    const channel = supabase
-      .channel(`messages:${disID}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Message',
-          filter: `disID=eq.${disID}`,
-        },
-        () => {
-          // Refetch messages when new message arrives
-          fetchMessages();
-        }
-      )
-      .subscribe();
+    // Fetch silently every 3 seconds!
+    const intervalId = setInterval(() => {
+        fetchMessages();
+    }, 3000);
 
-    channelRef.current = channel;
-
-    // Cleanup function
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
+    return () => clearInterval(intervalId);
   }, [disID, fetchMessages]);
 
   // Send text message
@@ -111,7 +92,8 @@ export function useRealtimeMessages(disID: string | null) {
           messageType: 'TEXT',
           content: content.trim(),
         });
-        // Message will be added via realtime subscription
+        // Optimistically fetch immediately so sender sees it without waiting for socket
+        fetchMessages();
       } catch (err: any) {
         console.error('Failed to send message:', err);
         const errorMessage = err.response?.data?.error || 'Failed to send message';
@@ -145,7 +127,8 @@ export function useRealtimeMessages(disID: string | null) {
           content: caption || null,
           imageBase64,
         });
-        // Message will be added via realtime subscription
+        // Optimistically fetch immediately so sender sees it without waiting for socket
+        fetchMessages();
       } catch (err: any) {
         console.error('Failed to send image:', err);
         const errorMessage = err.response?.data?.error || 'Failed to send image';

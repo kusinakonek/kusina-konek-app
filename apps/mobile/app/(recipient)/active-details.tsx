@@ -235,7 +235,7 @@ export default function ActiveDetailsScreen() {
 
             {/* Floating Chat Button */}
             <TouchableOpacity 
-                style={[styles.chatButton, { backgroundColor: '#1877F2' }]} 
+                style={[styles.chatButton, { backgroundColor: '#00C853' }]} 
                 onPress={handleChat}
             >
                 <MessageCircle size={28} color="#fff" />

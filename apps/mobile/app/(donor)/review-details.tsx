@@ -112,7 +112,7 @@ export default function ReviewDetailsScreen() {
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Review Details</Text>
                 <TouchableOpacity onPress={handleChat} style={styles.backButton}>
-                    <MessageCircle size={24} color={colors.primary} />
+                    <MessageCircle size={24} color="#00C853" />
                 </TouchableOpacity>
             </View>
 

@@ -36,8 +36,7 @@ export const uploadService = {
     const filename = `${params.userId}/${Date.now()}.${extension}`;
     const contentType = `image/${extension}`;
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabaseAdmin.storage
+    let { data, error } = await supabaseAdmin.storage
       .from(params.bucket)
       .upload(filename, buffer, {
         contentType,
@@ -45,8 +44,29 @@ export const uploadService = {
       });
 
     if (error) {
-      console.error("Supabase upload error:", error);
-      throw new HttpError(500, `Failed to upload image: ${error.message}`);
+      if (error.message.includes('Bucket not found') || error.message.includes('404')) {
+        console.log(`[UploadService] Bucket '${params.bucket}' not found. Attempting to create it automatically...`);
+        // Attempt to create bucket on-the-fly
+        const createRes = await supabaseAdmin.storage.createBucket(params.bucket, { public: true });
+        if (createRes.error) {
+          throw new HttpError(500, `Failed to initialize missing bucket: ${createRes.error.message}`);
+        }
+        
+        // Retry upload
+        console.log(`[UploadService] Bucket created successfully. Retrying upload...`);
+        const retry = await supabaseAdmin.storage.from(params.bucket).upload(filename, buffer, {
+          contentType,
+          upsert: false,
+        });
+
+        if (retry.error) {
+           throw new HttpError(500, `Failed to upload image after bucket creation: ${retry.error.message}`);
+        }
+        data = retry.data;
+      } else {
+        console.error("Supabase upload error:", error);
+        throw new HttpError(500, `Failed to upload image: ${error.message}`);
+      }
     }
 
     // Get public URL

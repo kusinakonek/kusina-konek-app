@@ -170,10 +170,10 @@ export default function AllRecentFoods() {
     });
   };
 
-  const handlePressCard = (id: string) => {
+  const handlePressCard = (item: RecentItem) => {
     router.push({
       pathname: '/(recipient)/active-details',
-      params: { disID: id },
+      params: { disID: item.id },
     });
   };
 

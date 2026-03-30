@@ -69,11 +69,18 @@ export default function AllRecentDonations() {
     }, [fetchRecentDonations]);
 
     const handleFeedbackNavigation = (id: string) => {
-        // Navigate to Donor's review detail screen as implemented previously
         router.push({
             pathname: "/(donor)/review-details",
             params: { disID: id },
         });
+    };
+
+    const handlePressCard = (item: RecentItem) => {
+        if (item.rating) {
+            router.push({ pathname: "/(donor)/review-details", params: { disID: item.id } });
+        } else {
+            router.push({ pathname: "/(donor)/active-details", params: { disID: item.id } });
+        }
     };
 
     const handleCancelDonation = (id: string) => {
@@ -104,7 +111,7 @@ export default function AllRecentDonations() {
             role="DONOR"
             onFeedback={handleFeedbackNavigation}
             onCancel={handleCancelDonation}
-            onPressCard={handleFeedbackNavigation}
+            onPressCard={handlePressCard}
         />
     );
 

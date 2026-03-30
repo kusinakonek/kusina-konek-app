@@ -420,6 +420,10 @@ export default function RecipientHome() {
             onConfirm={handleConfirmDonation}
             onMarkOnTheWay={handleMarkOnTheWay}
             onFeedback={handleFeedback}
+            onPressCard={(item) => router.push({
+              pathname: '/(recipient)/active-details',
+              params: { disID: item.id }
+            })}
           />
         ) : (
           <View style={styles.recentSection}>

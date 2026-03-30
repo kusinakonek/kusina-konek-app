@@ -213,16 +213,24 @@ export default function DonorHome() {
             items={getRecentItems()}
             role="DONOR"
             onSeeAll={() => router.push("/(donor)/all-recent-donations")}
+            onPressCard={(item) => {
+              setLoading(true);
+              setTimeout(() => {
+                if (item.rating) {
+                  router.push({ pathname: "/(donor)/review-details", params: { disID: item.id } });
+                } else {
+                  router.push({ pathname: "/(donor)/active-details", params: { disID: item.id } });
+                }
+                setLoading(false);
+              }, 100);
+            }}
             onFeedback={(id) => {
               setLoading(true);
-              // Small timeout to allow UI to update before freezing on navigation
               setTimeout(() => {
                 router.push({
                   pathname: "/(donor)/review-details",
                   params: { disID: id }
                 });
-                // Reset loading state after navigation (when coming back)
-                // Use a focus effect or just time it out if push is instant
                 setLoading(false);
               }, 100);
             }}
