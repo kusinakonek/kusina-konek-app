@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Redirect } from 'expo-router';
-import { View, StyleSheet, Image as RNImage, Text, Animated, Dimensions, StatusBar } from 'react-native';
+import { View, StyleSheet, Image, Text, Animated, Dimensions, StatusBar } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -74,8 +74,8 @@ export default function Index() {
                 <Animated.View style={[styles.logoWrapper, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
                     {/* White circle with logo */}
                     <View style={styles.logoCircle}>
-                        <RNImage
-                            source={require('../assets/KUSINAKONEK-NEW-LOGO.png')}
+                        <Image
+                            source={require('../assets/green icon.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />
@@ -119,17 +119,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logoCircle: {
-        width: 180,
-        height: 180,
-        borderRadius: 90,
-        backgroundColor: 'transparent',
+        width: 130,
+        height: 130,
+        borderRadius: 65,
+        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
     },
     logo: {
-        width: 180,
-        height: 180,
+        width: 80,
+        height: 80,
     },
     appName: {
         fontSize: 34,

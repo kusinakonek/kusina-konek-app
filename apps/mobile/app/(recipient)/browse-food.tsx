@@ -179,6 +179,10 @@ export default function BrowseFood() {
       barangay={item.location?.barangay ?? "Unknown Location"}
       timeAgo={timeAgo(item.timestamp)}
       distanceKm={item.distanceKm ?? null}
+      onPress={() => router.push({
+        pathname: '/(recipient)/food-details',
+        params: { disID: item.disID },
+      })}
       onRequest={() => handleRequest(item)}
     />
   );

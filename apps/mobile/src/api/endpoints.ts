@@ -15,7 +15,6 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: "/users/profile",
     PUSH_TOKEN: "/users/push-token",
     DELETE_ACCOUNT: "/users/account",
-    SWITCH_ROLE: "/users/role",
   },
   NOTIFICATION: {
     LIST: "/notifications",
@@ -31,7 +30,6 @@ export const API_ENDPOINTS = {
       `/foods/donations/user/${userID}`,
     UPDATE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
     DELETE_DONATION: (foodID: string) => `/foods/donations/${foodID}`,
-    CANCEL_DONATION: (foodID: string) => `/foods/donations/${foodID}/cancel`,
     REQUEST_DONATION: "/foods/donations/request",
     GET_BY_ID: (foodID: string) => `/foods/${foodID}`,
     ADD_DONATION: "/foods/donations",
@@ -66,5 +64,11 @@ export const API_ENDPOINTS = {
     DONOR: "/dashboard/donor",
     RECIPIENT: "/dashboard/recipient",
     BROWSE: "/dashboard/browse",
+  },
+  MESSAGE: {
+    SEND: "/messages",
+    GET_BY_DISTRIBUTION: (disID: string) => `/messages/distribution/${disID}`,
+    MARK_READ: (messageID: string) => `/messages/${messageID}/read`,
+    UNREAD_COUNT: (disID: string) => `/messages/distribution/${disID}/unread-count`,
   },
 };

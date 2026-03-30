@@ -87,6 +87,7 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
     });
@@ -144,6 +145,9 @@ export const foodService = {
       ...(params.input.description !== undefined
         ? { description: params.input.description }
         : {}),
+      ...(params.input.ingredients !== undefined
+        ? { ingredients: params.input.ingredients }
+        : {}),
       ...(params.input.quantity !== undefined
         ? { quantity: params.input.quantity }
         : {}),
@@ -179,6 +183,7 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
       availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes

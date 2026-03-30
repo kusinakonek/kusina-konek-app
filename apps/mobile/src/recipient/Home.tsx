@@ -332,7 +332,7 @@ export default function RecipientHome() {
                 { color: colors.textSecondary },
               ]}>
               Discover bunch of different free{" "}
-              <Text style={styles.greenText}>ULAM</Text>.
+              <Text style={styles.greenText}>food</Text>.
             </Text>
           </View>
         </View>

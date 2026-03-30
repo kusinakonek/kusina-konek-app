@@ -26,6 +26,18 @@ export default function RecipientLayout() {
           animation: "slide_from_right",
         }}
       />
+      <Stack.Screen
+        name="food-details"
+        options={{
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="chat"
+        options={{
+          animation: "slide_from_bottom",
+        }}
+      />
     </Stack>
   );
 }

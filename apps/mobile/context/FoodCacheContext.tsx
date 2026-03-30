@@ -29,6 +29,7 @@ export type Distribution = {
     foodID: string;
     foodName: string;
     description: string | null;
+    ingredients: string | null;
     image: string | null;
     quantity: number;
     dateCooked: string;
@@ -45,6 +46,8 @@ export type Distribution = {
     firstName: string;
     lastName: string;
     orgName: string | null;
+    averageRating: number;
+    ratingCount: number;
   } | null;
 };
 
