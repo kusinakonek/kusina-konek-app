@@ -28,7 +28,7 @@ export function useRealtimeMessages(disID: string | null) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const channelRef = useRef<any>(null);
+  const initialLoadDone = useRef(false);
 
   // Fetch messages initially
   const fetchMessages = useCallback(async () => {
@@ -39,7 +39,7 @@ export function useRealtimeMessages(disID: string | null) {
     }
 
     try {
-      if (messages.length === 0) {
+      if (!initialLoadDone.current) {
         setLoading(true);
       }
       setError(null);
@@ -52,6 +52,7 @@ export function useRealtimeMessages(disID: string | null) {
       setError(err.response?.data?.error || 'Failed to load messages');
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [disID]);
 
