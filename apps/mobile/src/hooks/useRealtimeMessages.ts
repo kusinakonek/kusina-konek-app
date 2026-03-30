@@ -21,14 +21,16 @@ export interface Message {
   isRead: boolean;
   createdAt: string;
   sender: MessageSender | null;
+  isSending?: boolean;
 }
 
-export function useRealtimeMessages(disID: string | null) {
+export function useRealtimeMessages(disID: string | null, userId: string = '') {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialLoadDone = useRef(false);
+  const channelRef = useRef<any>(null);
 
   // Fetch messages initially
   const fetchMessages = useCallback(async () => {
@@ -61,16 +63,37 @@ export function useRealtimeMessages(disID: string | null) {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Set up rapid polling interval instead of blocked websocket
+  // Set up Realtime subscription
   useEffect(() => {
     if (!disID) return;
 
-    // Fetch silently every 3 seconds!
-    const intervalId = setInterval(() => {
-        fetchMessages();
-    }, 3000);
+    // Create channel for this distribution
+    const channel = supabase
+      .channel(`messages:${disID}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Message',
+          filter: `disID=eq.${disID}`,
+        },
+        () => {
+          // Refetch messages when new message arrives
+          fetchMessages();
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(intervalId);
+    channelRef.current = channel;
+
+    // Cleanup function
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, [disID, fetchMessages]);
 
   // Send text message
@@ -87,14 +110,32 @@ export function useRealtimeMessages(disID: string | null) {
       setSending(true);
       setError(null);
 
+      // --- Optimistic UI Component ---
+      const ghostId = `temp-${Date.now()}`;
+      const ghostMessage: Message = {
+        messageID: ghostId,
+        disID,
+        senderID: userId,
+        messageType: 'TEXT',
+        content: content.trim(),
+        imageUrl: null,
+        isRead: true,
+        createdAt: new Date().toISOString(),
+        sender: null,
+        isSending: true,
+      };
+      
+      // Push it to UI array immediately!
+      setMessages(prev => [...prev, ghostMessage]);
+
       try {
         await axiosClient.post(API_ENDPOINTS.MESSAGE.SEND, {
           disID,
           messageType: 'TEXT',
           content: content.trim(),
         });
-        // Optimistically fetch immediately so sender sees it without waiting for socket
-        fetchMessages();
+        // Wait, just strictly call fetchMessages to override the ghost spinner instantly!
+        await fetchMessages();
       } catch (err: any) {
         console.error('Failed to send message:', err);
         const errorMessage = err.response?.data?.error || 'Failed to send message';
@@ -121,6 +162,23 @@ export function useRealtimeMessages(disID: string | null) {
       setSending(true);
       setError(null);
 
+      // --- Optimistic UI Component ---
+      const ghostId = `temp-${Date.now()}`;
+      const ghostMessage: Message = {
+        messageID: ghostId,
+        disID,
+        senderID: userId,
+        messageType: 'IMAGE',
+        content: caption || null,
+        imageUrl: imageBase64, // Local preview!
+        isRead: true,
+        createdAt: new Date().toISOString(),
+        sender: null,
+        isSending: true, // Activity spinner trigger
+      };
+
+      setMessages(prev => [...prev, ghostMessage]);
+
       try {
         await axiosClient.post(API_ENDPOINTS.MESSAGE.SEND, {
           disID,
@@ -128,8 +186,7 @@ export function useRealtimeMessages(disID: string | null) {
           content: caption || null,
           imageBase64,
         });
-        // Optimistically fetch immediately so sender sees it without waiting for socket
-        fetchMessages();
+        await fetchMessages();
       } catch (err: any) {
         console.error('Failed to send image:', err);
         const errorMessage = err.response?.data?.error || 'Failed to send image';
@@ -141,6 +198,32 @@ export function useRealtimeMessages(disID: string | null) {
     },
     [disID]
   );
+
+  const editMessage = useCallback(async (messageID: string, newContent: string) => {
+    try {
+      setSending(true);
+      await axiosClient.patch(API_ENDPOINTS.MESSAGE.EDIT(messageID), { content: newContent });
+      await fetchMessages(); // immediately refresh
+    } catch (err: any) {
+      console.error('Failed to edit message:', err);
+      throw new Error(err.response?.data?.error || 'Failed to edit message');
+    } finally {
+      setSending(false);
+    }
+  }, [fetchMessages]);
+
+  const deleteMessage = useCallback(async (messageID: string) => {
+    try {
+      setSending(true);
+      await axiosClient.delete(API_ENDPOINTS.MESSAGE.DELETE(messageID));
+      await fetchMessages(); // immediately refresh
+    } catch (err: any) {
+      console.error('Failed to delete message:', err);
+      throw new Error(err.response?.data?.error || 'Failed to delete message');
+    } finally {
+      setSending(false);
+    }
+  }, [fetchMessages]);
 
   // Refresh messages manually
   const refresh = useCallback(() => {
@@ -154,6 +237,8 @@ export function useRealtimeMessages(disID: string | null) {
     error,
     sendTextMessage,
     sendImageMessage,
+    editMessage,
+    deleteMessage,
     refresh,
   };
 }

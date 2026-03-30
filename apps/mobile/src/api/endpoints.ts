@@ -70,5 +70,7 @@ export const API_ENDPOINTS = {
     GET_BY_DISTRIBUTION: (disID: string) => `/messages/distribution/${disID}`,
     MARK_READ: (messageID: string) => `/messages/${messageID}/read`,
     UNREAD_COUNT: (disID: string) => `/messages/distribution/${disID}/unread-count`,
+    DELETE: (messageID: string) => `/messages/${messageID}`,
+    EDIT: (messageID: string) => `/messages/${messageID}`,
   },
 };

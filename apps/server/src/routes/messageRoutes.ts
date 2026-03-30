@@ -27,3 +27,17 @@ messageRouter.get(
   authMiddleware,
   messageController.getUnreadCount
 );
+
+// Delete a message
+messageRouter.delete(
+  "/:messageID",
+  authMiddleware,
+  messageController.deleteMessage
+);
+
+// Edit a message
+messageRouter.patch(
+  "/:messageID",
+  authMiddleware,
+  messageController.editMessage
+);

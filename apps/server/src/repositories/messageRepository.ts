@@ -65,4 +65,17 @@ export const messageRepository = {
       where: { disID },
     });
   },
+
+  update(messageID: string, content: string) {
+    return prisma.message.update({
+      where: { messageID },
+      data: { content },
+    });
+  },
+  
+  delete(messageID: string) {
+    return prisma.message.delete({
+      where: { messageID },
+    });
+  },
 };

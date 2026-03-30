@@ -13,9 +13,11 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import Reanimated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Send, Camera, X, Image as ImageIcon } from 'lucide-react-native';
+import { ArrowLeft, Send, Camera, X, Image as ImageIcon, Reply, Trash2, Edit2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -30,11 +32,14 @@ export default function DonorChat() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [recipientName, setRecipientName] = useState<string>('Chat');
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [activeMessageOptions, setActiveMessageOptions] = useState<Message | null>(null);
 
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { messages, loading, sending, error, sendTextMessage, sendImageMessage } =
-    useRealtimeMessages(disID || null);
+  const { messages, loading, sending, error, sendTextMessage, sendImageMessage, editMessage, deleteMessage } =
+    useRealtimeMessages(disID || null, user?.id || '');
   const flatListRef = useRef<FlatList>(null);
 
   // Fetch distribution to get recipient name
@@ -70,16 +75,38 @@ export default function DonorChat() {
     if (sending) return;
 
     try {
+      if (editingMessage) {
+        let finalContent = inputText.trim();
+        // Preserve reply context if it was a reply
+        if (editingMessage.content?.startsWith('>> ')) {
+          const parts = editingMessage.content.split('\n');
+          if (parts.length > 1) {
+            finalContent = `${parts[0]}\n${finalContent}`;
+          }
+        }
+        await editMessage(editingMessage.messageID, finalContent);
+        setEditingMessage(null);
+        setInputText('');
+        return;
+      }
+
       if (selectedImage) {
         await sendImageMessage(selectedImage, inputText.trim() || undefined);
         setSelectedImage(null);
         setInputText('');
       } else if (inputText.trim()) {
-        await sendTextMessage(inputText.trim());
+        let finalContent = inputText.trim();
+        if (replyingTo) {
+          const author = replyingTo.sender?.orgName || (replyingTo.sender ? `${replyingTo.sender.firstName} ${replyingTo.sender.lastName}` : 'Someone');
+          const quoted = replyingTo.content || '[Image]';
+          finalContent = `>> ${author}: ${quoted}\n${finalContent}`;
+          setReplyingTo(null);
+        }
+        await sendTextMessage(finalContent);
         setInputText('');
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to send message');
+      Alert.alert('Error', err.message || 'Failed to process message');
     }
   };
 
@@ -132,52 +159,57 @@ export default function DonorChat() {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isOwnMessage = item.senderID === user?.id;
+  const handleLongPress = (message: Message) => {
+    setActiveMessageOptions(message);
+  };
 
+  const handleDeleteMessage = (messageID: string) => {
+    Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Delete', 
+        style: 'destructive',
+        onPress: () => deleteMessage(messageID).catch(e => Alert.alert('Error', e.message))
+      }
+    ]);
+  };
+
+  const renderLeftActions = (progress: any, dragX: any, message: Message) => {
+    const isOwn = message.senderID === user?.id;
+    if (isOwn) return null; // Swipe left-to-right is for OTHER messages only
+    
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isOwnMessage ? styles.ownMessage : [styles.otherMessage, { backgroundColor: isDark ? '#333' : '#e9e9e9' }],
-        ]}>
-        {!isOwnMessage && item.sender && (
-          <Text style={[styles.senderName, { color: colors.primary }]}>
-            {item.sender.orgName || `${item.sender.firstName} ${item.sender.lastName}`}
-          </Text>
-        )}
-
-        {item.messageType === 'IMAGE' && item.imageUrl && (
-          <Pressable onPress={() => setZoomedImage(item.imageUrl!)}>
-            <Image source={{ uri: item.imageUrl }} style={styles.messageImage} resizeMode="cover" />
-          </Pressable>
-        )}
-
-        {item.content && (
-          <Text
-            style={[
-              styles.messageText,
-              { color: isOwnMessage ? '#fff' : colors.text },
-            ]}>
-            {item.content}
-          </Text>
-        )}
-
-        <Text
-          style={[
-            styles.messageTime,
-            { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : colors.textTertiary },
-          ]}>
-          {new Date(item.createdAt).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
+      <View style={styles.swipeActionLeft}>
+        <Reply size={24} color={colors.primary} />
       </View>
     );
   };
 
-  const canSend = (inputText.trim().length > 0 || selectedImage) && !sending;
+  const renderRightActions = (progress: any, dragX: any, message: Message) => {
+    const isOwn = message.senderID === user?.id;
+    if (!isOwn) return null; // Swipe right-to-left is for OWN messages only
+    
+    return (
+      <View style={styles.swipeActionRight}>
+        <Reply size={24} color={colors.primary} />
+      </View>
+    );
+  };
+
+  const renderMessage = ({ item }: { item: Message }) => (
+    <MessageItem 
+      item={item} 
+      userID={user?.id} 
+      colors={colors} 
+      isDark={isDark}
+      onReply={(msg) => {
+        setReplyingTo(msg);
+        setEditingMessage(null);
+      }}
+      onLongPress={handleLongPress}
+      onZoom={setZoomedImage}
+    />
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -240,6 +272,26 @@ export default function DonorChat() {
           </View>
         )}
 
+        {/* Reply/Edit Banner */}
+        {(replyingTo || editingMessage) && (
+          <View style={[styles.actionBanner, { backgroundColor: isDark ? '#222' : '#f0f0f0', borderTopColor: colors.border }]}>
+            <View style={styles.actionInfo}>
+              <View style={[styles.actionIndicator, { backgroundColor: colors.primary }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.actionTitle, { color: colors.primary }]}>
+                  {editingMessage ? 'Editing Message' : `Replying to ${replyingTo?.sender?.orgName || (replyingTo?.sender ? `${replyingTo.sender.firstName}` : 'Someone')}`}
+                </Text>
+                <Text numberOfLines={1} style={[styles.actionText, { color: colors.textSecondary }]}>
+                  {editingMessage ? editingMessage.content : (replyingTo?.content || '[Image]')}
+                </Text>
+              </View>
+            </View>
+            <Pressable onPress={() => { setReplyingTo(null); setEditingMessage(null); if(editingMessage) setInputText(''); }}>
+              <X size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
+
         {/* Input Area */}
         <View style={[styles.inputContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
           <Pressable style={styles.attachButton} onPress={handlePickImage}>
@@ -258,7 +310,7 @@ export default function DonorChat() {
                 color: colors.text,
               },
             ]}
-            placeholder="Type a message..."
+            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
             placeholderTextColor={colors.textTertiary}
             value={inputText}
             onChangeText={setInputText}
@@ -282,6 +334,92 @@ export default function DonorChat() {
         </View>
       </KeyboardAvoidingView>
 
+      {/* Custom Message Options Modal */}
+      <Modal
+        visible={!!activeMessageOptions}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActiveMessageOptions(null)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setActiveMessageOptions(null)}
+        >
+          {activeMessageOptions && (
+            <Reanimated.View 
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={[styles.optionsContainer, { backgroundColor: isDark ? '#1a1a1a' : '#fff' }]}
+            >
+              <View style={styles.optionsHeader}>
+                <Text style={[styles.optionsHeaderTitle, { color: colors.textSecondary }]}>
+                  Message Options
+                </Text>
+                <View style={[styles.optionsHeaderLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              <Pressable 
+                style={styles.optionRow}
+                onPress={() => {
+                  setReplyingTo(activeMessageOptions);
+                  setEditingMessage(null);
+                  setActiveMessageOptions(null);
+                }}
+              >
+                <Reply size={20} color={colors.primary} />
+                <Text style={[styles.optionText, { color: colors.text }]}>Reply</Text>
+              </Pressable>
+
+              {activeMessageOptions.senderID === user?.id && 
+               (Date.now() - new Date(activeMessageOptions.createdAt).getTime() < 120000) && 
+               activeMessageOptions.messageType === 'TEXT' && (
+                <Pressable 
+                  style={styles.optionRow}
+                  onPress={() => {
+                    setEditingMessage(activeMessageOptions);
+                    setReplyingTo(null);
+                    // Strip the quote if it's a reply
+                    const content = activeMessageOptions.content || '';
+                    const editContent = content.includes('\n') && content.startsWith('>> ') 
+                      ? content.split('\n').slice(1).join('\n') 
+                      : content;
+                    setInputText(editContent);
+                    setActiveMessageOptions(null);
+                  }}
+                >
+                  <Edit2 size={20} color="#2196F3" />
+                  <Text style={[styles.optionText, { color: colors.text }]}>Edit Message</Text>
+                </Pressable>
+              )}
+
+              {activeMessageOptions.senderID === user?.id && 
+               (Date.now() - new Date(activeMessageOptions.createdAt).getTime() < 120000) && (
+                <Pressable 
+                  style={styles.optionRow}
+                  onPress={() => {
+                    handleDeleteMessage(activeMessageOptions.messageID);
+                    setActiveMessageOptions(null);
+                  }}
+                >
+                  <Trash2 size={20} color="#F44336" />
+                  <Text style={[styles.optionText, { color: '#F44336' }]}>Delete Message</Text>
+                </Pressable>
+              )}
+
+              <View style={[styles.optionsSeparator, { backgroundColor: colors.border }]} />
+
+              <Pressable 
+                style={[styles.optionRow, { marginBottom: 8 }]}
+                onPress={() => setActiveMessageOptions(null)}
+              >
+                <X size={20} color={colors.textTertiary} />
+                <Text style={[styles.optionText, { color: colors.textTertiary }]}>Cancel</Text>
+              </Pressable>
+            </Reanimated.View>
+          )}
+        </Pressable>
+      </Modal>
+
       {/* Zoomed Image Modal */}
       <Modal visible={!!zoomedImage} transparent={true} animationType="fade" onRequestClose={() => setZoomedImage(null)}>
         <View style={styles.modalBackground}>
@@ -297,7 +435,116 @@ export default function DonorChat() {
   );
 }
 
-  const styles = StyleSheet.create({
+// Separate component to handle swipeable refs
+function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoom }: any) {
+  const swipeableRef = useRef<Swipeable>(null);
+  const isOwnMessage = item.senderID === userID;
+
+  // Parse reply if present
+  let displayContent = item.content || '';
+  let replyPart = null;
+
+  if (displayContent.startsWith('>> ')) {
+    const parts = displayContent.split('\n');
+    if (parts.length > 1) {
+      replyPart = parts[0].substring(3);
+      displayContent = parts.slice(1).join('\n');
+    }
+  }
+
+  const renderLeftActions = () => {
+    if (isOwnMessage) return null;
+    return (
+      <View style={styles.swipeActionLeft}>
+        <Reply size={24} color={colors.primary} />
+      </View>
+    );
+  };
+
+  const renderRightActions = () => {
+    if (!isOwnMessage) return null;
+    return (
+      <View style={styles.swipeActionRight}>
+        <Reply size={24} color={colors.primary} />
+      </View>
+    );
+  };
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderLeftActions={!isOwnMessage ? renderLeftActions : undefined}
+      renderRightActions={isOwnMessage ? renderRightActions : undefined}
+      onSwipeableOpen={() => {
+        onReply(item);
+        swipeableRef.current?.close();
+      }}
+      friction={2}
+      leftThreshold={40}
+      rightThreshold={40}
+    >
+      <Pressable
+        onLongPress={() => onLongPress(item)}
+        delayLongPress={300}
+        style={[
+          styles.messageContainer,
+          isOwnMessage ? styles.ownMessage : [styles.otherMessage, { backgroundColor: isDark ? '#333' : '#e9e9e9' }],
+        ]}>
+        {!isOwnMessage && item.sender && (
+          <Text style={[styles.senderName, { color: colors.primary }]}>
+            {item.sender.orgName || `${item.sender.firstName} ${item.sender.lastName}`}
+          </Text>
+        )}
+
+        {replyPart && (
+          <View style={[styles.replyQuote, { 
+            backgroundColor: isOwnMessage ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.05)', 
+            borderLeftColor: isOwnMessage ? '#fff' : colors.primary,
+            borderLeftWidth: 3,
+          }]}>
+            <Text numberOfLines={1} style={[styles.replyQuoteText, { color: isOwnMessage ? 'rgba(255,255,255,0.9)' : colors.textSecondary }]}>
+              {replyPart}
+            </Text>
+          </View>
+        )}
+
+        {item.messageType === 'IMAGE' && item.imageUrl && (
+          <Pressable onPress={() => onZoom(item.imageUrl!)}>
+            <Image source={{ uri: item.imageUrl }} style={styles.messageImage} resizeMode="cover" />
+          </Pressable>
+        )}
+
+        {displayContent ? (
+          <Text
+            style={[
+              styles.messageText,
+              { color: isOwnMessage ? '#fff' : colors.text },
+            ]}>
+            {displayContent}
+          </Text>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+          {item.isSending && (
+            <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
+          )}
+          <Text
+            style={[
+              styles.messageTime,
+              { color: isOwnMessage ? 'rgba(255,255,255,0.7)' : colors.textTertiary, marginTop: 0 },
+            ]}>
+            {item.isSending ? 'Sending...' : new Date(item.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+      </Pressable>
+    </Swipeable>
+  );
+}
+
+const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -387,6 +634,7 @@ export default function DonorChat() {
     height: 200,
     borderRadius: 12,
     marginBottom: 8,
+    backgroundColor: '#333',
   },
   messageText: {
     fontSize: 16,
@@ -425,6 +673,65 @@ export default function DonorChat() {
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderTopWidth: 1,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+  },
+  swipeActionLeft: {
+    width: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  swipeActionRight: {
+    width: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+    padding: 16,
+  },
+  optionsContainer: {
+    borderRadius: 24,
+    padding: 16,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  optionsHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  optionsHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  optionsHeaderLine: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 16,
+  },
+  optionsSeparator: {
+    height: 1,
+    marginVertical: 4,
+    marginHorizontal: 12,
   },
   attachButton: {
     width: 48,
@@ -469,5 +776,41 @@ export default function DonorChat() {
     top: 50,
     right: 20,
     padding: 8,
+  },
+  replyQuote: {
+    padding: 8,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    marginBottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  replyQuoteText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  actionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  actionInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionIndicator: {
+    width: 3,
+    height: '100%',
+    borderRadius: 2,
+    marginRight: 10,
+  },
+  actionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  actionText: {
+    fontSize: 14,
   },
 });

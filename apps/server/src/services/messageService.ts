@@ -157,4 +157,40 @@ export const messageService = {
 
     return { count };
   },
+
+  async deleteMessage(params: { userID: string; messageID: string }) {
+    const message = await messageRepository.getById(params.messageID);
+    if (!message) throw new HttpError(404, "Message not found");
+    if (message.senderID !== params.userID) throw new HttpError(403, "You can only delete your own messages");
+
+    const messageAgeMs = Date.now() - new Date(message.createdAt).getTime();
+    if (messageAgeMs > 2 * 60 * 1000) {
+      throw new HttpError(403, "Messages can only be deleted within 2 minutes of sending");
+    }
+
+    await messageRepository.delete(params.messageID);
+    return { success: true };
+  },
+
+  async editMessage(params: { userID: string; messageID: string; content: string }) {
+    const message = await messageRepository.getById(params.messageID);
+    if (!message) throw new HttpError(404, "Message not found");
+    if (message.senderID !== params.userID) throw new HttpError(403, "You can only edit your own messages");
+
+    const messageAgeMs = Date.now() - new Date(message.createdAt).getTime();
+    if (messageAgeMs > 2 * 60 * 1000) {
+      throw new HttpError(403, "Messages can only be edited within 2 minutes of sending");
+    }
+    
+    if (message.messageType !== "TEXT") {
+      throw new HttpError(400, "Only text messages can be edited");
+    }
+
+    if (!params.content || params.content.trim().length === 0) {
+      throw new HttpError(400, "Text message content cannot be empty");
+    }
+
+    const updated = await messageRepository.update(params.messageID, params.content.trim());
+    return { success: true, message: { ...updated, sender: decryptSenderInfo((updated as any).sender) } };
+  },
 };

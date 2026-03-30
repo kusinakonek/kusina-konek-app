@@ -80,4 +80,38 @@ export const messageController = {
       next(error);
     }
   },
+
+  async deleteMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { messageID } = req.params;
+      if (!messageID) return res.status(400).json({ error: "messageID is required" });
+
+      const result = await messageService.deleteMessage({
+        userID: req.user!.id,
+        messageID,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async editMessage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { messageID } = req.params;
+      const { content } = req.body;
+      if (!messageID) return res.status(400).json({ error: "messageID is required" });
+
+      const result = await messageService.editMessage({
+        userID: req.user!.id,
+        messageID,
+        content,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
