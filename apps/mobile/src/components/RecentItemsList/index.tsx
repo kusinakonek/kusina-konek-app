@@ -25,6 +25,7 @@ export interface RecentItem {
   latitude?: number | null;
   longitude?: number | null;
   image?: string | null;
+  unreadMessages?: number; // Unread message count for this distribution
 }
 
 interface RecentItemsListProps {
@@ -35,6 +36,7 @@ interface RecentItemsListProps {
   onMarkOnTheWay?: (id: string) => void;
   onFeedback?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onPressCard?: (item: RecentItem) => void;
 }
 
 export const RecentItemsList = ({
@@ -45,6 +47,7 @@ export const RecentItemsList = ({
   onMarkOnTheWay,
   onFeedback,
   onCancel,
+  onPressCard,
 }: RecentItemsListProps) => {
   const { colors, isDark } = useTheme();
 
@@ -56,6 +59,7 @@ export const RecentItemsList = ({
       onMarkOnTheWay={onMarkOnTheWay}
       onFeedback={onFeedback}
       onCancel={onCancel}
+      onPressCard={onPressCard}
     />
   );
 

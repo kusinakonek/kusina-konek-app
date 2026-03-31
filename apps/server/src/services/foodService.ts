@@ -87,6 +87,7 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
     });
@@ -144,6 +145,9 @@ export const foodService = {
       ...(params.input.description !== undefined
         ? { description: params.input.description }
         : {}),
+      ...(params.input.ingredients !== undefined
+        ? { ingredients: params.input.ingredients }
+        : {}),
       ...(params.input.quantity !== undefined
         ? { quantity: params.input.quantity }
         : {}),
@@ -179,6 +183,7 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
       availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes
@@ -396,7 +401,15 @@ export const foodService = {
     if (existing.userID !== params.userID)
       throw new HttpError(403, "Forbidden");
 
-    // Delete associated locations first
+    // Check if distribution exists for this food
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
     const locations = await locationService.listLocationsForFood({
       userID: params.userID,
       foodID: params.foodID,
@@ -409,7 +422,7 @@ export const foodService = {
       });
     }
 
-    // Delete the food/donation
+    // 3) Finally delete the food/donation itself
     await foodRepository.delete(params.foodID);
 
     return {

@@ -32,7 +32,7 @@ export default function AllRecentDonations() {
 
     // Cancel logic state
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+    const [donationToCancel, setDonationToCancel] = useState<string | null>(null); // This will now store foodID
 
     const fetchRecentDonations = useCallback(async () => {
         if (!user) return;
@@ -40,6 +40,7 @@ export default function AllRecentDonations() {
             const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
             const donations = (response.data?.recentDonations || []).map((d: any) => ({
                 id: d.disID || d.id,
+                foodID: d.foodID, // Store foodID for cancellation
                 title: d.foodName || "Food Donation",
                 quantity: `${d.quantity} servings`,
                 location: d.location || "Location",
@@ -69,15 +70,22 @@ export default function AllRecentDonations() {
     }, [fetchRecentDonations]);
 
     const handleFeedbackNavigation = (id: string) => {
-        // Navigate to Donor's review detail screen as implemented previously
         router.push({
             pathname: "/(donor)/review-details",
             params: { disID: id },
         });
     };
 
-    const handleCancelDonation = (id: string) => {
-        setDonationToCancel(id);
+    const handlePressCard = (item: RecentItem) => {
+        if (item.rating) {
+            router.push({ pathname: "/(donor)/review-details", params: { disID: item.id } });
+        } else {
+            router.push({ pathname: "/(donor)/active-details", params: { disID: item.id } });
+        }
+    };
+
+    const handleCancelDonation = (foodID: string) => {
+        setDonationToCancel(foodID);
         setShowCancelModal(true);
     };
 
@@ -104,6 +112,7 @@ export default function AllRecentDonations() {
             role="DONOR"
             onFeedback={handleFeedbackNavigation}
             onCancel={handleCancelDonation}
+            onPressCard={handlePressCard}
         />
     );
 

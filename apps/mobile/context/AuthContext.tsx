@@ -102,15 +102,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const setRole = async (newRole: 'DONOR' | 'RECIPIENT') => {
-        // Instant local update — UI reflects immediately
         setRoleState(newRole);
         await AsyncStorage.setItem('userRole', newRole);
-        // Fire-and-forget: sync to database without blocking UI
-        import('../src/api/axiosClient').then(({ default: axiosClient }) => {
-            axiosClient.patch('/users/role', { role: newRole }).catch((error: any) => {
-                console.error('Failed to sync role to database:', error);
-            });
-        });
     };
 
     const signIn = async (email: string, password: string) => {

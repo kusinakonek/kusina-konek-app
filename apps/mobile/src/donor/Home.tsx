@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
@@ -23,8 +23,6 @@ import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
-import CancelDonationModal from "../components/CancelDonationModal";
-import SuccessModal from "../components/SuccessModal";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -34,10 +32,8 @@ export default function DonorHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [cancelledFoodName, setCancelledFoodName] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const channelsRef = useRef<any[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -45,6 +41,26 @@ export default function DonorHome() {
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
       setDashboardData(response.data);
+      
+      // Fetch unread message counts for each distribution
+      const distributions = response.data?.recentDonations || [];
+      const counts: Record<string, number> = {};
+      
+      await Promise.all(
+        distributions.map(async (d: any) => {
+          const disID = d.disID || d.id;
+          if (disID) {
+            try {
+              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+              counts[disID] = countRes.data.count || 0;
+            } catch {
+              counts[disID] = 0;
+            }
+          }
+        })
+      );
+      
+      setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -53,9 +69,43 @@ export default function DonorHome() {
     }
   }, [user]);
 
+  // Fetch only unread counts (faster, for screen focus)
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user) return;
+    
+    // Get distributions from current state
+    const distributions = dashboardData?.recentDonations || [];
+    if (distributions.length === 0) return;
+    
+    const counts: Record<string, number> = {};
+    
+    await Promise.all(
+      distributions.map(async (d: any) => {
+        const disID = d.disID || d.id;
+        if (disID) {
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            counts[disID] = countRes.data.count || 0;
+          } catch {
+            counts[disID] = 0;
+          }
+        }
+      })
+    );
+    
+    setUnreadCounts(counts);
+  }, [user, dashboardData?.recentDonations]);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+  
+  // Fetch unread counts after dashboard data loads
+  useEffect(() => {
+    if (dashboardData?.recentDonations) {
+      fetchUnreadCounts();
+    }
+  }, [dashboardData?.recentDonations, fetchUnreadCounts]);
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
@@ -65,13 +115,62 @@ export default function DonorHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch dashboard data whenever the screen comes into focus
-  // This ensures the dashboard shows the latest donation data
+  // Refetch full dashboard data whenever the screen comes into focus
+  // This ensures cancelled donations disappear immediately when navigating back
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
     }, [fetchDashboardData]),
   );
+
+  // Listen for real-time message read events
+  useEffect(() => {
+    if (!dashboardData?.recentDonations || !user) return;
+
+    // Clean up old channels
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+
+    // Subscribe to each distribution's chat channel
+    const distributions = dashboardData.recentDonations || [];
+    distributions.forEach((d: any) => {
+      const disID = d.disID || d.id;
+      if (!disID) return;
+
+      const channel = supabase.channel(`chat:${disID}`, {
+        config: {
+          broadcast: { self: false },
+        },
+      });
+
+      channel
+        .on('broadcast', { event: 'messages_read' }, async (payload) => {
+          console.log('[Dashboard] Messages read broadcast received:', payload);
+          // Refresh just this distribution's unread count
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            setUnreadCounts(prev => ({
+              ...prev,
+              [disID]: countRes.data.count || 0,
+            }));
+          } catch (err) {
+            console.error('Failed to refresh unread count:', err);
+          }
+        })
+        .subscribe();
+
+      channelsRef.current.push(channel);
+    });
+
+    return () => {
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, [dashboardData?.recentDonations, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -115,54 +214,32 @@ export default function DonorHome() {
   };
 
   const getRecentItems = (): RecentItem[] => {
-    return (dashboardData?.recentDonations || []).map((d: any) => ({
-      id: d.disID || d.id,
-      foodID: d.foodID,
-      title: d.foodName || "Food Donation",
-      quantity: `${d.quantity} servings`,
-      location: d.location || "Location",
-      time: d.timeAgo || "Recently",
-      status: d.status?.toLowerCase(),
-      recipientName: d.claimedBy,
-      rating: d.rating,
-      role: 'DONOR',
-      image: d.image || d.food?.image,
-    }));
+    return (dashboardData?.recentDonations || []).map((d: any) => {
+      const disID = d.disID || d.id;
+      return {
+        id: disID,
+        foodID: d.foodID, // Add foodID for cancellation
+        title: d.foodName || "Food Donation",
+        quantity: `${d.quantity} servings`,
+        location: d.location || "Location",
+        time: d.timeAgo || "Recently",
+        status: d.status?.toLowerCase(),
+        recipientName: d.claimedBy,
+        rating: d.rating,
+        role: 'DONOR',
+        unreadMessages: unreadCounts[disID] || 0,
+      };
+    });
   };
 
-  const handleCancelDonation = (id: string) => {
-    setDonationToCancel(id);
-    setShowCancelModal(true);
-  };
 
-  const confirmCancelDonation = async () => {
-    if (!donationToCancel) return;
-    // Find the food name before cancelling for the success message
-    const items = getRecentItems();
-    const cancelledItem = items.find((i) => (i.foodID || i.id) === donationToCancel);
-    const foodName = cancelledItem?.title || 'Donation';
-    setLoading(true);
-    try {
-      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
-      setCancelledFoodName(foodName);
-      await fetchDashboardData();
-      setShowSuccessModal(true);
-    } catch (error: any) {
-      console.error("Failed to cancel donation:", error);
-      const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
-      Alert.alert("Error", msg);
-      setLoading(false);
-    } finally {
-      setDonationToCancel(null);
-    }
-  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
         <View style={styles.headerLeft}>
           <Image
-            source={require("../../assets/KUSINAKONEK-NEW-LOGO.png")}
+            source={require("../../assets/KusinaKonek-Logo.png")}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -212,7 +289,9 @@ export default function DonorHome() {
           }>
           <View style={styles.heroContainer}>
             <ImageBackground
-              source={require("../../assets/homepage-header.png")}
+              source={{
+                uri: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=1000&auto=format&fit=crop",
+              }}
               style={styles.heroImage}
               imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
               <View style={styles.heroOverlay}>
@@ -237,59 +316,58 @@ export default function DonorHome() {
                 setLoading(false);
               }, 100);
             }}>
-            <Image
-              source={require("../../assets/KUSINAKONEK-CENTER-ICON-BUTTON.png")}
-              style={{ width: wp(28), height: wp(28), marginRight: wp(8) }}
-              resizeMode="contain"
-            />
+            <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
 
-          <RecentItemsList
-            items={getRecentItems()}
-            role="DONOR"
-            onSeeAll={() => router.push("/(donor)/all-recent-donations")}
-            onFeedback={(id) => {
-              setLoading(true);
-              // Small timeout to allow UI to update before freezing on navigation
-              setTimeout(() => {
-                router.push({
-                  pathname: "/(donor)/review-details",
-                  params: { disID: id }
-                });
-                // Reset loading state after navigation (when coming back)
-                // Use a focus effect or just time it out if push is instant
-                setLoading(false);
-              }, 100);
-            }}
-            onCancel={handleCancelDonation}
-          />
+          <View>
+            <RecentItemsList
+              items={getRecentItems()}
+              role="DONOR"
+              onSeeAll={() => router.push("/(donor)/all-recent-donations")}
+              onPressCard={(item) => {
+                setLoading(true);
+                setTimeout(() => {
+                  if (item.rating) {
+                    // Navigate to review-details for items that have feedback
+                    router.push({
+                      pathname: "/(donor)/review-details",
+                      params: { disID: item.id }
+                    });
+                  } else {
+                    // Navigate to active-details for items without feedback
+                    router.push({
+                      pathname: "/(donor)/active-details",
+                      params: { disID: item.id }
+                    });
+                  }
+                  setLoading(false);
+                }, 100);
+              }}
+              onFeedback={(id) => {
+                setLoading(true);
+                // Small timeout to allow UI to update before freezing on navigation
+                setTimeout(() => {
+                  router.push({
+                    pathname: "/(donor)/review-details",
+                    params: { disID: id }
+                  });
+                  // Reset loading state after navigation (when coming back)
+                  // Use a focus effect or just time it out if push is instant
+                  setLoading(false);
+                }, 100);
+              }}
+            />
+          </View>
 
           <View style={{ height: hp(20) }} />
         </ScrollView>
         {loading && !refreshing && (
-          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background }}>
-            <LoadingScreen message="" />
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#00C853" />
           </View>
         )}
       </View>
-
-      <CancelDonationModal
-        visible={showCancelModal}
-        onClose={() => {
-          setShowCancelModal(false);
-          setDonationToCancel(null);
-        }}
-        onConfirm={confirmCancelDonation}
-      />
-
-      <SuccessModal
-        visible={showSuccessModal}
-        title="Donation Cancelled"
-        message={`"${cancelledFoodName}" has been successfully removed from your donations.`}
-        buttonText="Got it"
-        onClose={() => setShowSuccessModal(false)}
-      />
     </SafeAreaView>
   );
 }
