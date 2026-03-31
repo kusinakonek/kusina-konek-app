@@ -27,6 +27,8 @@ import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 import { useAlert } from "../../context/AlertContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import { useNetwork } from "../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -38,6 +40,11 @@ export default function RecipientHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const channelsRef = useRef<any[]>([]);
+  const { isOnline, justReconnected } = useNetwork();
+  const dashboardDataRef = useRef<any>(null);
+  const isOnlineRef = useRef(isOnline);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -46,77 +53,74 @@ export default function RecipientHome() {
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  const fetchDashboardData = useCallback(async () => {
-    if (!user) return; // Prevent fetching if logged out
+  // Keep refs in sync with latest state
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
 
+  // Load from cache on mount for instant UI
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.RECIPIENT_DASHBOARD);
+      if (cached && !dashboardDataRef.current) {
+        setDashboardData(cached);
+        dashboardDataRef.current = cached;
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, []);
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+
+    if (!isOnlineRef.current && dashboardDataRef.current) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (dashboardDataRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setDashboardData(response.data);
+      dashboardDataRef.current = response.data;
+      await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
       
-      // Fetch unread message counts for each distribution
       const distributions = response.data?.recentFoods || [];
       const counts: Record<string, number> = {};
       
-      await Promise.all(
-        distributions.map(async (f: any) => {
-          const disID = f.disID || f.id;
-          if (disID) {
-            try {
-              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-              counts[disID] = countRes.data.count || 0;
-            } catch {
-              counts[disID] = 0;
-            }
-          }
-        })
-      );
+      for (const f of distributions) {
+        if (f.disID || f.id) {
+          counts[f.disID || f.id] = f.unreadMessages || 0;
+        }
+      }
       
       setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
+      lastFetchTimeRef.current = Date.now();
       setLoading(false);
       setRefreshing(false);
+      isFetchingRef.current = false;
     }
-  }, [user]);
-
-  // Fetch only unread counts (faster, for screen focus)
-  const fetchUnreadCounts = useCallback(async () => {
-    if (!user) return;
-    
-    // Get distributions from current state or fetch them
-    const distributions = dashboardData?.recentFoods || [];
-    if (distributions.length === 0) return;
-    
-    const counts: Record<string, number> = {};
-    
-    await Promise.all(
-      distributions.map(async (f: any) => {
-        const disID = f.disID || f.id;
-        if (disID) {
-          try {
-            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-            counts[disID] = countRes.data.count || 0;
-          } catch {
-            counts[disID] = 0;
-          }
-        }
-      })
-    );
-    
-    setUnreadCounts(counts);
-  }, [user, dashboardData?.recentFoods]);
+  }, [user]); // Only depends on user - no dashboardData/isOnline to prevent infinite loop
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
   
-  // Fetch unread counts after dashboard data loads
-  useEffect(() => {
-    if (dashboardData?.recentFoods) {
-      fetchUnreadCounts();
-    }
-  }, [dashboardData?.recentFoods, fetchUnreadCounts]);
+
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
@@ -125,6 +129,14 @@ export default function RecipientHome() {
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      console.log("[RecipientHome] Reconnected, refreshing dashboard...");
+      fetchDashboardData();
+    }
+  }, [justReconnected, fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled/updated donations reflect immediately
@@ -218,6 +230,7 @@ export default function RecipientHome() {
         showFeedback: f.canGiveFeedback,
         latitude: f.latitude ?? null,
         longitude: f.longitude ?? null,
+        image: f.image || null,
         unreadMessages: unreadCounts[disID] || 0,
       };
     });

@@ -15,6 +15,8 @@ import { Bell, ChevronLeft, Trash2, Check } from 'lucide-react-native';
 import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { useTheme } from '../../context/ThemeContext';
+import { useNetwork } from '../../context/NetworkContext';
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from '../../src/utils/dataCache';
 
 interface Notification {
     notificationID: string;
@@ -67,14 +69,34 @@ function navigateForNotificationType(type: string) {
 
 export default function NotificationsScreen() {
     const { colors, isDark } = useTheme();
+    const { isOnline } = useNetwork();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Load from cache on mount
+    useEffect(() => {
+        const loadCache = async () => {
+            const cached = await getCachedDataAnyAge(CACHE_KEYS.NOTIFICATIONS);
+            if (cached) {
+                setNotifications((cached as any).notifications || []);
+                setLoading(false);
+            }
+        };
+        loadCache();
+    }, []);
+
     const fetchNotifications = useCallback(async () => {
+        if (!isOnline && notifications.length > 0) {
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
+
         try {
             const res = await axiosClient.get(API_ENDPOINTS.NOTIFICATION.LIST);
             setNotifications(res.data.notifications || []);
+            await cacheData(CACHE_KEYS.NOTIFICATIONS, res.data);
         } catch (error) {
             console.error('Failed to fetch notifications:', error);
         } finally {

@@ -48,10 +48,10 @@ export default function Index() {
             useNativeDriver: true,
         }).start();
 
-        // Show splash for at least 2.5 seconds
+        // Show splash for at least 1.5 seconds (optimizing load time)
         const timer = setTimeout(() => {
             setShowSplash(false);
-        }, 2500);
+        }, 1500);
 
         return () => clearTimeout(timer);
     }, []);

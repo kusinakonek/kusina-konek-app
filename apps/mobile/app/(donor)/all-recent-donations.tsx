@@ -21,6 +21,8 @@ import { RecentFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 import CancelDonationModal from "../../src/components/CancelDonationModal";
+import { useNetwork } from "../../context/NetworkContext";
+import { getCachedDataAnyAge, CACHE_KEYS, cacheData } from "../../src/utils/dataCache";
 import { Alert } from "react-native";
 
 export default function AllRecentDonations() {
@@ -29,29 +31,53 @@ export default function AllRecentDonations() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [recentDonations, setRecentDonations] = useState<RecentItem[]>([]);
+    const { isOnline } = useNetwork();
 
     // Cancel logic state
     const [showCancelModal, setShowCancelModal] = useState(false);
-    const [donationToCancel, setDonationToCancel] = useState<string | null>(null); // This will now store foodID
+    const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+
+    const mapDonations = (data: any[]) => {
+        return data.map((d: any) => ({
+            id: d.disID || d.id,
+            foodID: d.foodID,
+            title: d.foodName || "Food Donation",
+            quantity: `${d.quantity} servings`,
+            location: d.location || "Location",
+            time: d.timeAgo || "Recently",
+            status: d.status?.toLowerCase(),
+            recipientName: d.claimedBy,
+            rating: d.rating,
+            role: "DONOR" as "DONOR",
+            image: d.image || d.food?.image,
+        }));
+    };
+
+    // Load from cache on mount
+    useEffect(() => {
+        const loadCache = async () => {
+            const cached = await getCachedDataAnyAge(CACHE_KEYS.DONOR_DASHBOARD);
+            if (cached && (cached as any).recentDonations) {
+                setRecentDonations(mapDonations((cached as any).recentDonations));
+                setLoading(false);
+            }
+        };
+        loadCache();
+    }, []);
 
     const fetchRecentDonations = useCallback(async () => {
         if (!user) return;
+        if (!isOnline && recentDonations.length > 0) {
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
+
         try {
             const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
-            const donations = (response.data?.recentDonations || []).map((d: any) => ({
-                id: d.disID || d.id,
-                foodID: d.foodID, // Store foodID for cancellation
-                title: d.foodName || "Food Donation",
-                quantity: `${d.quantity} servings`,
-                location: d.location || "Location",
-                time: d.timeAgo || "Recently",
-                status: d.status?.toLowerCase(),
-                recipientName: d.claimedBy,
-                rating: d.rating,
-                role: "DONOR",
-                image: d.image || d.food?.image,
-            }));
-            setRecentDonations(donations);
+            const rawDonations = response.data?.recentDonations || [];
+            setRecentDonations(mapDonations(rawDonations));
+            await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
         } catch (error) {
             console.error("Error fetching recent donations:", error);
         } finally {

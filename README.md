@@ -43,9 +43,10 @@
 
 ## Overview
 
-**KusinaKonek** (from Filipino — *Kusina* "kitchen" + *Konek* "connect") is a community-driven food redistribution mobile application that bridges the gap between food donors (restaurants, households, organizations) and recipients in need. Built as a monorepo, the project contains a cross-platform **Expo React Native** mobile client and an **Express.js** backend API, supported by **Supabase** for authentication and **PostgreSQL** (via **Prisma ORM**) for data persistence.
+**KusinaKonek** (from Filipino — _Kusina_ "kitchen" + _Konek_ "connect") is a community-driven food redistribution mobile application that bridges the gap between food donors (restaurants, households, organizations) and recipients in need. Built as a monorepo, the project contains a cross-platform **Expo React Native** mobile client and an **Express.js** backend API, supported by **Supabase** for authentication and **PostgreSQL** (via **Prisma ORM**) for data persistence.
 
 The platform enables:
+
 - **Donors** to list surplus food, set drop-off locations on an interactive map, and track donation statuses.
 - **Recipients** to browse available food nearby, claim donations, navigate to pickup points, and provide feedback.
 - **Real-time notifications** to keep all users informed of claims, pickups, and delivery updates.
@@ -55,6 +56,7 @@ The platform enables:
 ## Features
 
 ### 🍽️ Authentication & User Management
+
 - Secure sign-up and login via Supabase Auth
 - Email verification with OTP flow
 - Password reset with email verification
@@ -63,6 +65,7 @@ The platform enables:
 - User profile management with editable information
 
 ### 🥘 Food Donation Management
+
 - Donors can list available food with name, description, quantity, cooking date, and photo
 - Image capture via camera or photo gallery with automatic compression
 - Real-time food inventory browsing for recipients
@@ -70,6 +73,7 @@ The platform enables:
 - Donation history tracking
 
 ### 📍 Geolocation & Interactive Maps
+
 - Interactive map for donors to pin drop-off locations
 - Recipients can view available food on a map with donor info callouts
 - Location-based food proximity sorting
@@ -77,24 +81,28 @@ The platform enables:
 - Address geocoding and reverse geocoding
 
 ### 🛒 Cart & Claiming System
+
 - Recipients can add multiple food items to a cart
 - Claim limit management to ensure fair distribution
 - Distribution status tracking: `PENDING` → `CLAIMED` → `ON_THE_WAY` → `DELIVERED` → `COMPLETED`
 - Photo proof of delivery
 
 ### 🔔 Push Notifications
+
 - Real-time push notifications via Firebase Cloud Messaging (FCM v1)
 - In-app notification center with read/unread status
 - Claim alerts, delivery updates, and broadcast messages
 - Location-based notification targeting
 
 ### ⭐ Feedback & Ratings
+
 - Recipients can rate and review donors after receiving food
 - Aggregate star ratings on donor profiles
 - Photo evidence support in feedback
 - Comment system for detailed reviews
 
 ### 📊 Dashboard & Analytics
+
 - Donor dashboard with real-time donation statistics
 - Recent donations overview
 - Active listings management
@@ -104,20 +112,20 @@ The platform enables:
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Mobile Client** | Expo SDK 53, React Native 0.79, TypeScript |
-| **Navigation** | Expo Router (file-based routing) |
-| **Maps** | React Native Maps + Google Maps API |
-| **Backend API** | Express.js 4.x, TypeScript |
-| **ORM** | Prisma 5.x |
-| **Database** | PostgreSQL (Supabase-hosted) |
-| **Authentication** | Supabase Auth |
-| **File Storage** | Supabase Storage |
+| Layer                  | Technology                                               |
+| ---------------------- | -------------------------------------------------------- |
+| **Mobile Client**      | Expo SDK 53, React Native 0.79, TypeScript               |
+| **Navigation**         | Expo Router (file-based routing)                         |
+| **Maps**               | React Native Maps + Google Maps API                      |
+| **Backend API**        | Express.js 4.x, TypeScript                               |
+| **ORM**                | Prisma 5.x                                               |
+| **Database**           | PostgreSQL (Supabase-hosted)                             |
+| **Authentication**     | Supabase Auth                                            |
+| **File Storage**       | Supabase Storage                                         |
 | **Push Notifications** | Firebase Cloud Messaging (FCM v1) via Expo Notifications |
-| **Validation** | Zod (shared schemas) |
-| **CI** | GitHub Actions |
-| **Build Service** | EAS Build (Expo Application Services) |
+| **Validation**         | Zod (shared schemas)                                     |
+| **CI**                 | GitHub Actions                                           |
+| **Build Service**      | EAS Build (Expo Application Services)                    |
 
 ---
 
@@ -254,16 +262,16 @@ The application uses **PostgreSQL** managed via **Prisma ORM** with the followin
      └───────────────┘ └──────────┘
 ```
 
-| Model | Description |
-|---|---|
-| **User** | Application users with role, contact info, push token, and ratings |
-| **Role** | User roles (Donor, Recipient) |
-| **Food** | Food donations with name, description, quantity, image, and cooking date |
-| **DropOffLocation** | GPS-pinned drop-off points with lat/lng and address |
-| **Distribution** | Tracks the lifecycle of a food donation claim (PENDING → COMPLETED) |
-| **Feedback** | Ratings and reviews from recipients to donors |
-| **Notification** | In-app notifications with read/unread tracking |
-| **Address** | User home/default addresses |
+| Model               | Description                                                              |
+| ------------------- | ------------------------------------------------------------------------ |
+| **User**            | Application users with role, contact info, push token, and ratings       |
+| **Role**            | User roles (Donor, Recipient)                                            |
+| **Food**            | Food donations with name, description, quantity, image, and cooking date |
+| **DropOffLocation** | GPS-pinned drop-off points with lat/lng and address                      |
+| **Distribution**    | Tracks the lifecycle of a food donation claim (PENDING → COMPLETED)      |
+| **Feedback**        | Ratings and reviews from recipients to donors                            |
+| **Notification**    | In-app notifications with read/unread tracking                           |
+| **Address**         | User home/default addresses                                              |
 
 ---
 
@@ -271,47 +279,54 @@ The application uses **PostgreSQL** managed via **Prisma ORM** with the followin
 
 ### Prerequisites
 
-| Tool | Version | Notes |
-|---|---|---|
-| **Node.js** | 20.11.1 LTS | Use `nvm` with the included `.nvmrc` |
-| **npm** | 10.x+ | Comes with Node 20 |
-| **Expo CLI** | Latest | Installed via `npx expo` |
-| **Android Studio** | Latest | For Android emulator (optional) |
-| **Expo Go** | Latest | For physical device testing |
-| **Supabase Account** | — | For database & auth |
-| **Firebase Project** | — | For push notifications (FCM) |
+| Tool                 | Version     | Notes                                |
+| -------------------- | ----------- | ------------------------------------ |
+| **Node.js**          | 20.11.1 LTS | Use `nvm` with the included `.nvmrc` |
+| **npm**              | 10.x+       | Comes with Node 20                   |
+| **Expo CLI**         | Latest      | Installed via `npx expo`             |
+| **Android Studio**   | Latest      | For Android emulator (optional)      |
+| **Expo Go**          | Latest      | For physical device testing          |
+| **Supabase Account** | —           | For database & auth                  |
+| **Firebase Project** | —           | For push notifications (FCM)         |
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/kusinakonek/kusina-konek-app.git
    cd kusina-konek-app
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm ci
    ```
+
    > Uses the lockfile for reproducible installs. Use `npm install` only when changing dependencies.
 
 3. **Set up environment variables**
+
    ```bash
    # Copy and fill in the required values (see Environment Variables section)
    cp .env.example .env
    ```
 
 4. **Generate Prisma client**
+
    ```bash
    npm run db:generate
    ```
 
 5. **Apply database migrations**
+
    ```bash
    npm run db:migrate
    ```
 
 6. **Start the development server**
+
    ```bash
    # Terminal 1 — Backend API
    npm run dev:server
@@ -333,17 +348,17 @@ The application uses **PostgreSQL** managed via **Prisma ORM** with the followin
 
 Run all scripts from the **root** of the project:
 
-| Script | Command | Description |
-|---|---|---|
-| **Dev Server** | `npm run dev:server` | Start Express API with hot-reload |
-| **Dev Mobile** | `npm run dev:mobile` | Start Expo development server |
-| **Typecheck** | `npm run typecheck` | Run TypeScript type checking on server |
-| **DB Generate** | `npm run db:generate` | Generate Prisma client from schema |
-| **DB Migrate** | `npm run db:migrate` | Run Prisma database migrations |
-| **DB Push** | `npm run db:push` | Push schema changes without migration history |
-| **DB Studio** | `npm run db:studio` | Open Prisma Studio (database GUI) |
-| **DB Seed** | `npm run db:seed` | Seed database with sample data |
-| **Mobile Tests** | `npm -w apps/mobile test` | Run mobile unit tests (Jest) |
+| Script           | Command                   | Description                                   |
+| ---------------- | ------------------------- | --------------------------------------------- |
+| **Dev Server**   | `npm run dev:server`      | Start Express API with hot-reload             |
+| **Dev Mobile**   | `npm run dev:mobile`      | Start Expo development server                 |
+| **Typecheck**    | `npm run typecheck`       | Run TypeScript type checking on server        |
+| **DB Generate**  | `npm run db:generate`     | Generate Prisma client from schema            |
+| **DB Migrate**   | `npm run db:migrate`      | Run Prisma database migrations                |
+| **DB Push**      | `npm run db:push`         | Push schema changes without migration history |
+| **DB Studio**    | `npm run db:studio`       | Open Prisma Studio (database GUI)             |
+| **DB Seed**      | `npm run db:seed`         | Seed database with sample data                |
+| **Mobile Tests** | `npm -w apps/mobile test` | Run mobile unit tests (Jest)                  |
 
 ---
 
@@ -351,21 +366,21 @@ Run all scripts from the **root** of the project:
 
 Create a `.env` file at the project root with the following variables:
 
-| Variable | Description |
-|---|---|
-| `PORT` | Backend server port (e.g., `3000`) |
-| `CORS_ORIGIN` | Allowed CORS origins |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase anonymous/public API key |
+| Variable                    | Description                                  |
+| --------------------------- | -------------------------------------------- |
+| `PORT`                      | Backend server port (e.g., `3000`)           |
+| `CORS_ORIGIN`               | Allowed CORS origins                         |
+| `SUPABASE_URL`              | Supabase project URL                         |
+| `SUPABASE_ANON_KEY`         | Supabase anonymous/public API key            |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-side only) |
-| `DATABASE_URL` | PostgreSQL connection string (pooled) |
-| `DIRECT_URL` | PostgreSQL direct connection string |
-| `JWT_SECRET` | Secret for signing JWT tokens |
+| `DATABASE_URL`              | PostgreSQL connection string (pooled)        |
+| `DIRECT_URL`                | PostgreSQL direct connection string          |
+| `JWT_SECRET`                | Secret for signing JWT tokens                |
 
 For the **mobile app**, set the API base URL in `apps/mobile/.env`:
 
-| Variable | Description |
-|---|---|
+| Variable              | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
 | `EXPO_PUBLIC_API_URL` | Base URL of the Express server (e.g., `http://192.168.x.x:3000`) |
 
 ---
@@ -373,114 +388,127 @@ For the **mobile app**, set the API base URL in `apps/mobile/.env`:
 ## Mobile App Screens
 
 ### Authentication Flow
-| Screen | Description |
-|---|---|
-| Welcome | Landing page with login/signup options |
-| Login | Email & password login |
-| Signup | Multi-step registration with role selection |
-| Verify | OTP email verification |
-| Forgot Password | Password reset request |
-| New Password | Set a new password after verification |
+
+| Screen          | Description                                 |
+| --------------- | ------------------------------------------- |
+| Welcome         | Landing page with login/signup options      |
+| Login           | Email & password login                      |
+| Signup          | Multi-step registration with role selection |
+| Verify          | OTP email verification                      |
+| Forgot Password | Password reset request                      |
+| New Password    | Set a new password after verification       |
 
 ### Donor Flow
-| Screen | Description |
-|---|---|
-| Donor Home | Dashboard with stats, recent donations, and active listings |
-| Add Food | Multi-step donation form with photo capture and location picker |
-| Location Picker | Interactive map to pin drop-off location |
-| All Recent Donations | Full history of past donations |
-| Feedback | View ratings and reviews from recipients |
-| Review Details | Detailed feedback information |
+
+| Screen               | Description                                                     |
+| -------------------- | --------------------------------------------------------------- |
+| Donor Home           | Dashboard with stats, recent donations, and active listings     |
+| Add Food             | Multi-step donation form with photo capture and location picker |
+| Location Picker      | Interactive map to pin drop-off location                        |
+| All Recent Donations | Full history of past donations                                  |
+| Feedback             | View ratings and reviews from recipients                        |
+| Review Details       | Detailed feedback information                                   |
 
 ### Recipient Flow
-| Screen | Description |
-|---|---|
-| Recipient Home | Browse recently available food |
-| Browse Food | Search and filter all available donations |
-| Food Map | Interactive map showing nearby food with donor callouts |
-| All Recent Foods | Full browsable food listing |
+
+| Screen           | Description                                             |
+| ---------------- | ------------------------------------------------------- |
+| Recipient Home   | Browse recently available food                          |
+| Browse Food      | Search and filter all available donations               |
+| Food Map         | Interactive map showing nearby food with donor callouts |
+| All Recent Foods | Full browsable food listing                             |
 
 ### Shared Screens
-| Screen | Description |
-|---|---|
-| My Cart | View and manage claimed food items |
-| Notifications | In-app notification center |
-| Profile | View and edit user profile |
-| Edit Profile | Update personal information |
+
+| Screen        | Description                        |
+| ------------- | ---------------------------------- |
+| My Cart       | View and manage claimed food items |
+| Notifications | In-app notification center         |
+| Profile       | View and edit user profile         |
+| Edit Profile  | Update personal information        |
 
 ---
 
 ## API Endpoints
 
 ### Authentication
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/auth/signup` | Register a new user |
-| `POST` | `/api/auth/login` | Login and receive JWT |
-| `POST` | `/api/auth/verify-otp` | Verify email OTP |
-| `POST` | `/api/auth/resend-otp` | Resend verification OTP |
-| `POST` | `/api/auth/forgot-password` | Request password reset |
-| `POST` | `/api/auth/reset-password` | Reset password |
+
+| Method | Endpoint                    | Description             |
+| ------ | --------------------------- | ----------------------- |
+| `POST` | `/api/auth/signup`          | Register a new user     |
+| `POST` | `/api/auth/login`           | Login and receive JWT   |
+| `POST` | `/api/auth/verify-otp`      | Verify email OTP        |
+| `POST` | `/api/auth/resend-otp`      | Resend verification OTP |
+| `POST` | `/api/auth/forgot-password` | Request password reset  |
+| `POST` | `/api/auth/reset-password`  | Reset password          |
 
 ### Food Management
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/food` | List all available food |
-| `GET` | `/api/food/:id` | Get food details |
-| `POST` | `/api/food` | Create a food listing |
-| `PUT` | `/api/food/:id` | Update a food listing |
-| `DELETE` | `/api/food/:id` | Delete a food listing |
+
+| Method   | Endpoint        | Description             |
+| -------- | --------------- | ----------------------- |
+| `GET`    | `/api/food`     | List all available food |
+| `GET`    | `/api/food/:id` | Get food details        |
+| `POST`   | `/api/food`     | Create a food listing   |
+| `PUT`    | `/api/food/:id` | Update a food listing   |
+| `DELETE` | `/api/food/:id` | Delete a food listing   |
 
 ### Distribution
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/distribution` | List distributions |
-| `POST` | `/api/distribution/claim` | Claim a food listing |
-| `PUT` | `/api/distribution/:id/status` | Update distribution status |
-| `GET` | `/api/distribution/history` | Get distribution history |
+
+| Method | Endpoint                       | Description                |
+| ------ | ------------------------------ | -------------------------- |
+| `GET`  | `/api/distribution`            | List distributions         |
+| `POST` | `/api/distribution/claim`      | Claim a food listing       |
+| `PUT`  | `/api/distribution/:id/status` | Update distribution status |
+| `GET`  | `/api/distribution/history`    | Get distribution history   |
 
 ### User & Profile
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/user/profile` | Get current user profile |
-| `PUT` | `/api/user/profile` | Update user profile |
+
+| Method | Endpoint            | Description              |
+| ------ | ------------------- | ------------------------ |
+| `GET`  | `/api/user/profile` | Get current user profile |
+| `PUT`  | `/api/user/profile` | Update user profile      |
 
 ### Dashboard
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/dashboard` | Get donor dashboard statistics |
+
+| Method | Endpoint         | Description                    |
+| ------ | ---------------- | ------------------------------ |
+| `GET`  | `/api/dashboard` | Get donor dashboard statistics |
 
 ### Feedback
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/feedback` | Submit feedback for a donation |
-| `GET` | `/api/feedback/:userId` | Get feedback for a user |
+
+| Method | Endpoint                | Description                    |
+| ------ | ----------------------- | ------------------------------ |
+| `POST` | `/api/feedback`         | Submit feedback for a donation |
+| `GET`  | `/api/feedback/:userId` | Get feedback for a user        |
 
 ### Locations
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/location` | Get drop-off locations |
+
+| Method | Endpoint        | Description                |
+| ------ | --------------- | -------------------------- |
+| `GET`  | `/api/location` | Get drop-off locations     |
 | `POST` | `/api/location` | Create a drop-off location |
 
 ### Notifications
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/notifications` | Get user notifications |
-| `PUT` | `/api/notifications/:id/read` | Mark notification as read |
-| `POST` | `/api/notifications/push` | Send push notification |
+
+| Method | Endpoint                      | Description               |
+| ------ | ----------------------------- | ------------------------- |
+| `GET`  | `/api/notifications`          | Get user notifications    |
+| `PUT`  | `/api/notifications/:id/read` | Mark notification as read |
+| `POST` | `/api/notifications/push`     | Send push notification    |
 
 ---
 
 ## Branching Strategy
 
-| Branch | Purpose |
-|---|---|
-| `main` | Production-ready, stable releases |
-| `develop` | Integration branch; all feature work merges here first |
-| `feature/*` | Individual feature branches (branch from `develop`) |
-| `fix/*` | Bug fix branches |
+| Branch      | Purpose                                                |
+| ----------- | ------------------------------------------------------ |
+| `main`      | Production-ready, stable releases                      |
+| `develop`   | Integration branch; all feature work merges here first |
+| `feature/*` | Individual feature branches (branch from `develop`)    |
+| `fix/*`     | Bug fix branches                                       |
 
 **Workflow:**
+
 1. Create a feature branch from `develop`: `git checkout -b feature/my-feature develop`
 2. Develop and commit your changes
 3. Push and open a Pull Request targeting `develop`
@@ -494,6 +522,7 @@ For the **mobile app**, set the API base URL in `apps/mobile/.env`:
 The project uses **GitHub Actions** for continuous integration. The workflow is defined in `.github/workflows/ci.yml` and runs on every push and pull request.
 
 **CI Pipeline includes:**
+
 - Node.js 22 environment setup
 - Dependency installation (`npm ci`)
 - TypeScript type checking
@@ -515,13 +544,13 @@ The project uses **GitHub Actions** for continuous integration. The workflow is 
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Prefix | Description |
-|---|---|
-| `feat:` | New feature |
-| `fix:` | Bug fix |
-| `chore:` | Maintenance, dependency updates |
-| `docs:` | Documentation changes |
-| `refactor:` | Code restructuring |
+| Prefix      | Description                     |
+| ----------- | ------------------------------- |
+| `feat:`     | New feature                     |
+| `fix:`      | Bug fix                         |
+| `chore:`    | Maintenance, dependency updates |
+| `docs:`     | Documentation changes           |
+| `refactor:` | Code restructuring              |
 
 ---
 

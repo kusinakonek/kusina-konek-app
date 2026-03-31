@@ -61,6 +61,12 @@ export const distributionRepository = {
     });
   },
 
+  delete(disID: string) {
+    return prisma.distribution.delete({
+      where: { disID },
+    });
+  },
+
   getByFoodId(foodID: string) {
     return prisma.distribution.findFirst({
       where: { foodID },
@@ -122,15 +128,6 @@ export const distributionRepository = {
       orderBy: { claimedAt: "desc" },
       take: 50,
       select: listSelect,
-    });
-  },
-
-  /**
-   * Delete a distribution by its ID.
-   */
-  delete(disID: string) {
-    return prisma.distribution.delete({
-      where: { disID },
     });
   },
 

@@ -28,7 +28,7 @@ export async function cacheData<T>(key: string, data: T): Promise<void> {
  * @param maxAgeMs Maximum age in milliseconds (default: 5 minutes)
  * @returns The cached data or null if stale/missing
  */
-export async function getCachedData<T>(key: string, maxAgeMs: number = 5 * 60 * 1000): Promise<T | null> {
+export async function getCachedData<T = any>(key: string, maxAgeMs: number = 5 * 60 * 1000): Promise<T | null> {
   try {
     const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
     if (!raw) return null;
@@ -48,7 +48,7 @@ export async function getCachedData<T>(key: string, maxAgeMs: number = 5 * 60 * 
 /**
  * Get cached data regardless of age (for instant UI, then refresh in background).
  */
-export async function getCachedDataAnyAge<T>(key: string): Promise<T | null> {
+export async function getCachedDataAnyAge<T = any>(key: string): Promise<T | null> {
   try {
     const raw = await AsyncStorage.getItem(`${CACHE_PREFIX}${key}`);
     if (!raw) return null;
@@ -75,6 +75,42 @@ export const CACHE_KEYS = {
   DONOR_DASHBOARD: 'donor_dashboard',
   RECIPIENT_DASHBOARD: 'recipient_dashboard',
   PROFILE_DATA: 'profile_data',
+  USER_PROFILE: 'user_profile',
+  NOTIFICATIONS: 'notifications',
+  MY_CART: 'my_cart',
   DONOR_STATS: 'donor_stats',
   RECIPIENT_STATS: 'recipient_stats',
+  FOOD_BROWSE_LIST: 'food_browse_list',
+  SAVED_ADDRESSES: 'saved_addresses',
 };
+
+/**
+ * Cache images locally for offline use
+ * Uses expo-file-system
+ */
+import * as FileSystem from 'expo-file-system';
+
+export async function cacheImage(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  // If it's already a local file, just return it
+  if (url.startsWith('file://')) return url;
+
+  try {
+    // Create a unique filename based on the URL
+    const filename = url.split('/').pop()?.split('?')[0] || `img_${Date.now()}.jpg`;
+    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+    // Check if it already exists
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (fileInfo.exists) {
+      return fileUri;
+    }
+
+    // Download it
+    const downloadRes = await FileSystem.downloadAsync(url, fileUri);
+    return downloadRes.uri;
+  } catch (error) {
+    console.warn('[DataCache] Failed to cache image:', url, error);
+    return url; // Return original on failure
+  }
+}

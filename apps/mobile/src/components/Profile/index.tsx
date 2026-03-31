@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -47,6 +47,12 @@ import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useAlert } from "../../../context/AlertContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../utils/dataCache";
+
+// Cache keys specific to the Profile screen
+const PROFILE_CACHE_KEY = CACHE_KEYS.PROFILE_DATA;
+const PROFILE_STATS_CACHE_KEY = 'profile_stats';
+const PROFILE_DONOR_HISTORY_CACHE_KEY = 'profile_donor_history';
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
@@ -69,6 +75,35 @@ export default function Profile() {
   const [deleteOtp, setDeleteOtp] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
+
+  // Load cached data on mount for instant UI (stale-while-revalidate)
+  useEffect(() => {
+    const loadCache = async () => {
+      const [cachedProfile, cachedStats, cachedDonorHistory] = await Promise.all([
+        getCachedDataAnyAge(PROFILE_CACHE_KEY),
+        getCachedDataAnyAge(`${PROFILE_STATS_CACHE_KEY}_${role}`),
+        role === "RECIPIENT" ? getCachedDataAnyAge(PROFILE_DONOR_HISTORY_CACHE_KEY) : Promise.resolve(null),
+      ]);
+
+      if (cachedProfile && !profileData) {
+        setProfileData(cachedProfile);
+      }
+      if (cachedStats && !statsData) {
+        setStatsData(cachedStats);
+      }
+      if (cachedDonorHistory && !donorHistoryStats && role === "RECIPIENT") {
+        setDonorHistoryStats(cachedDonorHistory);
+      }
+
+      // If we have any cached data, skip the loading screen
+      if (cachedProfile || cachedStats) {
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, []);
 
   const fetchProfileData = useCallback(async () => {
     if (!user) {
@@ -76,9 +111,23 @@ export default function Profile() {
       return;
     }
 
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (profileData && statsData && (now - lastFetchTimeRef.current < 30000)) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    isFetchingRef.current = true;
+
     try {
       const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
       setProfileData(profileRes.data);
+      await cacheData(PROFILE_CACHE_KEY, profileRes.data);
     } catch (error: any) {
       console.error("Error fetching profile:", error?.response?.data || error?.message || error);
     }
@@ -88,7 +137,11 @@ export default function Profile() {
         role === "DONOR"
           ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
           : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
-      setStatsData(dashboardRes.data?.stats || null);
+      const stats = dashboardRes.data?.stats || null;
+      setStatsData(stats);
+      if (stats) {
+        await cacheData(`${PROFILE_STATS_CACHE_KEY}_${role}`, stats);
+      }
     } catch (error: any) {
       console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
     }
@@ -97,7 +150,11 @@ export default function Profile() {
     if (role === "RECIPIENT") {
       try {
         const donorRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
-        setDonorHistoryStats(donorRes.data?.stats || null);
+        const donorStats = donorRes.data?.stats || null;
+        setDonorHistoryStats(donorStats);
+        if (donorStats) {
+          await cacheData(PROFILE_DONOR_HISTORY_CACHE_KEY, donorStats);
+        }
       } catch (error) {
         // User may not have any donor activity — that's fine
         setDonorHistoryStats(null);
@@ -106,13 +163,16 @@ export default function Profile() {
       setDonorHistoryStats(null);
     }
 
+    lastFetchTimeRef.current = Date.now();
     setLoading(false);
     setRefreshing(false);
+    isFetchingRef.current = false;
   }, [role, user]);
 
+  // On focus: silently refresh data in background (no loading screen)
+  // The initial loading=true from useState is handled by cache-on-mount or first fetchProfileData
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchProfileData();
     }, [fetchProfileData])
   );
@@ -138,13 +198,26 @@ export default function Profile() {
     }
     setSwitchingRole(true);
     setShowRolePicker(false);
+
+    // Load cached stats for the new role instantly (works offline too)
     try {
-      await setRole(newRole);
-      // Re-fetch all data for the new role
+      const [cachedStats, cachedDonorHistory] = await Promise.all([
+        getCachedDataAnyAge(`${PROFILE_STATS_CACHE_KEY}_${newRole}`),
+        newRole === "RECIPIENT"
+          ? getCachedDataAnyAge(PROFILE_DONOR_HISTORY_CACHE_KEY)
+          : Promise.resolve(null),
+      ]);
+      setStatsData(cachedStats || null);
+      setDonorHistoryStats(newRole === "RECIPIENT" ? (cachedDonorHistory || null) : null);
+    } catch {
       setStatsData(null);
       setDonorHistoryStats(null);
-      setLoading(true);
-      // fetchProfileData will run due to the role dependency change
+    }
+
+    try {
+      await setRole(newRole);
+      // fetchProfileData will run due to the role dependency change in useFocusEffect
+      // No need to set loading = true, cache provides instant data
     } catch (error) {
       console.error("Error switching role:", error);
       showAlert("Error", "Failed to switch role. Please try again.", undefined, { type: 'error' });
@@ -528,8 +601,8 @@ export default function Profile() {
                 <Heart size={wp(24)} color="#2E7D32" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Donor</Text>
-                <Text style={styles.roleOptionDesc}>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Donor</Text>
+                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
                   Share food with families in need
                 </Text>
               </View>
@@ -547,8 +620,8 @@ export default function Profile() {
                 <Package size={wp(24)} color="#1E88E5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Recipient</Text>
-                <Text style={styles.roleOptionDesc}>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Recipient</Text>
+                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
                   Browse and receive free food
                 </Text>
               </View>
