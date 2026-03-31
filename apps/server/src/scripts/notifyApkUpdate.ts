@@ -79,10 +79,20 @@ function buildEmailHtml(): string {
               <p style="color:#333; font-size:16px; line-height:1.6; margin-top:0;">Hi there!</p>
               
               <p style="color:#333; font-size:16px; line-height:1.6;">
-                We're excited to let you know that a <strong>new version of KusinaKonek (v1.0.3)</strong> is now available for download!
+                We're excited to let you know that a <strong>new version of KusinaKonek (v2.0.0)</strong> is now available for download!
               </p>
 
-              <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New:</h3>
+              <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New in v2.0.0:</h3>
+              <ul style="color:#555; font-size:14px; line-height:1.8;">
+                <li><strong>Unread Message Badges:</strong> See at a glance which food donations have new messages with count badges on food cards and chat buttons.</li>
+                <li><strong>Real-Time Badge Updates:</strong> Message counts update instantly without refreshing - badges disappear the moment you read messages.</li>
+                <li><strong>Global Online Status:</strong> Users appear online whenever the app is open or running in the background, not just when viewing chat.</li>
+                <li><strong>Message Seen Status:</strong> Know when your messages have been read with clear "Seen" indicators in chat.</li>
+                <li><strong>Online/Offline Indicators:</strong> See real-time status of who's online with green/gray dots and "Online/Offline" labels in chat.</li>
+                <li><strong>Improved Chat UX:</strong> Messages are automatically marked as read when you view them, keeping your message counts accurate.</li>
+              </ul>
+
+              <h3 style="color:#2E7D32; margin-bottom:8px; margin-top:24px;">📱 Previous Updates (v1.0.3):</h3>
               <ul style="color:#555; font-size:14px; line-height:1.8;">
                 <li><strong>Food Availability Timer:</strong> Donors can now set an exact time limit for how long their food donation will be available before expiring.</li>
                 <li><strong>Unclaimed Notifications:</strong> Added automatic notifications to alert donors if their food donation expires without being claimed.</li>
