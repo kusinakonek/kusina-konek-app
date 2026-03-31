@@ -78,6 +78,30 @@ export default function RecipientHome() {
     }
   }, [user]);
 
+  // Fetch only unread counts (faster, for screen focus)
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user || !dashboardData?.recentFoods) return;
+    
+    const distributions = dashboardData.recentFoods || [];
+    const counts: Record<string, number> = {};
+    
+    await Promise.all(
+      distributions.map(async (f: any) => {
+        const disID = f.disID || f.id;
+        if (disID) {
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            counts[disID] = countRes.data.count || 0;
+          } catch {
+            counts[disID] = 0;
+          }
+        }
+      })
+    );
+    
+    setUnreadCounts(counts);
+  }, [user, dashboardData?.recentFoods]);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
@@ -90,12 +114,12 @@ export default function RecipientHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch dashboard data whenever the screen comes into focus
-  // This ensures recently requested food appears after pickup
+  // Refetch unread counts whenever the screen comes into focus
+  // This ensures the badge updates after viewing messages
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData();
-    }, [fetchDashboardData]),
+      fetchUnreadCounts();
+    }, [fetchUnreadCounts]),
   );
 
   const onRefresh = useCallback(() => {

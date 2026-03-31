@@ -67,6 +67,30 @@ export default function DonorHome() {
     }
   }, [user]);
 
+  // Fetch only unread counts (faster, for screen focus)
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user || !dashboardData?.recentDonations) return;
+    
+    const distributions = dashboardData.recentDonations || [];
+    const counts: Record<string, number> = {};
+    
+    await Promise.all(
+      distributions.map(async (d: any) => {
+        const disID = d.disID || d.id;
+        if (disID) {
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            counts[disID] = countRes.data.count || 0;
+          } catch {
+            counts[disID] = 0;
+          }
+        }
+      })
+    );
+    
+    setUnreadCounts(counts);
+  }, [user, dashboardData?.recentDonations]);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
@@ -79,12 +103,12 @@ export default function DonorHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch dashboard data whenever the screen comes into focus
-  // This ensures the dashboard shows the latest donation data
+  // Refetch unread counts whenever the screen comes into focus
+  // This ensures the badge updates after viewing messages
   useFocusEffect(
     useCallback(() => {
-      fetchDashboardData();
-    }, [fetchDashboardData]),
+      fetchUnreadCounts();
+    }, [fetchUnreadCounts]),
   );
 
   const onRefresh = useCallback(() => {
