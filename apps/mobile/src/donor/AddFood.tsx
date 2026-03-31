@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Platform, DeviceEventEmitter } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -113,7 +113,10 @@ export default function AddFood() {
             await api.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
 
             showAlert('Success', 'Food donation added successfully!', [
-                { text: 'OK', onPress: () => router.push('/(tabs)') }
+                { text: 'OK', onPress: () => {
+                    DeviceEventEmitter.emit('dashboard:force-refresh');
+                    router.push('/(tabs)');
+                }}
             ], { type: 'success' });
         } catch (error: any) {
             console.error(error);

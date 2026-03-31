@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -116,10 +117,24 @@ export default function DonorHome() {
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
-      console.log("[DonorHome] Reconnected, refreshing dashboard...");
+      console.log("[DonorHome] Reconnected, fetching fresh data.");
       fetchDashboardData();
     }
   }, [justReconnected, fetchDashboardData]);
+
+  // Listen for force-refresh events strictly from user actions (Claim, Add, Cancel, Feedback)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('dashboard:force-refresh', () => {
+      console.log("[DonorHome] Force refresh event received after user action!");
+      // Reset throttle so fetch is allowed
+      lastFetchTimeRef.current = 0;
+      // Show full screen loading
+      setLoading(true);
+      fetchDashboardData();
+    });
+    
+    return () => subscription.remove();
+  }, [fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled donations disappear immediately when navigating back

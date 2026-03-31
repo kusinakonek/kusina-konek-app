@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { router } from "expo-router";
+import { DeviceEventEmitter } from "react-native";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
 import ClaimsConfirmedModal from "../src/components/ClaimsConfirmedModal";
@@ -241,6 +242,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
+    DeviceEventEmitter.emit('dashboard:force-refresh');
     router.push("/(tabs)");
   };
 

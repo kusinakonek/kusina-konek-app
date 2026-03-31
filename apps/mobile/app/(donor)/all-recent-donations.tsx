@@ -7,6 +7,7 @@ import {
     RefreshControl,
     Platform,
     Pressable,
+    DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft } from "lucide-react-native";
@@ -120,6 +121,7 @@ export default function AllRecentDonations() {
         setLoading(true);
         try {
             await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+            DeviceEventEmitter.emit('dashboard:force-refresh');
             await fetchRecentDonations();
         } catch (error: any) {
             console.error("Failed to cancel donation:", error);
