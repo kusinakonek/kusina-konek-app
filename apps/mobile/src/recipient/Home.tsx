@@ -44,6 +44,7 @@ export default function RecipientHome() {
   const dashboardDataRef = useRef<any>(null);
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -80,6 +81,14 @@ export default function RecipientHome() {
        return;
     }
 
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (dashboardDataRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
     isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
@@ -100,6 +109,7 @@ export default function RecipientHome() {
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
+      lastFetchTimeRef.current = Date.now();
       setLoading(false);
       setRefreshing(false);
       isFetchingRef.current = false;

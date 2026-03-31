@@ -37,6 +37,10 @@ export default function DonorHome() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
   const { isOnline, justReconnected } = useNetwork();
+  const dashboardDataRef = useRef<any>(null);
+  const isOnlineRef = useRef(isOnline);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Load from cache on mount for instant UI
   useEffect(() => {
@@ -53,6 +57,14 @@ export default function DonorHome() {
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
 
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (dashboardDataRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
     if (!isOnline && dashboardData) {
        // If offline and we already have cache, just stop loading
        setLoading(false);
@@ -60,9 +72,11 @@ export default function DonorHome() {
        return;
     }
 
+    isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
       setDashboardData(response.data);
+      dashboardDataRef.current = response.data;
       await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
       
       // Initialize unread counts from the new backend response
@@ -79,6 +93,8 @@ export default function DonorHome() {
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
+      lastFetchTimeRef.current = Date.now();
+      isFetchingRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }

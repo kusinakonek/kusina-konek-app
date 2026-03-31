@@ -76,6 +76,7 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Load cached data on mount for instant UI (stale-while-revalidate)
   useEffect(() => {
@@ -112,6 +113,15 @@ export default function Profile() {
 
     // Prevent concurrent fetches
     if (isFetchingRef.current) return;
+
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (profileData && statsData && (now - lastFetchTimeRef.current < 30000)) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     isFetchingRef.current = true;
 
     try {
@@ -153,6 +163,7 @@ export default function Profile() {
       setDonorHistoryStats(null);
     }
 
+    lastFetchTimeRef.current = Date.now();
     setLoading(false);
     setRefreshing(false);
     isFetchingRef.current = false;
