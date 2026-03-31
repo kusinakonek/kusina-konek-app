@@ -54,14 +54,14 @@ export default function RecentFoodCard({
             </View>
           )}
           {/* Unread message badge on image */}
-          {item.unreadMessages && item.unreadMessages > 0 && (
+          {item.unreadMessages != null && item.unreadMessages > 0 ? (
             <View style={styles.messageBadge}>
               <MessageCircle size={12} color="#fff" fill="#fff" />
               <Text style={styles.messageBadgeText}>
                 {item.unreadMessages > 9 ? '9+' : item.unreadMessages}
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.headerTextInfo}>
