@@ -103,8 +103,11 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                             {/* Buttons Container */}
                             <View style={[
                                 styles.buttonContainer,
-                                // Stack vertically if there are more than 2 buttons for better UI fitting
-                                alertConfig.buttons!.length > 2 ? { flexDirection: 'column' } : { flexDirection: 'row' }
+                                // Stack vertically if there are more than 2 buttons or text is too long
+                                (() => {
+                                    const shouldStack = alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 14);
+                                    return shouldStack ? { flexDirection: 'column' } : { flexDirection: 'row' };
+                                })()
                             ]}>
                                 {alertConfig.buttons!.map((btn, index) => {
 
@@ -124,14 +127,16 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                                         textColor = colors.textTertiary;
                                     }
 
+                                    const shouldStack = alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 14);
+
                                     return (
                                         <TouchableOpacity
                                             key={index}
                                             style={[
                                                 styles.button,
                                                 { backgroundColor: btnColor },
-                                                alertConfig.buttons!.length > 2 && { width: '100%', marginBottom: hp(8) },
-                                                alertConfig.buttons!.length <= 2 && { flex: 1, marginHorizontal: wp(4) }
+                                                shouldStack && { width: '100%', marginBottom: hp(8) },
+                                                !shouldStack && { flex: 1, marginHorizontal: wp(4) }
                                             ]}
                                             onPress={() => {
                                                 hideAlert();
