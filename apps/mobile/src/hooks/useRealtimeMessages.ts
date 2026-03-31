@@ -66,8 +66,8 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
   }, [fetchMessages]);
 
   // Mark messages as read when viewing the chat
-  const markMessagesAsRead = useCallback(async () => {
-    if (!disID || !userId) return;
+  useEffect(() => {
+    if (!disID || !userId || messages.length === 0) return;
     
     // Find unread messages from other users
     const unreadMessages = messages.filter(
@@ -76,40 +76,37 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     
     if (unreadMessages.length === 0) return;
     
-    try {
-      // Mark each unread message as read
-      await Promise.all(
-        unreadMessages.map(msg =>
-          axiosClient.patch(API_ENDPOINTS.MESSAGE.MARK_READ(msg.messageID))
-        )
-      );
-      
-      // Broadcast that messages were read
-      if (channelRef.current) {
-        await channelRef.current.send({
-          type: 'broadcast',
-          event: 'messages_read',
-          payload: { disID, readBy: userId },
-        });
+    const markAsRead = async () => {
+      try {
+        // Mark each unread message as read
+        await Promise.all(
+          unreadMessages.map(msg =>
+            axiosClient.patch(API_ENDPOINTS.MESSAGE.MARK_READ(msg.messageID))
+          )
+        );
+        
+        // Broadcast that messages were read
+        if (channelRef.current) {
+          await channelRef.current.send({
+            type: 'broadcast',
+            event: 'messages_read',
+            payload: { disID, readBy: userId },
+          });
+        }
+        
+        // Update local state
+        setMessages(prev => prev.map(msg => 
+          unreadMessages.some(u => u.messageID === msg.messageID)
+            ? { ...msg, isRead: true }
+            : msg
+        ));
+      } catch (err) {
+        console.error('Failed to mark messages as read:', err);
       }
-      
-      // Update local state
-      setMessages(prev => prev.map(msg => 
-        unreadMessages.some(u => u.messageID === msg.messageID)
-          ? { ...msg, isRead: true }
-          : msg
-      ));
-    } catch (err) {
-      console.error('Failed to mark messages as read:', err);
-    }
+    };
+    
+    markAsRead();
   }, [disID, userId, messages]);
-
-  // Mark messages as read when messages change or user views chat
-  useEffect(() => {
-    if (messages.length > 0 && userId) {
-      markMessagesAsRead();
-    }
-  }, [messages.length, userId]);
 
   // Set up Realtime channel with Broadcast (presence handled globally)
   useEffect(() => {
