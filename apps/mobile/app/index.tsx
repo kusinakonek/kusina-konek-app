@@ -75,7 +75,7 @@ export default function Index() {
                     {/* White circle with logo */}
                     <View style={styles.logoCircle}>
                         <Image
-                            source={require('../assets/green icon.png')}
+                            source={require('../assets/loading-opening.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />
@@ -133,8 +133,9 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     logo: {
-        width: 80,
-        height: 80,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
     },
     appName: {
         fontSize: 34,

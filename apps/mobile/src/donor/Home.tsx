@@ -110,6 +110,7 @@ export default function DonorHome() {
   useEffect(() => {
     if (notification) {
       console.log("[DonorHome] Notification received, auto-refreshing stats...");
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
@@ -128,8 +129,8 @@ export default function DonorHome() {
       console.log("[DonorHome] Force refresh event received after user action!");
       // Reset throttle so fetch is allowed
       lastFetchTimeRef.current = 0;
-      // Show full screen loading
-      setLoading(true);
+      // Show subtle pull-to-refresh spinner instead of full screen loading
+      setRefreshing(true);
       fetchDashboardData();
     });
     
@@ -223,13 +224,7 @@ export default function DonorHome() {
         label: "Ratings",
         color: "#FFC107",
         bgColor: "#FFF8E1",
-        onPress: () => {
-          setLoading(true);
-          setTimeout(() => {
-            router.push("/(donor)/feedback");
-            setLoading(false);
-          }, 100);
-        },
+        onPress: () => router.push("/(donor)/feedback"),
       },
     ];
   };
@@ -331,13 +326,7 @@ export default function DonorHome() {
 
           <TouchableOpacity
             style={styles.mainButton}
-            onPress={() => {
-              setLoading(true);
-              setTimeout(() => {
-                router.push("/donate");
-                setLoading(false);
-              }, 100);
-            }}>
+            onPress={() => router.push("/donate")}>
             <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
@@ -348,36 +337,25 @@ export default function DonorHome() {
               role="DONOR"
               onSeeAll={() => router.push("/(donor)/all-recent-donations")}
               onPressCard={(item) => {
-                setLoading(true);
-                setTimeout(() => {
-                  if (item.rating) {
-                    // Navigate to review-details for items that have feedback
-                    router.push({
-                      pathname: "/(donor)/review-details",
-                      params: { disID: item.id }
-                    });
-                  } else {
-                    // Navigate to active-details for items without feedback
-                    router.push({
-                      pathname: "/(donor)/active-details",
-                      params: { disID: item.id }
-                    });
-                  }
-                  setLoading(false);
-                }, 100);
-              }}
-              onFeedback={(id) => {
-                setLoading(true);
-                // Small timeout to allow UI to update before freezing on navigation
-                setTimeout(() => {
+                if (item.rating) {
+                  // Navigate to review-details for items that have feedback
                   router.push({
                     pathname: "/(donor)/review-details",
-                    params: { disID: id }
+                    params: { disID: item.id }
                   });
-                  // Reset loading state after navigation (when coming back)
-                  // Use a focus effect or just time it out if push is instant
-                  setLoading(false);
-                }, 100);
+                } else {
+                  // Navigate to active-details for items without feedback
+                  router.push({
+                    pathname: "/(donor)/active-details",
+                    params: { disID: item.id }
+                  });
+                }
+              }}
+              onFeedback={(id) => {
+                router.push({
+                  pathname: "/(donor)/review-details",
+                  params: { disID: id }
+                });
               }}
             />
           </View>

@@ -75,10 +75,11 @@ export default function LoadingScreen({ message = 'Loading...' }: LoadingScreenP
                     styles.logoShadow
                 ]}>
                     <Image
-                        source={require('../../assets/loading screen.png')}
+                        source={require('../../assets/loading-opening.png')}
                         style={{
                             width: logoSize, 
                             height: logoSize,
+                            borderRadius: logoSize / 2,
                         }}
                         resizeMode="contain"
                     />
