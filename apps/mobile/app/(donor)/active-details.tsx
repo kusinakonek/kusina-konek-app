@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, User, MessageCircle } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
 import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
+import CancelDonationModal from '../../src/components/CancelDonationModal';
 
 export default function DonorActiveDetailsScreen() {
     const { disID } = useLocalSearchParams<{ disID: string }>();
@@ -18,6 +19,8 @@ export default function DonorActiveDetailsScreen() {
     const [distribution, setDistribution] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
 
     const fetchDetails = async () => {
         try {
@@ -57,6 +60,23 @@ export default function DonorActiveDetailsScreen() {
             pathname: '/(donor)/chat',
             params: { disID },
         });
+    };
+
+    const handleCancelDonation = async () => {
+        if (!distribution?.food?.foodID) return;
+        setCancelling(true);
+        try {
+            await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(distribution.food.foodID));
+            showAlert("Success", "Donation has been cancelled.");
+            router.back();
+        } catch (error: any) {
+            console.error("Failed to cancel donation:", error);
+            const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
+            Alert.alert("Error", msg);
+        } finally {
+            setCancelling(false);
+            setShowCancelModal(false);
+        }
     };
 
     if (loading) {
@@ -127,6 +147,19 @@ export default function DonorActiveDetailsScreen() {
                          status === 'completed' ? "This donation is completed. Waiting for the recipient to provide a rating and feedback!" :
                          "This food is currently active and belongs to the claimed recipient."}
                     </Text>
+
+                    {/* Cancel Button - only show for pending donations */}
+                    {status === 'pending' && (
+                        <TouchableOpacity
+                            style={styles.cancelDonationButton}
+                            onPress={() => setShowCancelModal(true)}
+                            disabled={cancelling}
+                        >
+                            <Text style={styles.cancelDonationText}>
+                                {cancelling ? 'Cancelling...' : 'Cancel Donation'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </ScrollView>
 
@@ -146,6 +179,12 @@ export default function DonorActiveDetailsScreen() {
                     )}
                 </TouchableOpacity>
             )}
+
+            <CancelDonationModal
+                visible={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={handleCancelDonation}
+            />
         </SafeAreaView>
     );
 }
@@ -197,5 +236,19 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 12,
         fontWeight: 'bold',
-    }
+    },
+    cancelDonationButton: {
+        marginTop: 24,
+        backgroundColor: '#fff',
+        borderWidth: 1.5,
+        borderColor: '#e53935',
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    cancelDonationText: {
+        color: '#e53935',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });

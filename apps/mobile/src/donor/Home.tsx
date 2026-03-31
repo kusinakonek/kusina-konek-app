@@ -12,8 +12,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useOnboarding } from "../../context/OnboardingContext";
-import { TutorialOverlay } from "../components/TutorialOverlay";
 import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
@@ -28,7 +26,6 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function DonorHome() {
   const { user } = useAuth();
-  const { currentStep, setCurrentStep, nextStep, skipOnboarding } = useOnboarding();
   const router = useRouter();
   const { colors } = useTheme();
   const { notification } = usePushNotifications();
@@ -37,91 +34,6 @@ export default function DonorHome() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
-
-  // Tutorial refs
-  const statsRef = useRef<View>(null);
-  const donateButtonRef = useRef<TouchableOpacity>(null);
-  const recentItemsRef = useRef<View>(null);
-
-  // Tutorial state
-  const [tutorialStep, setTutorialStep] = useState<number>(0);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [targetLayout, setTargetLayout] = useState<{x: number; y: number; width: number; height: number} | null>(null);
-
-  // Measure target components
-  const measureTarget = (target: string) => {
-    let ref: React.RefObject<any> | null = null;
-    
-    switch (target) {
-      case 'stats':
-        ref = statsRef;
-        break;
-      case 'donate-button':
-        ref = donateButtonRef;
-        break;
-      case 'recent-items':
-        ref = recentItemsRef;
-        break;
-    }
-    
-    if (ref?.current) {
-      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-        setTargetLayout({ x, y, width, height });
-      });
-    }
-  };
-
-  // Update tutorial to measure targets
-  useEffect(() => {
-    if (showTutorial && tutorialSteps[tutorialStep]) {
-      // Small delay to ensure component is rendered
-      setTimeout(() => {
-        measureTarget(tutorialSteps[tutorialStep].target);
-      }, 100);
-    }
-  }, [showTutorial, tutorialStep]);
-
-  // Tutorial configuration for donor dashboard
-  const tutorialSteps = [
-    {
-      title: 'Your Dashboard',
-      description: 'Welcome to your donor dashboard! Here you can see your impact statistics and recent donations.',
-      target: 'stats',
-    },
-    {
-      title: 'Donate Food',
-      description: 'Tap this button to start donating food. You can add food details, photos, and set pickup locations.',
-      target: 'donate-button',
-    },
-    {
-      title: 'Recent Donations',
-      description: 'View and manage your recent donations here. You can track status, chat with recipients, and see feedback.',
-      target: 'recent-items',
-    },
-  ];
-
-  // Check if tutorial should be shown
-  useEffect(() => {
-    if (currentStep === 'dashboard') {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    }
-  }, [currentStep]);
-
-  const handleTutorialNext = () => {
-    if (tutorialStep < tutorialSteps.length - 1) {
-      setTutorialStep(tutorialStep + 1);
-    } else {
-      // Dashboard tutorial complete, go to completion
-      setShowTutorial(false);
-      router.replace('/onboarding-complete');
-    }
-  };
-
-  const handleTutorialSkip = () => {
-    setShowTutorial(false);
-    skipOnboarding();
-  };
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -203,12 +115,12 @@ export default function DonorHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch unread counts whenever the screen comes into focus
-  // This ensures the badge updates after viewing messages
+  // Refetch full dashboard data whenever the screen comes into focus
+  // This ensures cancelled donations disappear immediately when navigating back
   useFocusEffect(
     useCallback(() => {
-      fetchUnreadCounts();
-    }, [fetchUnreadCounts]),
+      fetchDashboardData();
+    }, [fetchDashboardData]),
   );
 
   // Listen for real-time message read events
@@ -391,12 +303,11 @@ export default function DonorHome() {
             </ImageBackground>
           </View>
 
-          <View ref={statsRef} style={styles.statsContainer}>
+          <View style={styles.statsContainer}>
             <DashboardStats stats={getStats()} />
           </View>
 
           <TouchableOpacity
-            ref={donateButtonRef}
             style={styles.mainButton}
             onPress={() => {
               setLoading(true);
@@ -409,7 +320,7 @@ export default function DonorHome() {
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
 
-          <View ref={recentItemsRef}>
+          <View>
             <RecentItemsList
               items={getRecentItems()}
               role="DONOR"
@@ -457,25 +368,6 @@ export default function DonorHome() {
           </View>
         )}
       </View>
-
-      {/* Tutorial Overlay */}
-      {showTutorial && tutorialSteps[tutorialStep] && (
-        <TutorialOverlay
-          visible={showTutorial}
-          title={tutorialSteps[tutorialStep].title}
-          description={tutorialSteps[tutorialStep].description}
-          targetX={targetLayout?.x}
-          targetY={targetLayout?.y}
-          targetWidth={targetLayout?.width}
-          targetHeight={targetLayout?.height}
-          borderRadius={12}
-          currentStep={tutorialStep + 1}
-          totalSteps={tutorialSteps.length}
-          onNext={handleTutorialNext}
-          onSkip={handleTutorialSkip}
-          nextButtonText={tutorialStep === tutorialSteps.length - 1 ? 'Continue' : 'Next'}
-        />
-      )}
     </SafeAreaView>
   );
 }

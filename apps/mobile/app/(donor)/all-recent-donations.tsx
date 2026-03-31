@@ -84,8 +84,8 @@ export default function AllRecentDonations() {
         }
     };
 
-    const handleCancelDonation = (id: string) => {
-        setDonationToCancel(id);
+    const handleCancelDonation = (foodID: string) => {
+        setDonationToCancel(foodID);
         setShowCancelModal(true);
     };
 
@@ -93,7 +93,7 @@ export default function AllRecentDonations() {
         if (!donationToCancel) return;
         setLoading(true);
         try {
-            await axiosClient.delete(API_ENDPOINTS.FOOD.DELETE_DONATION(donationToCancel));
+            await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
             await fetchRecentDonations();
         } catch (error: any) {
             console.error("Failed to cancel donation:", error);

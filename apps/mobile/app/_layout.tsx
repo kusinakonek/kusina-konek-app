@@ -8,7 +8,6 @@ import { FoodCacheProvider } from "../context/FoodCacheContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { NotificationProvider, useNotification } from "../context/NotificationContext";
 import { PresenceProvider } from "../context/PresenceContext";
-import { OnboardingProvider } from "../context/OnboardingContext";
 import { NotificationBanner } from "../src/components/NotificationBanner";
 import { AlertProvider } from "../context/AlertContext";
 import NoConnectionModal from "../src/components/NoConnectionModal";
@@ -51,13 +50,11 @@ export default function RootLayout() {
         <ThemeProvider>
           <AlertProvider>
             <AuthProvider>
-              <OnboardingProvider>
-                <PresenceProvider>
-                  <NotificationProvider>
-                    <AppContent />
-                  </NotificationProvider>
-                </PresenceProvider>
-              </OnboardingProvider>
+              <PresenceProvider>
+                <NotificationProvider>
+                  <AppContent />
+                </NotificationProvider>
+              </PresenceProvider>
             </AuthProvider>
           </AlertProvider>
         </ThemeProvider>

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { Redirect } from 'expo-router';
 import { View, StyleSheet, Image, Text, Animated, Dimensions, StatusBar } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useOnboarding } from '../context/OnboardingContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -10,7 +9,6 @@ const LOADING_BAR_WIDTH = width * 0.6;
 
 export default function Index() {
     const { userToken, isLoading, role } = useAuth();
-    const { isOnboardingComplete, loading: onboardingLoading } = useOnboarding();
     const [showSplash, setShowSplash] = useState(true);
 
     // Animations
@@ -58,7 +56,7 @@ export default function Index() {
         return () => clearTimeout(timer);
     }, []);
 
-    if (isLoading || onboardingLoading || showSplash) {
+    if (isLoading || showSplash) {
         const loadingBarWidth = loadingProgress.interpolate({
             inputRange: [0, 1],
             outputRange: [0, LOADING_BAR_WIDTH],
@@ -105,10 +103,6 @@ export default function Index() {
     }
 
     if (userToken) {
-        // Check if user needs onboarding
-        if (!isOnboardingComplete) {
-            return <Redirect href="/onboarding-welcome" />;
-        }
         return <Redirect href="/(tabs)" />;
     }
 

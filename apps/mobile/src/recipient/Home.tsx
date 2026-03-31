@@ -13,8 +13,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useOnboarding } from "../../context/OnboardingContext";
-import { TutorialOverlay } from "../components/TutorialOverlay";
 import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
@@ -32,7 +30,6 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function RecipientHome() {
   const { user } = useAuth();
-  const { currentStep, setCurrentStep, nextStep, skipOnboarding } = useOnboarding();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showAlert } = useAlert();
@@ -41,57 +38,6 @@ export default function RecipientHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const channelsRef = useRef<any[]>([]);
-
-  // Tutorial refs
-  const browseButtonRef = useRef<TouchableOpacity>(null);
-  const statsRef = useRef<View>(null);
-  const recentItemsRef = useRef<View>(null);
-
-  // Tutorial state
-  const [tutorialStep, setTutorialStep] = useState<number>(0);
-  const [showTutorial, setShowTutorial] = useState(false);
-
-  // Tutorial configuration for recipient dashboard
-  const tutorialSteps = [
-    {
-      title: 'Available Food',
-      description: 'Here you can see how many food donations are available near you and browse recent options.',
-      target: 'stats',
-    },
-    {
-      title: 'Browse Food',
-      description: 'Tap this button to browse all available food donations. You can search, filter, and add items to your cart.',
-      target: 'browse-button',
-    },
-    {
-      title: 'Recent Activity',
-      description: 'View your recent food claims here. You can track pickup status and leave feedback for donors.',
-      target: 'recent-items',
-    },
-  ];
-
-  // Check if tutorial should be shown
-  useEffect(() => {
-    if (currentStep === 'dashboard') {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    }
-  }, [currentStep]);
-
-  const handleTutorialNext = () => {
-    if (tutorialStep < tutorialSteps.length - 1) {
-      setTutorialStep(tutorialStep + 1);
-    } else {
-      // Dashboard tutorial complete, go to completion
-      setShowTutorial(false);
-      router.replace('/onboarding-complete');
-    }
-  };
-
-  const handleTutorialSkip = () => {
-    setShowTutorial(false);
-    skipOnboarding();
-  };
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -180,12 +126,12 @@ export default function RecipientHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch unread counts whenever the screen comes into focus
-  // This ensures the badge updates after viewing messages
+  // Refetch full dashboard data whenever the screen comes into focus
+  // This ensures cancelled/updated donations reflect immediately
   useFocusEffect(
     useCallback(() => {
-      fetchUnreadCounts();
-    }, [fetchUnreadCounts]),
+      fetchDashboardData();
+    }, [fetchDashboardData]),
   );
 
   // Listen for real-time message read events
