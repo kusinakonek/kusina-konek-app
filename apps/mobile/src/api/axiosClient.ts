@@ -2,6 +2,7 @@ import axios from "axios";
 import { supabase } from "../../lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG } from "../config/apiConfig";
+import { DeviceEventEmitter } from "react-native";
 
 const axiosClient = axios.create({
   ...API_CONFIG,
@@ -28,7 +29,19 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Add metadata typing
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    metadata?: { startTime: number };
+    _retry?: boolean;
+  }
+}
+
+// Request interceptor: add auth token and role, start timer
 axiosClient.interceptors.request.use(async (config) => {
+  // Start timer for slow connection detection
+  config.metadata = { startTime: Date.now() };
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -56,9 +69,30 @@ axiosClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Response interceptor: check duration and handle 401s
 axiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check response time
+    if (response.config.metadata?.startTime) {
+      const duration = Date.now() - response.config.metadata.startTime;
+      if (duration > 3000) {
+        DeviceEventEmitter.emit('network:slow');
+        console.warn(`[Axios] Slow API call (${duration}ms): ${response.config.url}`);
+      } else {
+        DeviceEventEmitter.emit('network:fast');
+      }
+    }
+    return response;
+  },
   async (error) => {
+    // If it timed out or took a long time, emit slow event
+    if (error.config?.metadata?.startTime) {
+      const duration = Date.now() - error.config.metadata.startTime;
+      if (duration > 3000 || error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        DeviceEventEmitter.emit('network:slow');
+      }
+    }
+
     const originalRequest = error.config;
 
     // If 401 and we haven't already retried this request

@@ -47,6 +47,8 @@ import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useAlert } from "../../../context/AlertContext";
+import { useNetwork } from "../../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../utils/dataCache";
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
@@ -70,24 +72,68 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
+  const { isOnline, justReconnected, clearJustReconnected } = useNetwork();
+
+  // Load from cache on mount for instant UI
+  useEffect(() => {
+    const loadCache = async () => {
+      const [cachedProfile, cachedDonor, cachedRecipient] = await Promise.all([
+        getCachedDataAnyAge(CACHE_KEYS.USER_PROFILE),
+        getCachedDataAnyAge(CACHE_KEYS.DONOR_DASHBOARD),
+        getCachedDataAnyAge(CACHE_KEYS.RECIPIENT_DASHBOARD)
+      ]);
+
+      if (cachedProfile && !profileData) {
+        setProfileData(cachedProfile);
+        
+        // Load appropriate stats based on role
+        if (role === "DONOR" && cachedDonor) {
+          setStatsData(cachedDonor.stats);
+        } else if (role === "RECIPIENT" && cachedRecipient) {
+          setStatsData(cachedRecipient.stats);
+        }
+        
+        // Populate donor history stats for recipient if available
+        if (role === "RECIPIENT" && cachedDonor) {
+          setDonorHistoryStats(cachedDonor.stats);
+        }
+        
+        setLoading(false); // Only set loading false if we have the profile cache to show
+      }
+    };
+    loadCache();
+  }, []);
+
   const fetchProfileData = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
 
+    if (!isOnline && profileData) {
+       // If offline and we already have cache, just stop loading
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
     try {
       const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
       setProfileData(profileRes.data);
+      await cacheData(CACHE_KEYS.USER_PROFILE, profileRes.data);
     } catch (error: any) {
       console.error("Error fetching profile:", error?.response?.data || error?.message || error);
     }
 
     try {
-      const dashboardRes =
-        role === "DONOR"
-          ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
-          : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+      let dashboardRes;
+      if (role === "DONOR") {
+        dashboardRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
+        await cacheData(CACHE_KEYS.DONOR_DASHBOARD, dashboardRes.data);
+      } else {
+        dashboardRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+        await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, dashboardRes.data);
+      }
       setStatsData(dashboardRes.data?.stats || null);
     } catch (error: any) {
       console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
@@ -98,8 +144,8 @@ export default function Profile() {
       try {
         const donorRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
         setDonorHistoryStats(donorRes.data?.stats || null);
+        await cacheData(CACHE_KEYS.DONOR_DASHBOARD, donorRes.data);
       } catch (error) {
-        // User may not have any donor activity — that's fine
         setDonorHistoryStats(null);
       }
     } else {
@@ -108,13 +154,22 @@ export default function Profile() {
 
     setLoading(false);
     setRefreshing(false);
-  }, [role, user]);
+  }, [role, user, isOnline, profileData]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      fetchProfileData();
+      clearJustReconnected();
+    }
+  }, [justReconnected, fetchProfileData, clearJustReconnected]);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      // Only set loading if we don't have profile data yet
+      if (!profileData) setLoading(true);
       fetchProfileData();
-    }, [fetchProfileData])
+    }, [fetchProfileData, profileData])
   );
 
   // Handle auto-refresh when a notification is received (Silent Refresh)
@@ -528,7 +583,7 @@ export default function Profile() {
                 <Heart size={wp(24)} color="#2E7D32" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Donor</Text>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Donor</Text>
                 <Text style={styles.roleOptionDesc}>
                   Share food with families in need
                 </Text>
@@ -547,7 +602,7 @@ export default function Profile() {
                 <Package size={wp(24)} color="#1E88E5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Recipient</Text>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Recipient</Text>
                 <Text style={styles.roleOptionDesc}>
                   Browse and receive free food
                 </Text>
@@ -968,7 +1023,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  roleOptionTitle: { fontSize: fp(16), fontWeight: "bold", color: "#1a1a1a" },
+  roleOptionTitle: { fontSize: fp(16), fontWeight: "bold" },
   roleOptionDesc: { fontSize: fp(13), color: "#666", marginTop: hp(2) },
   roleOptionCheck: {
     width: wp(20),

@@ -9,6 +9,8 @@ import CartBottomBar from "../../src/components/CartBottomBar";
 import CartItemCard from "../../src/components/CartItemCard";
 import EmptyCart from "../../src/components/EmptyCart";
 import { theme } from "../../src/constants/theme";
+import { useNetwork } from "../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../src/utils/dataCache";
 
 // Cart item type — a distribution that the recipient has requested
 type CartItem = {
@@ -44,16 +46,35 @@ type CartItem = {
 };
 
 export default function MyCart() {
+  const { isOnline } = useNetwork();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Load from cache on mount
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.MY_CART);
+      if (cached) {
+        setCartItems((cached as any).distributions || []);
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, []);
+
   const fetchMyDistributions = useCallback(async () => {
+    if (!isOnline && cartItems.length > 0) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DISTRIBUTION.GET_MINE);
       const data: CartItem[] = response.data?.distributions ?? [];
       // Filter to show only CLAIMED distributions (items in cart)
       const claimed = data.filter((d) => d.status === "CLAIMED");
       setCartItems(claimed);
+      await cacheData(CACHE_KEYS.MY_CART, { distributions: claimed });
     } catch (err: any) {
       console.error("Failed to fetch cart items:", err);
     } finally {

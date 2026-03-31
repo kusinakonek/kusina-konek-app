@@ -23,6 +23,8 @@ import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import { useNetwork } from "../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -34,31 +36,44 @@ export default function DonorHome() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
+  const { isOnline, justReconnected, clearJustReconnected } = useNetwork();
+
+  // Load from cache on mount for instant UI
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.DONOR_DASHBOARD);
+      if (cached && !dashboardData) {
+        setDashboardData(cached);
+        setLoading(false); // Only set loading false if we have cache to show
+      }
+    };
+    loadCache();
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
 
+    if (!isOnline && dashboardData) {
+       // If offline and we already have cache, just stop loading
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
       setDashboardData(response.data);
+      await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
       
-      // Fetch unread message counts for each distribution
+      // Initialize unread counts from the new backend response
       const distributions = response.data?.recentDonations || [];
       const counts: Record<string, number> = {};
       
-      await Promise.all(
-        distributions.map(async (d: any) => {
-          const disID = d.disID || d.id;
-          if (disID) {
-            try {
-              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-              counts[disID] = countRes.data.count || 0;
-            } catch {
-              counts[disID] = 0;
-            }
-          }
-        })
-      );
+      for (const d of distributions) {
+        if (d.disID || d.id) {
+          counts[d.disID || d.id] = d.unreadMessages || 0;
+        }
+      }
       
       setUnreadCounts(counts);
     } catch (error) {
@@ -69,43 +84,10 @@ export default function DonorHome() {
     }
   }, [user]);
 
-  // Fetch only unread counts (faster, for screen focus)
-  const fetchUnreadCounts = useCallback(async () => {
-    if (!user) return;
-    
-    // Get distributions from current state
-    const distributions = dashboardData?.recentDonations || [];
-    if (distributions.length === 0) return;
-    
-    const counts: Record<string, number> = {};
-    
-    await Promise.all(
-      distributions.map(async (d: any) => {
-        const disID = d.disID || d.id;
-        if (disID) {
-          try {
-            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-            counts[disID] = countRes.data.count || 0;
-          } catch {
-            counts[disID] = 0;
-          }
-        }
-      })
-    );
-    
-    setUnreadCounts(counts);
-  }, [user, dashboardData?.recentDonations]);
-
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
-  
-  // Fetch unread counts after dashboard data loads
-  useEffect(() => {
-    if (dashboardData?.recentDonations) {
-      fetchUnreadCounts();
-    }
-  }, [dashboardData?.recentDonations, fetchUnreadCounts]);
+
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
@@ -114,6 +96,14 @@ export default function DonorHome() {
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      fetchDashboardData();
+      clearJustReconnected();
+    }
+  }, [justReconnected, fetchDashboardData, clearJustReconnected]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled donations disappear immediately when navigating back
@@ -227,6 +217,7 @@ export default function DonorHome() {
         recipientName: d.claimedBy,
         rating: d.rating,
         role: 'DONOR',
+        image: d.image || null,
         unreadMessages: unreadCounts[disID] || 0,
       };
     });

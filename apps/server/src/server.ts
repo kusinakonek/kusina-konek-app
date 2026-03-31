@@ -191,7 +191,19 @@ function startFoodExpiryScheduler() {
       for (const dist of expiredDistributions) {
         const foodName = dist.food.foodName || "Food donation";
         try {
-          // Delete distribution first (foreign key constraint)
+          // Delete related records first to avoid foreign key constraint violations
+          // Order matters: Messages → Feedback → Notifications → Distribution
+          await prisma.message.deleteMany({
+            where: { disID: dist.disID },
+          });
+          await prisma.feedback.deleteMany({
+            where: { disID: dist.disID },
+          });
+          await prisma.notification.deleteMany({
+            where: { entityID: dist.disID },
+          });
+
+          // Now safe to delete the distribution
           // Using deleteMany to avoid P2025 error if already deleted by another server instance
           const deletedDist = await prisma.distribution.deleteMany({
             where: { disID: dist.disID },

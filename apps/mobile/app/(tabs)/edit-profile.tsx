@@ -13,11 +13,14 @@ import LoadingScreen from '../../src/components/LoadingScreen';
 import SuccessModal from '../../src/components/SuccessModal';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
+import { useNetwork } from '../../context/NetworkContext';
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from '../../src/utils/dataCache';
 
 export default function EditProfile() {
     const router = useRouter();
     const { colors, isDark } = useTheme();
     const { showAlert } = useAlert();
+    const { isOnline } = useNetwork();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -54,36 +57,52 @@ export default function EditProfile() {
         );
     }, [firstName, lastName, middleName, suffix, phoneNo, barangay, streetAddress]);
 
-    // Fetch current profile data to pre-fill form
+    const hydrateProfileData = (profile: any) => {
+        if (!profile) return;
+        setFirstName(profile.firstName || '');
+        setLastName(profile.lastName || '');
+        setMiddleName(profile.middleName || '');
+        setSuffix(profile.suffix || '');
+        setPhoneNo(profile.phoneNo || '');
+        setBarangay(profile.address?.barangay || '');
+        setStreetAddress(profile.address?.streetAddress || '');
+
+        originalValues.current = {
+            firstName: profile.firstName || '',
+            lastName: profile.lastName || '',
+            middleName: profile.middleName || '',
+            suffix: profile.suffix || '',
+            phoneNo: profile.phoneNo || '',
+            barangay: profile.address?.barangay || '',
+            streetAddress: profile.address?.streetAddress || '',
+        };
+    };
+
+    // Load from cache on mount
+    useEffect(() => {
+        const loadCache = async () => {
+            const cached = await getCachedDataAnyAge(CACHE_KEYS.USER_PROFILE);
+            if (cached) {
+                hydrateProfileData((cached as any).profile);
+                setLoading(false);
+            }
+        };
+        loadCache();
+    }, []);
+
+    // Fetch current profile data to sync with server
     const fetchProfile = useCallback(async () => {
+        if (!isOnline && Object.keys(originalValues.current).length > 0) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const res = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
             const profile = res.data?.profile;
             if (profile) {
-                setFirstName(profile.firstName || '');
-                setLastName(profile.lastName || '');
-                setMiddleName(profile.middleName || '');
-                setSuffix(profile.suffix || '');
-                setPhoneNo(profile.phoneNo || '');
-                setBarangay(profile.address?.barangay || '');
-                setStreetAddress(profile.address?.streetAddress || '');
-                // Organization fields - commented out for now
-                // setIsOrg(profile.isOrg || false);
-                // setOrgName(profile.orgName || '');
-
-                // Store original values for dirty tracking
-                originalValues.current = {
-                    firstName: profile.firstName || '',
-                    lastName: profile.lastName || '',
-                    middleName: profile.middleName || '',
-                    suffix: profile.suffix || '',
-                    phoneNo: profile.phoneNo || '',
-                    barangay: profile.address?.barangay || '',
-                    streetAddress: profile.address?.streetAddress || '',
-                    // Organization original values - commented out for now
-                    // isOrg: profile.isOrg || false,
-                    // orgName: profile.orgName || '',
-                };
+                hydrateProfileData(profile);
+                await cacheData(CACHE_KEYS.USER_PROFILE, res.data);
             }
         } catch (error) {
             console.error('Error fetching profile:', error);
@@ -137,6 +156,9 @@ export default function EditProfile() {
             }
 
             await axiosClient.put(API_ENDPOINTS.USER.UPDATE_PROFILE, payload);
+            
+            // Re-fetch caching internally so the profile screen is ready with changes
+            fetchProfile(); 
             setShowSuccessModal(true);
         } catch (error: any) {
             console.error('Error updating profile:', error);

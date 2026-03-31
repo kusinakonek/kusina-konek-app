@@ -23,6 +23,8 @@ import FeedbackModal from "../../src/components/FeedbackModal";
 import { useTheme } from "../../context/ThemeContext";
 import { useAlert } from "../../context/AlertContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import { useNetwork } from "../../context/NetworkContext";
+import { getCachedDataAnyAge, CACHE_KEYS, cacheData } from "../../src/utils/dataCache";
 
 export default function AllRecentFoods() {
   const { user } = useAuth();
@@ -31,43 +33,67 @@ export default function AllRecentFoods() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentFoods, setRecentFoods] = useState<RecentItem[]>([]);
+  const { isOnline } = useNetwork();
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
+  const mapFoods = (data: any[]) => {
+    return data.map((f: any) => ({
+      id: f.disID || f.id,
+      title: f.foodName,
+      quantity: `${f.quantity} servings`,
+      location: f.location,
+      time: f.timeAgo,
+      status: (() => {
+        switch (f.status?.toUpperCase()) {
+          case "PENDING":
+            return "pending";
+          case "CLAIMED":
+            return "claimed";
+          case "ON_THE_WAY":
+            return "on-the-way";
+          case "COMPLETED":
+          case "DELIVERED":
+            return "completed";
+          default:
+            return f.status?.toLowerCase();
+        }
+      })() as RecentItem["status"],
+      rating: f.myRating,
+      showFeedback: f.canGiveFeedback,
+      latitude: f.latitude ?? null,
+      longitude: f.longitude ?? null,
+    }));
+  };
+
+  // Load from cache on mount
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.RECIPIENT_DASHBOARD);
+      if (cached && (cached as any).recentFoods) {
+        setRecentFoods(mapFoods((cached as any).recentFoods));
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, []);
+
   const fetchRecentFoods = useCallback(async () => {
     if (!user) return;
+    if (!isOnline && recentFoods.length > 0) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
-      const foods = (response.data?.recentFoods || []).map((f: any) => ({
-        id: f.disID || f.id,
-        title: f.foodName,
-        quantity: `${f.quantity} servings`,
-        location: f.location,
-        time: f.timeAgo,
-        status: (() => {
-          switch (f.status?.toUpperCase()) {
-            case "PENDING":
-              return "pending";
-            case "CLAIMED":
-              return "claimed";
-            case "ON_THE_WAY":
-              return "on-the-way";
-            case "COMPLETED":
-            case "DELIVERED":
-              return "completed";
-            default:
-              return f.status?.toLowerCase();
-          }
-        })() as RecentItem["status"],
-        rating: f.myRating,
-        showFeedback: f.canGiveFeedback,
-        latitude: f.latitude ?? null,
-        longitude: f.longitude ?? null,
-      }));
-      setRecentFoods(foods);
+      const foods = response.data?.recentFoods || [];
+      setRecentFoods(mapFoods(foods));
+      await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
     } catch (error) {
       console.error("Error fetching recent foods:", error);
     } finally {

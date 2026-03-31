@@ -33,6 +33,7 @@ export interface DonorDonationItem {
   claimedBy: string | null;
   rating: number | null;
   image: string | null;
+  unreadMessages: number;
 }
 
 export interface RecipientFoodItem {
@@ -47,6 +48,8 @@ export interface RecipientFoodItem {
   canGiveFeedback: boolean;
   myRating: number | null;
   myComment: string | null;
+  image: string | null;
+  unreadMessages: number;
 }
 
 export interface AvailableFoodItem {
@@ -148,6 +151,16 @@ export const dashboardRepository = {
           take: 1,
           select: { ratingScore: true },
         },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                isRead: false,
+                senderID: { not: userID },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -165,6 +178,7 @@ export const dashboardRepository = {
           : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
         image: d.food?.image || null,
+        unreadMessages: d._count?.messages || 0,
       };
     });
   },
@@ -256,12 +270,22 @@ export const dashboardRepository = {
         status: true,
         timestamp: true,
         claimedAt: true,
-        food: { select: { foodName: true } },
+        food: { select: { foodName: true, image: true } },
         location: { select: { barangay: true, latitude: true, longitude: true } },
         feedbacks: {
           where: { recipientID: userID },
           take: 1,
           select: { ratingScore: true, comments: true },
+        },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                isRead: false,
+                senderID: { not: userID },
+              },
+            },
+          },
         },
       },
     });
@@ -283,6 +307,8 @@ export const dashboardRepository = {
         canGiveFeedback: isCompleted && !hasFeedback,
         myRating: myFeedback?.ratingScore ?? null,
         myComment: myFeedback?.comments ?? null,
+        image: d.food?.image || null,
+        unreadMessages: d._count?.messages || 0,
       };
     });
   },

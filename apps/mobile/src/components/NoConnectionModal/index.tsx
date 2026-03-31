@@ -1,32 +1,29 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { WifiOff, RefreshCw } from "lucide-react-native";
+import { WifiOff, RefreshCw, LogOut } from "lucide-react-native";
 import { wp, hp, fp } from "../../utils/responsive";
 import { theme } from "../../constants/theme";
 import { useTheme } from "../../../context/ThemeContext";
+import { useNetwork } from "../../../context/NetworkContext";
 
 export default function NoConnectionModal() {
-  const [isConnected, setIsConnected] = useState<boolean | null>(true);
+  const { isOnline } = useNetwork();
   const [isChecking, setIsChecking] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [userBypassed, setUserBypassed] = useState(false);
   const spinAnim = React.useRef(new Animated.Value(0)).current;
   const { colors, isDark } = useTheme();
 
   useEffect(() => {
-    // Subscribe to network state changes
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsConnected(state.isConnected && state.isInternetReachable !== false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+    // Show modal if offline AND user hasn't bypassed it yet
+    if (!isOnline && !userBypassed) {
+      setShowModal(true);
+    } else if (isOnline) {
+      setShowModal(false);
+      setUserBypassed(false); // Reset bypass when back online
+    }
+  }, [isOnline, userBypassed]);
 
   const handleRetry = async () => {
     setIsChecking(true);
@@ -40,14 +37,20 @@ export default function NoConnectionModal() {
       })
     ).start();
 
-    // Check connectivity
-    const state = await NetInfo.fetch();
-    setIsConnected(state.isConnected && state.isInternetReachable !== false);
+    // The NetInfo event listener from NetworkContext will handle state updates
+    // if connection comes back
 
-    // Stop animation
-    spinAnim.stopAnimation();
-    spinAnim.setValue(0);
-    setIsChecking(false);
+    setTimeout(() => {
+       // Stop animation
+       spinAnim.stopAnimation();
+       spinAnim.setValue(0);
+       setIsChecking(false);
+    }, 2000);
+  };
+
+  const handleBypass = () => {
+    setUserBypassed(true);
+    setShowModal(false);
   };
 
   const spin = spinAnim.interpolate({
@@ -57,7 +60,7 @@ export default function NoConnectionModal() {
 
   return (
     <Modal
-      visible={isConnected === false}
+      visible={showModal}
       transparent
       animationType="fade"
       statusBarTranslucent
@@ -133,6 +136,16 @@ export default function NoConnectionModal() {
             <Text style={styles.retryText}>
               {isChecking ? "Checking..." : "Try Again"}
             </Text>
+          </TouchableOpacity>
+
+          {/* Continue Offline Button */}
+          <TouchableOpacity
+             style={styles.offlineButton}
+             onPress={handleBypass}
+          >
+             <Text style={[styles.offlineText, { color: colors.textSecondary }]}>
+                Continue Offline (Cached Data)
+             </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -213,5 +226,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: fp(16),
     fontWeight: "700",
+  },
+  offlineButton: {
+    marginTop: hp(16),
+    alignItems: "center",
+    paddingVertical: hp(8),
+  },
+  offlineText: {
+    fontSize: fp(14),
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
 });
