@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
@@ -36,6 +37,7 @@ export default function RecipientHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const channelsRef = useRef<any[]>([]);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -131,6 +133,55 @@ export default function RecipientHome() {
       fetchUnreadCounts();
     }, [fetchUnreadCounts]),
   );
+
+  // Listen for real-time message read events
+  useEffect(() => {
+    if (!dashboardData?.recentFoods || !user) return;
+
+    // Clean up old channels
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+
+    // Subscribe to each distribution's chat channel
+    const distributions = dashboardData.recentFoods || [];
+    distributions.forEach((f: any) => {
+      const disID = f.disID || f.id;
+      if (!disID) return;
+
+      const channel = supabase.channel(`chat:${disID}`, {
+        config: {
+          broadcast: { self: false },
+        },
+      });
+
+      channel
+        .on('broadcast', { event: 'messages_read' }, async (payload) => {
+          console.log('[Dashboard] Messages read broadcast received:', payload);
+          // Refresh just this distribution's unread count
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            setUnreadCounts(prev => ({
+              ...prev,
+              [disID]: countRes.data.count || 0,
+            }));
+          } catch (err) {
+            console.error('Failed to refresh unread count:', err);
+          }
+        })
+        .subscribe();
+
+      channelsRef.current.push(channel);
+    });
+
+    return () => {
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, [dashboardData?.recentFoods, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

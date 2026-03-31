@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
@@ -32,6 +33,7 @@ export default function DonorHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const channelsRef = useRef<any[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -120,6 +122,55 @@ export default function DonorHome() {
       fetchUnreadCounts();
     }, [fetchUnreadCounts]),
   );
+
+  // Listen for real-time message read events
+  useEffect(() => {
+    if (!dashboardData?.recentDonations || !user) return;
+
+    // Clean up old channels
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+
+    // Subscribe to each distribution's chat channel
+    const distributions = dashboardData.recentDonations || [];
+    distributions.forEach((d: any) => {
+      const disID = d.disID || d.id;
+      if (!disID) return;
+
+      const channel = supabase.channel(`chat:${disID}`, {
+        config: {
+          broadcast: { self: false },
+        },
+      });
+
+      channel
+        .on('broadcast', { event: 'messages_read' }, async (payload) => {
+          console.log('[Dashboard] Messages read broadcast received:', payload);
+          // Refresh just this distribution's unread count
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            setUnreadCounts(prev => ({
+              ...prev,
+              [disID]: countRes.data.count || 0,
+            }));
+          } catch (err) {
+            console.error('Failed to refresh unread count:', err);
+          }
+        })
+        .subscribe();
+
+      channelsRef.current.push(channel);
+    });
+
+    return () => {
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, [dashboardData?.recentDonations, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
