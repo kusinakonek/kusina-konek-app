@@ -69,9 +69,12 @@ export default function DonorHome() {
 
   // Fetch only unread counts (faster, for screen focus)
   const fetchUnreadCounts = useCallback(async () => {
-    if (!user || !dashboardData?.recentDonations) return;
+    if (!user) return;
     
-    const distributions = dashboardData.recentDonations || [];
+    // Get distributions from current state
+    const distributions = dashboardData?.recentDonations || [];
+    if (distributions.length === 0) return;
+    
     const counts: Record<string, number> = {};
     
     await Promise.all(
@@ -94,6 +97,13 @@ export default function DonorHome() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+  
+  // Fetch unread counts after dashboard data loads
+  useEffect(() => {
+    if (dashboardData?.recentDonations) {
+      fetchUnreadCounts();
+    }
+  }, [dashboardData?.recentDonations, fetchUnreadCounts]);
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {

@@ -80,9 +80,12 @@ export default function RecipientHome() {
 
   // Fetch only unread counts (faster, for screen focus)
   const fetchUnreadCounts = useCallback(async () => {
-    if (!user || !dashboardData?.recentFoods) return;
+    if (!user) return;
     
-    const distributions = dashboardData.recentFoods || [];
+    // Get distributions from current state or fetch them
+    const distributions = dashboardData?.recentFoods || [];
+    if (distributions.length === 0) return;
+    
     const counts: Record<string, number> = {};
     
     await Promise.all(
@@ -105,6 +108,13 @@ export default function RecipientHome() {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+  
+  // Fetch unread counts after dashboard data loads
+  useEffect(() => {
+    if (dashboardData?.recentFoods) {
+      fetchUnreadCounts();
+    }
+  }, [dashboardData?.recentFoods, fetchUnreadCounts]);
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
