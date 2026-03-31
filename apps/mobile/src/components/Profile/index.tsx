@@ -48,11 +48,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useAlert } from "../../../context/AlertContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../utils/dataCache";
-
-// Cache keys specific to the Profile screen
-const PROFILE_CACHE_KEY = CACHE_KEYS.PROFILE_DATA;
-const PROFILE_STATS_CACHE_KEY = 'profile_stats';
-const PROFILE_DONOR_HISTORY_CACHE_KEY = 'profile_donor_history';
+import { useNetwork } from "../../../context/NetworkContext";
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
@@ -75,35 +71,27 @@ export default function Profile() {
   const [deleteOtp, setDeleteOtp] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const { isOnline } = useNetwork();
+  const profileCacheRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
 
-  // Load cached data on mount for instant UI (stale-while-revalidate)
+  // Auto-load cache on mount or role change
   useEffect(() => {
     const loadCache = async () => {
-      const [cachedProfile, cachedStats, cachedDonorHistory] = await Promise.all([
-        getCachedDataAnyAge(PROFILE_CACHE_KEY),
-        getCachedDataAnyAge(`${PROFILE_STATS_CACHE_KEY}_${role}`),
-        role === "RECIPIENT" ? getCachedDataAnyAge(PROFILE_DONOR_HISTORY_CACHE_KEY) : Promise.resolve(null),
-      ]);
-
-      if (cachedProfile && !profileData) {
-        setProfileData(cachedProfile);
-      }
-      if (cachedStats && !statsData) {
-        setStatsData(cachedStats);
-      }
-      if (cachedDonorHistory && !donorHistoryStats && role === "RECIPIENT") {
-        setDonorHistoryStats(cachedDonorHistory);
-      }
-
-      // If we have any cached data, skip the loading screen
-      if (cachedProfile || cachedStats) {
+      const cacheKey = `${CACHE_KEYS.PROFILE_DATA}_${role}`;
+      const cached = await getCachedDataAnyAge(cacheKey);
+      if (cached && !profileCacheRef.current) {
+        setProfileData(cached.profileData);
+        setStatsData(cached.statsData);
+        setDonorHistoryStats(cached.donorHistoryStats);
+        profileCacheRef.current = cached;
         setLoading(false);
       }
     };
     loadCache();
-  }, []);
+  }, [role]);
 
   const fetchProfileData = useCallback(async () => {
     if (!user) {
@@ -111,66 +99,73 @@ export default function Profile() {
       return;
     }
 
-    // Prevent concurrent fetches
     if (isFetchingRef.current) return;
 
     // Prevent fetching if we just fetched within exactly 30 seconds
     const now = Date.now();
-    if (profileData && statsData && (now - lastFetchTimeRef.current < 30000)) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
+    if (profileCacheRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    if (!isOnline && profileCacheRef.current) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
     }
 
     isFetchingRef.current = true;
 
     try {
-      const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
-      setProfileData(profileRes.data);
-      await cacheData(PROFILE_CACHE_KEY, profileRes.data);
-    } catch (error: any) {
-      console.error("Error fetching profile:", error?.response?.data || error?.message || error);
-    }
+      let pData = profileData;
+      let sData = statsData;
+      let dStats = donorHistoryStats;
 
-    try {
-      const dashboardRes =
-        role === "DONOR"
-          ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
-          : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
-      const stats = dashboardRes.data?.stats || null;
-      setStatsData(stats);
-      if (stats) {
-        await cacheData(`${PROFILE_STATS_CACHE_KEY}_${role}`, stats);
-      }
-    } catch (error: any) {
-      console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
-    }
-
-    // If current role is RECIPIENT, also fetch donor stats for history card
-    if (role === "RECIPIENT") {
       try {
-        const donorRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
-        const donorStats = donorRes.data?.stats || null;
-        setDonorHistoryStats(donorStats);
-        if (donorStats) {
-          await cacheData(PROFILE_DONOR_HISTORY_CACHE_KEY, donorStats);
-        }
-      } catch (error) {
-        // User may not have any donor activity — that's fine
-        setDonorHistoryStats(null);
+        const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
+        pData = profileRes.data;
+        setProfileData(pData);
+      } catch (error: any) {
+        console.error("Error fetching profile:", error?.response?.data || error?.message || error);
       }
-    } else {
-      setDonorHistoryStats(null);
+
+      try {
+        const [donorRes, recipientRes] = await Promise.all([
+          axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR).catch(() => null),
+          axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT).catch(() => null)
+        ]);
+
+        // Quietly cache the responses for Home.tsx to consume instantly upon role switch
+        if (donorRes?.data) {
+          await cacheData(CACHE_KEYS.DONOR_DASHBOARD, donorRes.data);
+        }
+        if (recipientRes?.data) {
+          await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, recipientRes.data);
+        }
+
+        sData = role === "DONOR" ? donorRes?.data?.stats : recipientRes?.data?.stats;
+        dStats = donorRes?.data?.stats || null;
+
+        setStatsData(sData || null);
+        setDonorHistoryStats(dStats || null);
+      } catch (error: any) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+
+      // Save to cache
+      const newCache = { profileData: pData, statsData: sData, donorHistoryStats: dStats };
+      await cacheData(`${CACHE_KEYS.PROFILE_DATA}_${role}`, newCache);
+      profileCacheRef.current = newCache;
+
+    } finally {
+      lastFetchTimeRef.current = Date.now();
+      isFetchingRef.current = false;
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, [role, user, isOnline]);
 
-    lastFetchTimeRef.current = Date.now();
-    setLoading(false);
-    setRefreshing(false);
-    isFetchingRef.current = false;
-  }, [role, user]);
-
-  // On focus: silently refresh data in background (no loading screen)
-  // The initial loading=true from useState is handled by cache-on-mount or first fetchProfileData
   useFocusEffect(
     useCallback(() => {
       fetchProfileData();
@@ -182,6 +177,7 @@ export default function Profile() {
     if (notification) {
       console.log("[Profile] Notification received, performing silent refresh...");
       // We call fetchProfileData without setting loading(true)
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchProfileData();
     }
   }, [notification, fetchProfileData]); // Added fetchProfileData to dependencies
@@ -198,26 +194,9 @@ export default function Profile() {
     }
     setSwitchingRole(true);
     setShowRolePicker(false);
-
-    // Load cached stats for the new role instantly (works offline too)
-    try {
-      const [cachedStats, cachedDonorHistory] = await Promise.all([
-        getCachedDataAnyAge(`${PROFILE_STATS_CACHE_KEY}_${newRole}`),
-        newRole === "RECIPIENT"
-          ? getCachedDataAnyAge(PROFILE_DONOR_HISTORY_CACHE_KEY)
-          : Promise.resolve(null),
-      ]);
-      setStatsData(cachedStats || null);
-      setDonorHistoryStats(newRole === "RECIPIENT" ? (cachedDonorHistory || null) : null);
-    } catch {
-      setStatsData(null);
-      setDonorHistoryStats(null);
-    }
-
     try {
       await setRole(newRole);
-      // fetchProfileData will run due to the role dependency change in useFocusEffect
-      // No need to set loading = true, cache provides instant data
+      // The `useEffect` tied to `[role]` will immediately load the pre-fetched cache for the new role.
     } catch (error) {
       console.error("Error switching role:", error);
       showAlert("Error", "Failed to switch role. Please try again.", undefined, { type: 'error' });
@@ -601,8 +580,8 @@ export default function Profile() {
                 <Heart size={wp(24)} color="#2E7D32" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Donor</Text>
-                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
+                <Text style={styles.roleOptionTitle}>Donor</Text>
+                <Text style={styles.roleOptionDesc}>
                   Share food with families in need
                 </Text>
               </View>
@@ -620,8 +599,8 @@ export default function Profile() {
                 <Package size={wp(24)} color="#1E88E5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Recipient</Text>
-                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
+                <Text style={styles.roleOptionTitle}>Recipient</Text>
+                <Text style={styles.roleOptionDesc}>
                   Browse and receive free food
                 </Text>
               </View>

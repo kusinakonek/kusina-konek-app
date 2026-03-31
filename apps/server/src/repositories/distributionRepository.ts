@@ -61,12 +61,6 @@ export const distributionRepository = {
     });
   },
 
-  delete(disID: string) {
-    return prisma.distribution.delete({
-      where: { disID },
-    });
-  },
-
   getByFoodId(foodID: string) {
     return prisma.distribution.findFirst({
       where: { foodID },
@@ -141,6 +135,12 @@ export const distributionRepository = {
         claimedAt: { gte: since },
         status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED", "COMPLETED"] },
       },
+    });
+  },
+
+  delete(disID: string) {
+    return prisma.distribution.delete({
+      where: { disID },
     });
   },
 };

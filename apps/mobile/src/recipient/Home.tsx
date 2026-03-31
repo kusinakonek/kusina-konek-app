@@ -127,6 +127,7 @@ export default function RecipientHome() {
   useEffect(() => {
     if (notification) {
       console.log("[RecipientHome] Notification received, auto-refreshing stats...");
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
@@ -145,8 +146,8 @@ export default function RecipientHome() {
       console.log("[RecipientHome] Force refresh event received after user action!");
       // Reset throttle so fetch is allowed
       lastFetchTimeRef.current = 0;
-      // Show full screen loading
-      setLoading(true);
+      // Show subtle pull-to-refresh spinner instead of full screen loading
+      setRefreshing(true);
       fetchDashboardData();
     });
     
