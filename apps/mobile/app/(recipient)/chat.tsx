@@ -21,6 +21,7 @@ import { ArrowLeft, Send, Camera, X, Image as ImageIcon, Reply, Trash2, Edit2 } 
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { usePresence } from '../../context/PresenceContext';
 import { useRealtimeMessages, Message } from '../../src/hooks/useRealtimeMessages';
 import { wp, hp, fp } from '../../src/utils/responsive';
 import axiosClient from '../../src/api/axiosClient';
@@ -31,6 +32,7 @@ export default function Chat() {
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [donorName, setDonorName] = useState<string>('Chat');
+  const [donorId, setDonorId] = useState<string | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -38,13 +40,18 @@ export default function Chat() {
 
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { messages, loading, sending, error, sendTextMessage, sendImageMessage, editMessage, deleteMessage, otherUserOnline, otherUserLastSeen } =
+  const { isUserOnline, getUserLastSeen } = usePresence();
+  const { messages, loading, sending, error, sendTextMessage, sendImageMessage, editMessage, deleteMessage } =
     useRealtimeMessages(disID || null, user?.id || '');
   const flatListRef = useRef<FlatList>(null);
 
   const canSend = (inputText.trim().length > 0 || selectedImage !== null) && !sending;
+  
+  // Get other user's online status from global presence
+  const otherUserOnline = donorId ? isUserOnline(donorId) : false;
+  const otherUserLastSeen = donorId ? getUserLastSeen(donorId) : null;
 
-  // Fetch distribution to get donor name
+  // Fetch distribution to get donor name and ID
   useEffect(() => {
     const fetchDistribution = async () => {
       if (!disID) return;
@@ -56,6 +63,7 @@ export default function Chat() {
         if (dist?.donor) {
           const name = dist.donor.orgName || `${dist.donor.firstName} ${dist.donor.lastName}`;
           setDonorName(name);
+          setDonorId(dist.donor.userID || dist.donor.id);
         }
       } catch (err) {
         console.error('Failed to fetch distribution:', err);

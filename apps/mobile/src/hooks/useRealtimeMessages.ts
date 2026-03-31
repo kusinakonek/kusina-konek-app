@@ -25,19 +25,11 @@ export interface Message {
   isSending?: boolean;
 }
 
-export interface PresenceUser {
-  odOd: string;
-  odOdame?: string;
-  online_at: string;
-}
-
 export function useRealtimeMessages(disID: string | null, userId: string = '') {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [otherUserOnline, setOtherUserOnline] = useState(false);
-  const [otherUserLastSeen, setOtherUserLastSeen] = useState<string | null>(null);
   const initialLoadDone = useRef(false);
   const channelRef = useRef<any>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -119,7 +111,7 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     }
   }, [messages.length, userId]);
 
-  // Set up Realtime channel with Broadcast + Presence
+  // Set up Realtime channel with Broadcast (presence handled globally)
   useEffect(() => {
     if (!disID || !userId) return;
 
@@ -128,7 +120,6 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     const channel = supabase.channel(channelName, {
       config: {
         broadcast: { self: false }, // Don't receive own broadcasts
-        presence: { key: userId },
       },
     });
 
@@ -159,43 +150,10 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
       ));
     });
 
-    // Track presence (online/offline status)
-    channel.on('presence', { event: 'sync' }, () => {
-      const presenceState = channel.presenceState();
-      console.log('[Presence] Sync:', presenceState);
-      
-      // Check if other user is online
-      const onlineUsers = Object.keys(presenceState);
-      const otherUsersOnline = onlineUsers.filter(id => id !== userId);
-      setOtherUserOnline(otherUsersOnline.length > 0);
-    });
-
-    channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
-      console.log('[Presence] User joined:', key, newPresences);
-      if (key !== userId) {
-        setOtherUserOnline(true);
-      }
-    });
-
-    channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-      console.log('[Presence] User left:', key, leftPresences);
-      if (key !== userId) {
-        setOtherUserOnline(false);
-        setOtherUserLastSeen(new Date().toISOString());
-      }
-    });
-
-    // Subscribe and track own presence
+    // Subscribe to channel
     channel.subscribe(async (status) => {
       console.log('[Channel] Subscription status:', status);
-      if (status === 'SUBSCRIBED') {
-        // Track this user's presence
-        await channel.track({
-          odOd: userId,
-          online_at: new Date().toISOString(),
-        });
-        console.log('[Presence] Tracking user:', userId);
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.log('[Channel] Error, falling back to polling...');
         if (!pollIntervalRef.current) {
           pollIntervalRef.current = setInterval(() => {
@@ -210,7 +168,6 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     // Cleanup function
     return () => {
       if (channelRef.current) {
-        channelRef.current.untrack();
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
@@ -221,31 +178,19 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     };
   }, [disID, userId, fetchMessages]);
 
-  // Handle app state changes for presence
+  // Handle app state changes for messages refresh
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
-      if (!channelRef.current || !userId) return;
-      
       if (nextAppState === 'active') {
-        console.log('[Chat] App came to foreground');
+        console.log('[Chat] App came to foreground - refreshing messages');
         fetchMessages();
-        // Re-track presence
-        await channelRef.current.track({
-          odOd: userId,
-          online_at: new Date().toISOString(),
-        });
-      } else if (nextAppState === 'background') {
-        console.log('[Chat] App went to background - keeping presence');
-        // Keep presence tracked in background (app still receives notifications)
-      } else if (nextAppState === 'inactive') {
-        // App is transitioning, do nothing
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, [userId, fetchMessages]);
+  }, [fetchMessages]);
 
   // Broadcast helper function
   const broadcastEvent = useCallback(async (event: string, payload: any = {}) => {
@@ -413,8 +358,6 @@ export function useRealtimeMessages(disID: string | null, userId: string = '') {
     loading,
     sending,
     error,
-    otherUserOnline,
-    otherUserLastSeen,
     sendTextMessage,
     sendImageMessage,
     editMessage,

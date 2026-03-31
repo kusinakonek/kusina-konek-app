@@ -7,6 +7,7 @@ import { CartProvider } from "../context/CartContext";
 import { FoodCacheProvider } from "../context/FoodCacheContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { NotificationProvider, useNotification } from "../context/NotificationContext";
+import { PresenceProvider } from "../context/PresenceContext";
 import { NotificationBanner } from "../src/components/NotificationBanner";
 import { AlertProvider } from "../context/AlertContext";
 import NoConnectionModal from "../src/components/NoConnectionModal";
@@ -49,9 +50,11 @@ export default function RootLayout() {
         <ThemeProvider>
           <AlertProvider>
             <AuthProvider>
-              <NotificationProvider>
-                <AppContent />
-              </NotificationProvider>
+              <PresenceProvider>
+                <NotificationProvider>
+                  <AppContent />
+                </NotificationProvider>
+              </PresenceProvider>
             </AuthProvider>
           </AlertProvider>
         </ThemeProvider>
