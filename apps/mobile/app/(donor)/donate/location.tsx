@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -36,6 +37,7 @@ import { useFoodCache } from "../../../context/FoodCacheContext";
 import SuccessModal from "../../../src/components/SuccessModal";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAlert } from "../../../context/AlertContext";
+import LoadingScreen from "../../../src/components/LoadingScreen";
 
 export default function LocationScreen() {
   const router = useRouter();
@@ -87,9 +89,15 @@ export default function LocationScreen() {
       showAlert("Error", "Please select a drop-off location", undefined, { type: 'warning' });
       return;
     }
-    if (formData.locationType === "custom" && !formData.customLocation?.name) {
-      showAlert("Error", "Please tap on the map to select your location", undefined, { type: 'warning' });
-      return;
+    if (formData.locationType === "custom") {
+      if (!formData.customLocation || !formData.customLocation.latitude || formData.customLocation.latitude === 0) {
+        showAlert("Error", "Please tap on the map to pin your exact location", undefined, { type: 'warning' });
+        return;
+      }
+      if (!formData.customLocation.name || !formData.customLocation.address) {
+        showAlert("Error", "Please complete all custom location fields", undefined, { type: 'warning' });
+        return;
+      }
     }
     if (!formData.imageUri) {
       showAlert("Error", "An actual photo of the food is required.", undefined, { type: 'warning' });
@@ -101,12 +109,20 @@ export default function LocationScreen() {
       // imageUri is already a base64 data URI captured at photo time
       const imageBase64 = formData.imageUri || undefined;
 
+      // Calculate scheduledTime based on duration input
+      const durationValue = parseInt(formData.availableDurationValue) || 1;
+      const durationMs = formData.availableDurationUnit === 'minutes' 
+          ? durationValue * 60 * 1000 
+          : durationValue * 3600 * 1000;
+      const calculatedScheduledTime = new Date(Date.now() + durationMs).toISOString();
+
       const payload = {
         foodName: formData.foodName,
         description: formData.description,
         quantity: formData.quantity,
         dateCooked: new Date().toISOString(),
         image: imageBase64,
+        availabilityDuration: formData.availableDurationUnit === 'minutes' ? durationValue : durationValue * 60,
         locations: [
           {
             latitude:
@@ -127,7 +143,8 @@ export default function LocationScreen() {
                 : formData.customLocation?.barangay || undefined,
           },
         ],
-        scheduledTime: new Date(Date.now() + 3600 * 1000).toISOString(), // Default 1 hour from now
+        scheduledTime: calculatedScheduledTime,
+        expireAt: calculatedScheduledTime,
       };
 
       await axiosClient.post(API_ENDPOINTS.FOOD.ADD_DONATION, payload);
@@ -136,6 +153,9 @@ export default function LocationScreen() {
       invalidateCache();
 
       setShowSuccessModal(true);
+      // NOTE: We don't set submitting(false) here on success, 
+      // to prevent users from pressing the button again while the modal is up
+      // and accidentally doing a duplicate submission.
     } catch (error: any) {
       console.error("Donation submission error:", {
         message: error?.message,
@@ -145,10 +165,10 @@ export default function LocationScreen() {
       });
       const isNetworkError = !error?.response;
       const errorMessage = isNetworkError
-        ? "Network error while uploading photo. Please ensure server is running and try again with a clearer/smaller photo."
+        ? "Network error while uploading. Please ensure server is running and try again."
         : (error.response?.data?.message || "Failed to submit donation. Please try again.");
       showAlert("Error", errorMessage, undefined, { type: 'error' });
-    } finally {
+      // Restore the button if it failed so they can try again once they fix the error
       setSubmitting(false);
     }
   };
@@ -170,235 +190,258 @@ export default function LocationScreen() {
         </View>
       </View>
 
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-        {/* Location Type Toggle */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Select Drop-off Point</Text>
-          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Choose from barangay halls or set your own custom location
-          </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView
+          style={[styles.container, { backgroundColor: colors.background }]}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Location Type Toggle */}
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Select Drop-off Point</Text>
+            <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+              Choose from barangay halls or set your own custom location
+            </Text>
 
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                { backgroundColor: colors.inputBg, borderColor: colors.border },
-                formData.locationType === "barangay" &&
-                styles.toggleButtonActive,
-              ]}
-              onPress={() => updateFormData({ locationType: "barangay" })}>
-              <MapPin
-                size={16}
-                color={formData.locationType === "barangay" ? "#fff" : colors.text}
-              />
-              <Text
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.toggleText,
-                  { color: colors.text },
+                  styles.toggleButton,
+                  { backgroundColor: colors.inputBg, borderColor: colors.border },
                   formData.locationType === "barangay" &&
-                  styles.toggleTextActive,
-                ]}>
-                Barangay Hall
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                { backgroundColor: colors.inputBg, borderColor: colors.border },
-                formData.locationType === "custom" && styles.toggleButtonActive,
-              ]}
-              onPress={() => updateFormData({ locationType: "custom" })}>
-              <Navigation
-                size={16}
-                color={formData.locationType === "custom" ? "#fff" : colors.text}
-              />
-              <Text
-                style={[
-                  styles.toggleText,
-                  { color: colors.text },
-                  formData.locationType === "custom" && styles.toggleTextActive,
-                ]}>
-                Custom Location
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Barangay Hall List */}
-          {formData.locationType === "barangay" && (
-            <View style={styles.hallList}>
-              {BARANGAY_HALLS.map((hall) => (
-                <TouchableOpacity
-                  key={hall.id}
-                  style={[
-                    styles.hallCard,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                    selectedLocation?.id === hall.id && {
-                      borderColor: '#00C853',
-                      backgroundColor: isDark ? '#003300' : '#F1FFF6'
-                    },
-                  ]}
-                  onPress={() => handleSelectBarangay(hall)}>
-                  <View style={styles.hallHeader}>
-                    <View
-                      style={[
-                        styles.hallIcon,
-                        { backgroundColor: colors.inputBg },
-                        selectedLocation?.id === hall.id && {
-                          backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9'
-                        },
-                      ]}>
-                      <MapPin
-                        size={20}
-                        color={
-                          selectedLocation?.id === hall.id ? "#00C853" : colors.textSecondary
-                        }
-                      />
-                    </View>
-                    <View style={styles.hallInfo}>
-                      <Text style={[styles.hallName, { color: colors.text }]}>{hall.name}</Text>
-                      <View style={styles.hallDetail}>
-                        <MapPin size={12} color={colors.textSecondary} />
-                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>
-                          {hall.address}
-                        </Text>
-                      </View>
-                      <View style={styles.hallDetail}>
-                        <Clock size={12} color={colors.textSecondary} />
-                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.hours}</Text>
-                      </View>
-                      <View style={styles.hallDetail}>
-                        <Phone size={12} color={colors.textSecondary} />
-                        <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.phone}</Text>
-                      </View>
-                    </View>
-                    {selectedLocation?.id === hall.id && (
-                      <CheckCircle size={24} color="#00C853" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Custom Location Form */}
-          {formData.locationType === "custom" && (
-            <LocationPicker
-              value={formData.customLocation}
-              onChange={(location) =>
-                updateFormData({ customLocation: location })
-              }
-            />
-          )}
-        </View>
-
-        {/* Map Preview for Selected Barangay */}
-        {formData.locationType === "barangay" && selectedLocation && (
-          <View style={[styles.mapCard, { backgroundColor: colors.card }]}>
-            <View style={styles.mapHeader}>
-              <Map size={20} color={colors.text} />
-              <Text style={[styles.mapTitle, { color: colors.text }]}>Drop-off Location Map</Text>
-            </View>
-
-            <MapPreview
-              latitude={selectedLocation.latitude}
-              longitude={selectedLocation.longitude}
-              title={selectedLocation.name}
-              height={180}
-            />
-
-            <View style={styles.locationDetails}>
-              <Text style={styles.locationName}>{selectedLocation.name}</Text>
-              <Text style={[styles.locationDesc, { color: colors.textSecondary }]}>
-                {selectedLocation.description ||
-                  `A community hall located in ${selectedLocation.address.split(",")[0]}.`}
-              </Text>
-              <View style={styles.locationInfo}>
-                <MapPin size={14} color={colors.textSecondary} />
-                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
-                  {selectedLocation.address}
-                </Text>
-              </View>
-              <View style={styles.locationInfo}>
-                <Clock size={14} color={colors.textSecondary} />
-                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
-                  Operating Hours: {selectedLocation.hours}
-                </Text>
-              </View>
-              <View style={styles.locationInfo}>
-                <Phone size={14} color={colors.textSecondary} />
-                <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
-                  Contact: {selectedLocation.phone}
-                </Text>
-              </View>
-              <View style={[styles.locationInfo, { marginTop: 4 }]}>
-                <Text style={{ fontSize: 14 }}>📍</Text>
+                  styles.toggleButtonActive,
+                ]}
+                onPress={() => updateFormData({ locationType: "barangay" })}>
+                <MapPin
+                  size={16}
+                  color={formData.locationType === "barangay" ? "#fff" : colors.text}
+                />
                 <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
                   style={[
-                    styles.locationInfoText,
-                    {
-                      fontFamily: "monospace",
-                      color: "#2E7D32",
-                      fontWeight: "600",
-                    },
+                    styles.toggleText,
+                    { color: colors.text },
+                    formData.locationType === "barangay" &&
+                    styles.toggleTextActive,
                   ]}>
-                  {selectedLocation.latitude.toFixed(4)},{" "}
-                  {selectedLocation.longitude.toFixed(4)}
+                  Barangay Hall
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  { backgroundColor: colors.inputBg, borderColor: colors.border },
+                  formData.locationType === "custom" && styles.toggleButtonActive,
+                ]}
+                onPress={() => updateFormData({ locationType: "custom" })}>
+                <Navigation
+                  size={16}
+                  color={formData.locationType === "custom" ? "#fff" : colors.text}
+                />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[
+                    styles.toggleText,
+                    { color: colors.text },
+                    formData.locationType === "custom" && styles.toggleTextActive,
+                  ]}>
+                  Custom Location
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Barangay Hall List */}
+            {formData.locationType === "barangay" && (
+              <View style={styles.hallList}>
+                {BARANGAY_HALLS.map((hall) => (
+                  <TouchableOpacity
+                    key={hall.id}
+                    style={[
+                      styles.hallCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      selectedLocation?.id === hall.id && {
+                        borderColor: '#00C853',
+                        backgroundColor: isDark ? '#003300' : '#F1FFF6'
+                      },
+                    ]}
+                    onPress={() => handleSelectBarangay(hall)}>
+                    <View style={styles.hallHeader}>
+                      <View
+                        style={[
+                          styles.hallIcon,
+                          { backgroundColor: colors.inputBg },
+                          selectedLocation?.id === hall.id && {
+                            backgroundColor: isDark ? '#1a3a1a' : '#E8F5E9'
+                          },
+                        ]}>
+                        <MapPin
+                          size={20}
+                          color={
+                            selectedLocation?.id === hall.id ? "#00C853" : colors.textSecondary
+                          }
+                        />
+                      </View>
+                      <View style={styles.hallInfo}>
+                        <Text style={[styles.hallName, { color: colors.text }]}>{hall.name}</Text>
+                        <View style={styles.hallDetail}>
+                          <MapPin size={12} color={colors.textSecondary} />
+                          <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>
+                            {hall.address}
+                          </Text>
+                        </View>
+                        <View style={styles.hallDetail}>
+                          <Clock size={12} color={colors.textSecondary} />
+                          <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.hours}</Text>
+                        </View>
+                        <View style={styles.hallDetail}>
+                          <Phone size={12} color={colors.textSecondary} />
+                          <Text style={[styles.hallDetailText, { color: colors.textSecondary }]}>{hall.phone}</Text>
+                        </View>
+                      </View>
+                      {selectedLocation?.id === hall.id && (
+                        <CheckCircle size={24} color="#00C853" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Custom Location Form */}
+            {formData.locationType === "custom" && (
+              <LocationPicker
+                value={formData.customLocation}
+                onChange={(location) =>
+                  updateFormData({ customLocation: location })
+                }
+              />
+            )}
+          </View>
+
+          {/* Map Preview for Selected Barangay */}
+          {formData.locationType === "barangay" && selectedLocation && (
+            <View style={[styles.mapCard, { backgroundColor: colors.card }]}>
+              <View style={styles.mapHeader}>
+                <Map size={20} color={colors.text} />
+                <Text style={[styles.mapTitle, { color: colors.text }]}>Drop-off Location Map</Text>
+              </View>
+
+              <MapPreview
+                latitude={selectedLocation.latitude}
+                longitude={selectedLocation.longitude}
+                title={selectedLocation.name}
+                height={180}
+              />
+
+              <View style={styles.locationDetails}>
+                <Text style={styles.locationName}>{selectedLocation.name}</Text>
+                <Text style={[styles.locationDesc, { color: colors.textSecondary }]}>
+                  {selectedLocation.description ||
+                    `A community hall located in ${selectedLocation.address.split(",")[0]}.`}
+                </Text>
+                <View style={styles.locationInfo}>
+                  <MapPin size={14} color={colors.textSecondary} />
+                  <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
+                    {selectedLocation.address}
+                  </Text>
+                </View>
+                <View style={styles.locationInfo}>
+                  <Clock size={14} color={colors.textSecondary} />
+                  <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
+                    Operating Hours: {selectedLocation.hours}
+                  </Text>
+                </View>
+                <View style={styles.locationInfo}>
+                  <Phone size={14} color={colors.textSecondary} />
+                  <Text style={[styles.locationInfoText, { color: colors.textSecondary }]}>
+                    Contact: {selectedLocation.phone}
+                  </Text>
+                </View>
+                <View style={[styles.locationInfo, { marginTop: 4 }]}>
+                  <Text style={{ fontSize: 14 }}>📍</Text>
+                  <Text
+                    style={[
+                      styles.locationInfoText,
+                      {
+                        fontFamily: "monospace",
+                        color: "#2E7D32",
+                        fontWeight: "600",
+                      },
+                    ]}>
+                    {selectedLocation.latitude.toFixed(4)},{" "}
+                    {selectedLocation.longitude.toFixed(4)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Navigate with Google Maps Button */}
+              <TouchableOpacity
+                style={styles.navigateButton}
+                onPress={() =>
+                  openGoogleMapsNavigation(
+                    selectedLocation.latitude,
+                    selectedLocation.longitude,
+                    selectedLocation.name
+                  )
+                }>
+                <Navigation2 size={18} color="#fff" />
+                <Text style={styles.navigateButtonText}>
+                  Navigate with Google Maps
+                </Text>
+                <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+
+              <View style={styles.noteBox}>
+                <Text style={styles.noteLabel}>Note:</Text>
+                <Text style={styles.noteText}>
+                  This food is scheduled to be available until {" "}
+                  {formData.availableDurationValue} {formData.availableDurationUnit}.
+                  Please drop off your donation as soon as possible.
+                  Make sure the food is properly packaged and labeled.
                 </Text>
               </View>
             </View>
-
-            {/* Navigate with Google Maps Button */}
-            <TouchableOpacity
-              style={styles.navigateButton}
-              onPress={() =>
-                openGoogleMapsNavigation(
-                  selectedLocation.latitude,
-                  selectedLocation.longitude,
-                  selectedLocation.name
-                )
-              }>
-              <Navigation2 size={18} color="#fff" />
-              <Text style={styles.navigateButtonText}>
-                Navigate with Google Maps
-              </Text>
-              <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
-            </TouchableOpacity>
-
-            <View style={styles.noteBox}>
-              <Text style={styles.noteLabel}>Note:</Text>
-              <Text style={styles.noteText}>
-                Please drop off your donation within 2 hours of submitting this
-                form. Make sure the food is properly packaged and labeled.
-              </Text>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Submit Button */}
-      <View style={[styles.footer, { backgroundColor: colors.headerBg, borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={[
-            styles.submitButton,
-            (submitting ||
-              (!formData.selectedBarangay &&
-                formData.locationType === "barangay")) &&
-            styles.submitButtonDisabled,
-          ]}
-          onPress={handleSubmitDonation}
-          disabled={
-            submitting ||
-            (!formData.selectedBarangay &&
-              formData.locationType === "barangay" &&
-              !formData.customLocation?.name)
-          }>
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Confirm & Submit Donation</Text>
           )}
-        </TouchableOpacity>
-      </View>
+        </ScrollView>
+
+        {/* Submit Button */}
+        <View style={[styles.footer, { backgroundColor: colors.headerBg, borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (submitting ||
+                (!formData.selectedBarangay &&
+                  formData.locationType === "barangay")) &&
+              styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmitDonation}
+            disabled={
+              submitting ||
+              (!formData.selectedBarangay &&
+                formData.locationType === "barangay" &&
+                !formData.customLocation?.name)
+            }>
+            {submitting ? (
+              <Text style={styles.submitText}>Confirming...</Text>
+            ) : (
+              <Text style={styles.submitText}>Confirm & Submit Donation</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {submitting && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+          <LoadingScreen message="Confirming donation..." />
+        </View>
+      )}
 
       <SuccessModal
         visible={showSuccessModal}
@@ -468,7 +511,7 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     marginBottom: 20,
   },
   toggleButton: {
@@ -476,9 +519,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 4,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderRadius: 25,
     backgroundColor: "#f5f5f5",
     borderWidth: 1,
@@ -489,7 +532,7 @@ const styles = StyleSheet.create({
     borderColor: "#00C853",
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "#333",
   },

@@ -126,6 +126,15 @@ export const distributionRepository = {
   },
 
   /**
+   * Delete a distribution by its ID.
+   */
+  delete(disID: string) {
+    return prisma.distribution.delete({
+      where: { disID },
+    });
+  },
+
+  /**
    * Count how many distributions a recipient has claimed since a given date.
    */
   countClaimsSince(recipientID: string, since: Date) {

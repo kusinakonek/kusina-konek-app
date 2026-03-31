@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, {
     Marker,
     PROVIDER_GOOGLE,
+    MapType,
 } from "react-native-maps";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -24,6 +25,7 @@ import {
     LocateFixed,
     User,
     X,
+    Layers,
 } from "lucide-react-native";
 import { useFoodCache, Distribution } from "../../context/FoodCacheContext";
 import { useCart } from "../../context/CartContext";
@@ -54,6 +56,10 @@ export default function FoodMap() {
     } | null>(null);
     const [initialRegion, setInitialRegion] = useState(NAGA_CITY);
     const [mapReady, setMapReady] = useState(false);
+    const [mapType, setMapType] = useState<MapType>("standard");
+
+    // Hack to force RN Maps to paint images inside markers
+    const [imageLoadCount, setImageLoadCount] = useState(0);
 
     // Selected marker → bottom panel
     const [selectedFood, setSelectedFood] = useState<Distribution | null>(null);
@@ -165,6 +171,10 @@ export default function FoodMap() {
         );
     };
 
+    const toggleMapType = () => {
+        setMapType(prev => (prev === "standard" ? "satellite" : "standard"));
+    };
+
     const handleFitMarkers = () => {
         if (mappableDistributions.length === 0) return;
         const coords = mappableDistributions.map((d) => ({
@@ -241,6 +251,7 @@ export default function FoodMap() {
                     <MapView
                         ref={mapRef}
                         style={styles.map}
+                        mapType={mapType}
                         provider={
                             Platform.OS === "android" ? PROVIDER_GOOGLE : undefined
                         }
@@ -254,25 +265,51 @@ export default function FoodMap() {
                             setMapReady(true);
                             setTimeout(() => handleFitMarkers(), 500);
                         }}>
-                        {mappableDistributions.map((d) => (
-                            <Marker
-                                key={d.disID}
-                                coordinate={{
-                                    latitude: d.location!.latitude,
-                                    longitude: d.location!.longitude,
-                                }}
-                                pinColor={
-                                    selectedFood?.disID === d.disID ? "#FF6D00" : "#00C853"
-                                }
-                                onPress={() => showPanel(d)}
-                            />
-                        ))}
+                        {mappableDistributions.map((d) => {
+                            const isSelected = selectedFood?.disID === d.disID;
+                            return (
+                                <Marker
+                                    key={`${d.disID}-${imageLoadCount}`}
+                                    coordinate={{
+                                        latitude: d.location!.latitude,
+                                        longitude: d.location!.longitude,
+                                    }}
+                                    onPress={() => showPanel(d)}
+                                    tracksViewChanges={true}
+                                    anchor={{ x: 0.5, y: 0.5 }}
+                                >
+                                    <View style={styles.markerWrapper}>
+                                        <View style={[styles.markerContainer, isSelected && styles.markerContainerSelected]}>
+                                            <Image
+                                                source={
+                                                    d.food?.image
+                                                        ? { uri: d.food.image }
+                                                        : require("../../assets/KusinaKonek-Logo.png")
+                                                }
+                                                style={styles.markerImage}
+                                                onLoad={() => {
+                                                    if (imageLoadCount < mappableDistributions.length) {
+                                                        setImageLoadCount(prev => prev + 1);
+                                                    }
+                                                }}
+                                            />
+                                        </View>
+                                    </View>
+                                </Marker>
+                            );
+                        })}
                     </MapView>
                 )}
 
                 {/* FABs */}
                 {mapReady && (
                     <View style={styles.fabContainer}>
+                        <TouchableOpacity
+                            style={[styles.fab, { backgroundColor: colors.background }]}
+                            onPress={toggleMapType}>
+                            <Layers size={22} color={theme.colors.primary} />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={[styles.fab, { backgroundColor: colors.background }]}
                             onPress={handleRecenter}>
@@ -471,6 +508,37 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         fontSize: fp(14),
+    },
+
+    // Custom Map Markers — explicit wrapper prevents Android MapView clipping
+    markerWrapper: {
+        width: 56,
+        height: 56,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    markerContainer: {
+        width: 46,
+        height: 46,
+        borderRadius: 8,
+        backgroundColor: "#00C853",
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    markerContainerSelected: {
+        backgroundColor: "#FF6D00",
+        transform: [{ scale: 1.15 }],
+        zIndex: 100,
+    },
+    markerImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 6,
     },
 
     // FABs

@@ -4,8 +4,11 @@ export const createFoodSchema = z.object({
   foodName: z.string().min(2),
   dateCooked: z.string().datetime().optional(),
   description: z.string().min(1).optional(),
+  ingredients: z.string().optional(),
   quantity: z.string().min(1),
   image: z.string().optional(),
+  availabilityDuration: z.number().optional(), // Added for backwards compatibility but not strictly needed if expireAt is used
+  expireAt: z.string().datetime().optional(), // New field for precise expiration time
   locations: z
     .array(
       z.object({

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
@@ -36,11 +37,14 @@ export default function RecipientHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const channelsRef = useRef<any[]>([]);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -48,6 +52,26 @@ export default function RecipientHome() {
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setDashboardData(response.data);
+      
+      // Fetch unread message counts for each distribution
+      const distributions = response.data?.recentFoods || [];
+      const counts: Record<string, number> = {};
+      
+      await Promise.all(
+        distributions.map(async (f: any) => {
+          const disID = f.disID || f.id;
+          if (disID) {
+            try {
+              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+              counts[disID] = countRes.data.count || 0;
+            } catch {
+              counts[disID] = 0;
+            }
+          }
+        })
+      );
+      
+      setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -56,9 +80,43 @@ export default function RecipientHome() {
     }
   }, [user]);
 
+  // Fetch only unread counts (faster, for screen focus)
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user) return;
+    
+    // Get distributions from current state or fetch them
+    const distributions = dashboardData?.recentFoods || [];
+    if (distributions.length === 0) return;
+    
+    const counts: Record<string, number> = {};
+    
+    await Promise.all(
+      distributions.map(async (f: any) => {
+        const disID = f.disID || f.id;
+        if (disID) {
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            counts[disID] = countRes.data.count || 0;
+          } catch {
+            counts[disID] = 0;
+          }
+        }
+      })
+    );
+    
+    setUnreadCounts(counts);
+  }, [user, dashboardData?.recentFoods]);
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+  
+  // Fetch unread counts after dashboard data loads
+  useEffect(() => {
+    if (dashboardData?.recentFoods) {
+      fetchUnreadCounts();
+    }
+  }, [dashboardData?.recentFoods, fetchUnreadCounts]);
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
@@ -68,13 +126,62 @@ export default function RecipientHome() {
     }
   }, [notification, fetchDashboardData]);
 
-  // Refetch dashboard data whenever the screen comes into focus
-  // This ensures recently requested food appears after pickup
+  // Refetch full dashboard data whenever the screen comes into focus
+  // This ensures cancelled/updated donations reflect immediately
   useFocusEffect(
     useCallback(() => {
       fetchDashboardData();
     }, [fetchDashboardData]),
   );
+
+  // Listen for real-time message read events
+  useEffect(() => {
+    if (!dashboardData?.recentFoods || !user) return;
+
+    // Clean up old channels
+    channelsRef.current.forEach(channel => {
+      supabase.removeChannel(channel);
+    });
+    channelsRef.current = [];
+
+    // Subscribe to each distribution's chat channel
+    const distributions = dashboardData.recentFoods || [];
+    distributions.forEach((f: any) => {
+      const disID = f.disID || f.id;
+      if (!disID) return;
+
+      const channel = supabase.channel(`chat:${disID}`, {
+        config: {
+          broadcast: { self: false },
+        },
+      });
+
+      channel
+        .on('broadcast', { event: 'messages_read' }, async (payload) => {
+          console.log('[Dashboard] Messages read broadcast received:', payload);
+          // Refresh just this distribution's unread count
+          try {
+            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            setUnreadCounts(prev => ({
+              ...prev,
+              [disID]: countRes.data.count || 0,
+            }));
+          } catch (err) {
+            console.error('Failed to refresh unread count:', err);
+          }
+        })
+        .subscribe();
+
+      channelsRef.current.push(channel);
+    });
+
+    return () => {
+      channelsRef.current.forEach(channel => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, [dashboardData?.recentFoods, user]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -82,34 +189,38 @@ export default function RecipientHome() {
   }, [fetchDashboardData]);
 
   const getRecentItems = (): RecentItem[] => {
-    return (dashboardData?.recentFoods || []).map((f: any) => ({
-      id: f.disID || f.id,
-      title: f.foodName,
-      quantity: `${f.quantity} servings`,
-      location: f.location,
-      time: f.timeAgo,
-      // Map API status values to UI status values
-      status: (() => {
-        switch (f.status?.toUpperCase()) {
-          case "PENDING":
-            return "pending";
-          case "CLAIMED":
-            return "claimed";
-          case "ON_THE_WAY":
-            return "on-the-way";
-          case "COMPLETED":
-            return "completed";
-          case "DELIVERED":
-            return "completed";
-          default:
-            return f.status?.toLowerCase();
-        }
-      })() as RecentItem["status"],
-      rating: f.myRating,
-      showFeedback: f.canGiveFeedback,
-      latitude: f.latitude ?? null,
-      longitude: f.longitude ?? null,
-    }));
+    return (dashboardData?.recentFoods || []).map((f: any) => {
+      const disID = f.disID || f.id;
+      return {
+        id: disID,
+        title: f.foodName,
+        quantity: `${f.quantity} servings`,
+        location: f.location,
+        time: f.timeAgo,
+        // Map API status values to UI status values
+        status: (() => {
+          switch (f.status?.toUpperCase()) {
+            case "PENDING":
+              return "pending";
+            case "CLAIMED":
+              return "claimed";
+            case "ON_THE_WAY":
+              return "on-the-way";
+            case "COMPLETED":
+              return "completed";
+            case "DELIVERED":
+              return "completed";
+            default:
+              return f.status?.toLowerCase();
+          }
+        })() as RecentItem["status"],
+        rating: f.myRating,
+        showFeedback: f.canGiveFeedback,
+        latitude: f.latitude ?? null,
+        longitude: f.longitude ?? null,
+        unreadMessages: unreadCounts[disID] || 0,
+      };
+    });
   };
 
   const userName =
@@ -332,7 +443,7 @@ export default function RecipientHome() {
                 { color: colors.textSecondary },
               ]}>
               Discover bunch of different free{" "}
-              <Text style={styles.greenText}>ULAM</Text>.
+              <Text style={styles.greenText}>food</Text>.
             </Text>
           </View>
         </View>
@@ -340,9 +451,7 @@ export default function RecipientHome() {
         {/* Hero Banner */}
         <View style={styles.heroContainer}>
           <ImageBackground
-            source={{
-              uri: "https://images.unsplash.com/photo-1593113598332-cd288d649433?q=80&w=1000&auto=format&fit=crop",
-            }}
+            source={require("../../assets/recipient-hero-banner.png")}
             style={styles.heroImage}
             imageStyle={{ borderRadius: wp(16), opacity: 0.85 }}>
             <View style={styles.heroOverlay}>
@@ -422,6 +531,10 @@ export default function RecipientHome() {
             onConfirm={handleConfirmDonation}
             onMarkOnTheWay={handleMarkOnTheWay}
             onFeedback={handleFeedback}
+            onPressCard={(item) => router.push({
+              pathname: '/(recipient)/active-details',
+              params: { disID: item.id }
+            })}
           />
         ) : (
           <View style={styles.recentSection}>

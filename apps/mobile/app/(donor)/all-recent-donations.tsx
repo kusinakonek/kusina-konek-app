@@ -20,6 +20,8 @@ import EmptyRecentFood from "../../src/components/EmptyRecentFood";
 import { RecentFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import CancelDonationModal from "../../src/components/CancelDonationModal";
+import { Alert } from "react-native";
 
 export default function AllRecentDonations() {
     const { user } = useAuth();
@@ -28,12 +30,17 @@ export default function AllRecentDonations() {
     const [refreshing, setRefreshing] = useState(false);
     const [recentDonations, setRecentDonations] = useState<RecentItem[]>([]);
 
+    // Cancel logic state
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [donationToCancel, setDonationToCancel] = useState<string | null>(null); // This will now store foodID
+
     const fetchRecentDonations = useCallback(async () => {
         if (!user) return;
         try {
             const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
             const donations = (response.data?.recentDonations || []).map((d: any) => ({
                 id: d.disID || d.id,
+                foodID: d.foodID, // Store foodID for cancellation
                 title: d.foodName || "Food Donation",
                 quantity: `${d.quantity} servings`,
                 location: d.location || "Location",
@@ -42,6 +49,7 @@ export default function AllRecentDonations() {
                 recipientName: d.claimedBy,
                 rating: d.rating,
                 role: "DONOR",
+                image: d.image || d.food?.image,
             }));
             setRecentDonations(donations);
         } catch (error) {
@@ -62,11 +70,40 @@ export default function AllRecentDonations() {
     }, [fetchRecentDonations]);
 
     const handleFeedbackNavigation = (id: string) => {
-        // Navigate to Donor's review detail screen as implemented previously
         router.push({
             pathname: "/(donor)/review-details",
             params: { disID: id },
         });
+    };
+
+    const handlePressCard = (item: RecentItem) => {
+        if (item.rating) {
+            router.push({ pathname: "/(donor)/review-details", params: { disID: item.id } });
+        } else {
+            router.push({ pathname: "/(donor)/active-details", params: { disID: item.id } });
+        }
+    };
+
+    const handleCancelDonation = (foodID: string) => {
+        setDonationToCancel(foodID);
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelDonation = async () => {
+        if (!donationToCancel) return;
+        setLoading(true);
+        try {
+            await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+            await fetchRecentDonations();
+        } catch (error: any) {
+            console.error("Failed to cancel donation:", error);
+            const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
+            Alert.alert("Error", msg);
+            setLoading(false);
+        } finally {
+            setDonationToCancel(null);
+            setShowCancelModal(false);
+        }
     };
 
     const renderItem = ({ item }: { item: RecentItem }) => (
@@ -74,6 +111,8 @@ export default function AllRecentDonations() {
             item={item}
             role="DONOR"
             onFeedback={handleFeedbackNavigation}
+            onCancel={handleCancelDonation}
+            onPressCard={handlePressCard}
         />
     );
 
@@ -143,6 +182,12 @@ export default function AllRecentDonations() {
                     />
                 )}
             </View>
+
+            <CancelDonationModal
+                visible={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={confirmCancelDonation}
+            />
         </SafeAreaView>
     );
 }

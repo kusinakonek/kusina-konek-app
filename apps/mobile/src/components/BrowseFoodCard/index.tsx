@@ -14,6 +14,7 @@ export type BrowseFoodCardProps = {
   barangay: string;
   timeAgo: string;
   distanceKm?: number | null;
+  onPress?: () => void;
   onRequest?: () => void;
 };
 
@@ -25,6 +26,7 @@ export default function BrowseFoodCard({
   barangay,
   timeAgo,
   distanceKm,
+  onPress,
   onRequest,
 }: BrowseFoodCardProps) {
   const { colors } = useTheme();
@@ -36,7 +38,12 @@ export default function BrowseFoodCard({
         : `${distanceKm} km away`
       : null;
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+      accessibilityRole="button"
+      accessibilityLabel={`View details for ${foodName}`}
+    >
       <View style={styles.row}>
         {/* Food Image */}
         <View style={styles.imageContainer}>
@@ -97,7 +104,7 @@ export default function BrowseFoodCard({
           </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

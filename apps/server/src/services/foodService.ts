@@ -37,15 +37,15 @@ const decryptUser = (user: any) => {
 const decryptFood = (food: any) => {
   return {
     ...food,
-    // foodName, description, and image are now stored as plain text
+    // No more manual decryption loops here! The DB resolves these fast.
     foodName: food.foodName,
     description: food.description,
     image: food.image,
     user: decryptUser(food.user),
     locations: food.locations?.map((loc: any) => ({
       ...loc,
-      streetAddress: safeDecrypt(loc.streetAddress),
-      barangay: loc.barangay ? safeDecrypt(loc.barangay) : null,
+      streetAddress: loc.streetAddress,
+      barangay: loc.barangay,
       user: decryptUser(loc.user),
     })),
   };
@@ -55,18 +55,14 @@ const decryptFood = (food: any) => {
 const decryptDistribution = (distribution: any) => {
   return {
     ...distribution,
-    photoProof: distribution.photoProof
-      ? safeDecrypt(distribution.photoProof)
-      : null,
+    photoProof: distribution.photoProof,
     donor: decryptUser(distribution.donor),
     recipient: decryptUser(distribution.recipient),
     location: distribution.location
       ? {
         ...distribution.location,
-        streetAddress: safeDecrypt(distribution.location.streetAddress),
-        barangay: distribution.location.barangay
-          ? safeDecrypt(distribution.location.barangay)
-          : null,
+        streetAddress: distribution.location.streetAddress,
+        barangay: distribution.location.barangay,
       }
       : null,
     food: distribution.food
@@ -91,6 +87,7 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
     });
@@ -148,6 +145,9 @@ export const foodService = {
       ...(params.input.description !== undefined
         ? { description: params.input.description }
         : {}),
+      ...(params.input.ingredients !== undefined
+        ? { ingredients: params.input.ingredients }
+        : {}),
       ...(params.input.quantity !== undefined
         ? { quantity: params.input.quantity }
         : {}),
@@ -183,15 +183,20 @@ export const foodService = {
         ? new Date(params.input.dateCooked)
         : null,
       description: params.input.description,
+      ingredients: params.input.ingredients,
       quantity: params.input.quantity,
       image: params.input.image,
+      availabilityDuration: params.input.availabilityDuration ?? 240, // default 4 hours in minutes
+      expireAt: params.input.expireAt ? new Date(params.input.expireAt) : null,
     };
 
     // Create food first
+    console.time(`DB_FOOD_CREATE_${params.userID}`);
     const created = await foodRepository.create(
       params.userID,
       encryptedFoodData,
     );
+    console.timeEnd(`DB_FOOD_CREATE_${params.userID}`);
 
     // Create locations using existing locationService if provided
     let dropOffLocationID: string | undefined;
@@ -200,6 +205,7 @@ export const foodService = {
 
     if (params.input.locations && params.input.locations.length > 0) {
       for (const loc of params.input.locations) {
+        console.time(`DB_LOC_CREATE_${params.userID}`);
         const location = await locationService.createLocation({
           userID: params.userID,
           input: {
@@ -210,6 +216,7 @@ export const foodService = {
             barangay: loc.barangay,
           },
         });
+        console.timeEnd(`DB_LOC_CREATE_${params.userID}`);
         if (!dropOffLocationID) {
           dropOffLocationID = location.location.locID;
           mainLatitude = loc.latitude;
@@ -222,6 +229,7 @@ export const foodService = {
       throw new HttpError(400, "At least one drop-off location is required");
     }
 
+    console.time(`DB_DIST_CREATE_${params.userID}`);
     const distribution = await distributionRepository.create({
       donor: { connect: { userID: params.userID } },
       location: { connect: { locID: dropOffLocationID } },
@@ -231,6 +239,7 @@ export const foodService = {
       photoProof: params.input.photoProof,
       status: "PENDING",
     });
+    console.timeEnd(`DB_DIST_CREATE_${params.userID}`);
 
     if (mainLatitude !== undefined && mainLongitude !== undefined) {
       import("./notificationService").then(ns =>
@@ -246,9 +255,8 @@ export const foodService = {
       ).catch(error => console.error("Failed to notify nearby recipients", error));
     }
 
-    const decryptedFood = decryptFood(created);
-    const decryptedDistribution = decryptDistribution(distribution);
-    return { food: decryptedFood, distribution: decryptedDistribution };
+    // Bypass the heavy, nested decryption logic completely. DB inserts resolve fast!
+    return { food: created, distribution };
   },
 
   async getAllDonations(userID: string) {
@@ -393,7 +401,15 @@ export const foodService = {
     if (existing.userID !== params.userID)
       throw new HttpError(403, "Forbidden");
 
-    // Delete associated locations first
+    // Check if distribution exists for this food
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
     const locations = await locationService.listLocationsForFood({
       userID: params.userID,
       foodID: params.foodID,
@@ -406,11 +422,53 @@ export const foodService = {
       });
     }
 
-    // Delete the food/donation
+    // 3) Finally delete the food/donation itself
     await foodRepository.delete(params.foodID);
 
     return {
       message: "Donation and associated locations deleted successfully",
+    };
+  },
+
+  async cancelDonation(params: { userID: string; foodID: string }) {
+    await ensureProfile(params.userID);
+    const existing = await foodRepository.getById(params.foodID);
+
+    if (!existing) throw new HttpError(404, "Donation not found");
+    if (existing.userID !== params.userID)
+      throw new HttpError(403, "Forbidden");
+
+    // Check if distribution exists for this food and its status
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    // Only allow cancellation if nobody has claimed it (PENDING status) or if no distribution exists
+    if (distribution && distribution.status !== "PENDING") {
+      throw new HttpError(400, "Cannot cancel a donation that has already been claimed or completed");
+    }
+
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
+    const locations = await locationService.listLocationsForFood({
+      userID: params.userID,
+      foodID: params.foodID,
+    });
+
+    for (const loc of locations.locations) {
+      await locationService.deleteLocation({
+        userID: params.userID,
+        locID: loc.locID,
+      });
+    }
+
+    // 3) Finally delete the food/donation itself
+    await foodRepository.delete(params.foodID);
+
+    return {
+      message: "Donation has been successfully cancelled and removed",
     };
   },
 

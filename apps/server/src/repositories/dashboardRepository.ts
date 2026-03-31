@@ -24,6 +24,7 @@ export interface RecipientStats {
 
 export interface DonorDonationItem {
   disID: string;
+  foodID: string;
   foodName: string;
   quantity: string;
   status: string;
@@ -31,6 +32,7 @@ export interface DonorDonationItem {
   timestamp: Date;
   claimedBy: string | null;
   rating: number | null;
+  image: string | null;
 }
 
 export interface RecipientFoodItem {
@@ -134,10 +136,11 @@ export const dashboardRepository = {
       take: limit,
       select: {
         disID: true,
+        foodID: true,
         quantity: true,
         status: true,
         timestamp: true,
-        food: { select: { foodName: true } },
+        food: { select: { foodName: true, image: true } },
         location: { select: { barangay: true } },
         recipient: { select: { firstName: true, lastName: true } },
         feedbacks: {
@@ -151,6 +154,7 @@ export const dashboardRepository = {
     return distributions.map((d) => {
       return {
         disID: d.disID,
+        foodID: d.foodID,
         foodName: safeDecrypt(d.food.foodName),
         quantity: d.quantity,
         status: d.status.toLowerCase(),
@@ -160,6 +164,7 @@ export const dashboardRepository = {
           ? `${safeDecrypt(d.recipient.firstName)} ${safeDecrypt(d.recipient.lastName)}`
           : null,
         rating: d.feedbacks[0]?.ratingScore ?? null,
+        image: d.food?.image || null,
       };
     });
   },

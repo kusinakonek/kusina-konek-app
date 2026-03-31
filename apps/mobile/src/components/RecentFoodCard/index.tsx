@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { MapPin, Star } from "lucide-react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { MapPin, Star, Utensils, MessageCircle } from "lucide-react-native";
 import { useTheme } from "../../../context/ThemeContext";
 import { RecentItem } from "../RecentItemsList";
 
@@ -10,6 +10,9 @@ interface RecentFoodCardProps {
   onConfirm?: (id: string) => void;
   onMarkOnTheWay?: (id: string) => void;
   onFeedback?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  onTrack?: (id: string) => void;
+  onPressCard?: (item: RecentItem) => void;
 }
 
 export default function RecentFoodCard({
@@ -18,12 +21,15 @@ export default function RecentFoodCard({
   onConfirm,
   onMarkOnTheWay,
   onFeedback,
+  onCancel,
+  onTrack,
+  onPressCard,
 }: RecentFoodCardProps) {
   const { colors } = useTheme();
 
   const handlePress = () => {
-    if (item.rating && item.role === "DONOR" && onFeedback) {
-      onFeedback(item.id);
+    if (onPressCard) {
+      onPressCard(item);
     }
   };
 
@@ -34,10 +40,31 @@ export default function RecentFoodCard({
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
       activeOpacity={0.7}
-      disabled={!item.rating}
+      disabled={!onPressCard}
       onPress={handlePress}>
+
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        {/* Render Image Thumbnail if available */}
+        <View style={styles.imageContainer}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.foodImage} />
+          ) : (
+            <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
+              <Utensils size={24} color={colors.textSecondary} />
+            </View>
+          )}
+          {/* Unread message badge on image */}
+          {item.unreadMessages != null && item.unreadMessages > 0 ? (
+            <View style={styles.messageBadge}>
+              <MessageCircle size={12} color="#fff" fill="#fff" />
+              <Text style={styles.messageBadgeText}>
+                {item.unreadMessages > 9 ? '9+' : item.unreadMessages}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.headerTextInfo}>
           <Text style={[styles.itemTitle, { color: colors.text }]}>
             {item.title}
           </Text>
@@ -118,6 +145,14 @@ export default function RecentFoodCard({
           <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
         </TouchableOpacity>
       )}
+
+      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && (
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => onCancel(item.foodID || item.id)}>
+          <Text style={styles.cancelButtonText}>Cancel Donation</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -137,9 +172,49 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  imageContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  foodImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  messageBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#2196F3",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  messageBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 2,
+  },
+  headerTextInfo: {
+    flex: 1,
+    paddingRight: 8,
   },
   itemTitle: {
     fontSize: 16,
@@ -253,6 +328,21 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    marginTop: 12,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e53935",
+    height: 44,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#e53935",
     fontSize: 16,
     fontWeight: "600",
   },

@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/netinfo": "11.4.1",
     "@supabase/supabase-js": "^2.95.3",
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
@@ -36,6 +37,7 @@
     "react-native": "0.79.6",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-maps": "1.20.1",
+    "react-native-maps-directions": "^1.9.0",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",

@@ -17,6 +17,7 @@
     "db:seed": "npm --workspace packages/database run seed"
   },
   "overrides": {
+    "http-proxy-agent": "7.0.2",
     "@types/react": "19.0.10",
     "react-native-gesture-handler": "2.24.0",
     "react-native-reanimated": "3.17.4",

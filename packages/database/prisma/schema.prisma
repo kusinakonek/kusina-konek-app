@@ -57,6 +57,9 @@ model User {
   // Notification relations
   notifications   Notification[]
 
+  // Message relations
+  sentMessages    Message[]
+
   @@index([emailHash])
   @@index([phoneNoHash])
 }
@@ -97,6 +100,9 @@ model Food {
   description   String?
   quantity      String
   image         String?
+  ingredients   String? // Comma-separated ingredients for allergy information
+  availabilityDuration Int? @default(240) // Duration in minutes, default 4 hours
+  expireAt      DateTime? // The exact time when this food expires and should be cancelled
   timestamp     DateTime @default(now())
 
   // Relations
@@ -143,9 +149,10 @@ model Distribution {
   actualTime    DateTime?
   timestamp     DateTime @default(now())
   claimedAt     DateTime?
-  
+
   feedbacks     Feedback[]
-  
+  messages      Message[]
+
   @@index([donorID, status])
   @@index([recipientID, claimedAt])
   @@index([status, recipientID])
@@ -161,11 +168,32 @@ model Feedback {
   disID         String
   distribution  Distribution @relation(fields: [disID], references: [disID])
   ratingScore   Int
-  
+
   @@index([donorID])
   @@index([disID])
   comments      String?
   photoUrl      String?
   timestamp     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+}
+
+model Message {
+  messageID    String      @id @default(uuid())
+  disID        String
+  distribution Distribution @relation(fields: [disID], references: [disID])
+  senderID     String
+  sender       User        @relation(fields: [senderID], references: [userID])
+  messageType  MessageType @default(TEXT)
+  content      String?
+  imageUrl     String?
+  isRead       Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+
+  @@index([disID, createdAt])
+  @@index([senderID])
 }
