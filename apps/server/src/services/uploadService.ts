@@ -69,6 +69,10 @@ export const uploadService = {
       }
     }
 
+    if (!data) {
+      throw new HttpError(500, "Upload succeeded but no data was returned");
+    }
+
     // Get public URL
     const { data: urlData } = supabaseAdmin.storage
       .from(params.bucket)
