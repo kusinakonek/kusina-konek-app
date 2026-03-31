@@ -11,6 +11,8 @@ import LoadingScreen from '../../../src/components/LoadingScreen';
 import { useAlert } from '../../../context/AlertContext';
 import { compressImageFast } from '../../../src/utils/imageCompressor';
 import CameraOptionModal from '../../../src/components/CameraOptionModal';
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from '../../../src/components/TutorialOverlay';
+import { DONATE_DETAILS_STEPS, useTutorial } from '../../../src/hooks/useTutorial';
 
 export default function FoodDetailsScreen() {
     const router = useRouter();
@@ -19,6 +21,12 @@ export default function FoodDetailsScreen() {
     const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
     const [showCameraModal, setShowCameraModal] = useState(false);
+
+    const tutorial = useTutorial({
+        steps: DONATE_DETAILS_STEPS,
+        storageKey: TUTORIAL_STORAGE_KEYS.DONATE_DETAILS,
+        enabled: !loading && !showCameraModal,
+    });
 
     const takePhoto = () => {
         setShowCameraModal(true);
@@ -237,6 +245,14 @@ export default function FoodDetailsScreen() {
                     />
                 </>
             )}
+
+            <TutorialOverlay
+                steps={tutorial.steps}
+                storageKey={tutorial.storageKey}
+                visible={tutorial.showTutorial}
+                onComplete={tutorial.handleComplete}
+                onSkip={tutorial.handleSkip}
+            />
         </SafeAreaView>
     );
 }
