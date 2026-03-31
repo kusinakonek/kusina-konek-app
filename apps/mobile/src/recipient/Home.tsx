@@ -42,12 +42,34 @@ export default function RecipientHome() {
   const [selectedDisID, setSelectedDisID] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
 
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setDashboardData(response.data);
+      
+      // Fetch unread message counts for each distribution
+      const distributions = response.data?.recentFoods || [];
+      const counts: Record<string, number> = {};
+      
+      await Promise.all(
+        distributions.map(async (f: any) => {
+          const disID = f.disID || f.id;
+          if (disID) {
+            try {
+              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+              counts[disID] = countRes.data.count || 0;
+            } catch {
+              counts[disID] = 0;
+            }
+          }
+        })
+      );
+      
+      setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -82,34 +104,38 @@ export default function RecipientHome() {
   }, [fetchDashboardData]);
 
   const getRecentItems = (): RecentItem[] => {
-    return (dashboardData?.recentFoods || []).map((f: any) => ({
-      id: f.disID || f.id,
-      title: f.foodName,
-      quantity: `${f.quantity} servings`,
-      location: f.location,
-      time: f.timeAgo,
-      // Map API status values to UI status values
-      status: (() => {
-        switch (f.status?.toUpperCase()) {
-          case "PENDING":
-            return "pending";
-          case "CLAIMED":
-            return "claimed";
-          case "ON_THE_WAY":
-            return "on-the-way";
-          case "COMPLETED":
-            return "completed";
-          case "DELIVERED":
-            return "completed";
-          default:
-            return f.status?.toLowerCase();
-        }
-      })() as RecentItem["status"],
-      rating: f.myRating,
-      showFeedback: f.canGiveFeedback,
-      latitude: f.latitude ?? null,
-      longitude: f.longitude ?? null,
-    }));
+    return (dashboardData?.recentFoods || []).map((f: any) => {
+      const disID = f.disID || f.id;
+      return {
+        id: disID,
+        title: f.foodName,
+        quantity: `${f.quantity} servings`,
+        location: f.location,
+        time: f.timeAgo,
+        // Map API status values to UI status values
+        status: (() => {
+          switch (f.status?.toUpperCase()) {
+            case "PENDING":
+              return "pending";
+            case "CLAIMED":
+              return "claimed";
+            case "ON_THE_WAY":
+              return "on-the-way";
+            case "COMPLETED":
+              return "completed";
+            case "DELIVERED":
+              return "completed";
+            default:
+              return f.status?.toLowerCase();
+          }
+        })() as RecentItem["status"],
+        rating: f.myRating,
+        showFeedback: f.canGiveFeedback,
+        latitude: f.latitude ?? null,
+        longitude: f.longitude ?? null,
+        unreadMessages: unreadCounts[disID] || 0,
+      };
+    });
   };
 
   const userName =

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { MapPin, Star, Utensils } from "lucide-react-native";
+import { MapPin, Star, Utensils, MessageCircle } from "lucide-react-native";
 import { useTheme } from "../../../context/ThemeContext";
 import { RecentItem } from "../RecentItemsList";
 
@@ -45,13 +45,24 @@ export default function RecentFoodCard({
 
       <View style={styles.cardHeader}>
         {/* Render Image Thumbnail if available */}
-        {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.foodImage} />
-        ) : (
-          <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
-            <Utensils size={24} color={colors.textSecondary} />
-          </View>
-        )}
+        <View style={styles.imageContainer}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.foodImage} />
+          ) : (
+            <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
+              <Utensils size={24} color={colors.textSecondary} />
+            </View>
+          )}
+          {/* Unread message badge on image */}
+          {item.unreadMessages && item.unreadMessages > 0 && (
+            <View style={styles.messageBadge}>
+              <MessageCircle size={12} color="#fff" fill="#fff" />
+              <Text style={styles.messageBadgeText}>
+                {item.unreadMessages > 9 ? '9+' : item.unreadMessages}
+              </Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.headerTextInfo}>
           <Text style={[styles.itemTitle, { color: colors.text }]}>
@@ -164,19 +175,42 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
   },
+  imageContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
   foodImage: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    marginRight: 12,
   },
   imagePlaceholder: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    marginRight: 12,
     justifyContent: "center",
     alignItems: "center",
+  },
+  messageBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#2196F3",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  messageBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 2,
   },
   headerTextInfo: {
     flex: 1,

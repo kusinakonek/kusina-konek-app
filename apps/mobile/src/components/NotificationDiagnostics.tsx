@@ -32,7 +32,7 @@ export const NotificationDiagnostics = () => {
             results[0] = {
                 label: 'Auth Status',
                 status: 'success',
-                message: ((user as any).firstName ? `${(user as any).firstName} ${(user as any).lastName || ''}` : user.email) || 'Unknown User',
+                message: `User: ${user.name || user.email}`,
             };
         } else {
             results[0] = {

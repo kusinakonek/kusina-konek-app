@@ -25,6 +25,7 @@ export interface RecentItem {
   latitude?: number | null;
   longitude?: number | null;
   image?: string | null;
+  unreadMessages?: number; // Unread message count for this distribution
 }
 
 interface RecentItemsListProps {

@@ -31,6 +31,7 @@ export default function DonorHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
@@ -38,6 +39,26 @@ export default function DonorHome() {
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
       setDashboardData(response.data);
+      
+      // Fetch unread message counts for each distribution
+      const distributions = response.data?.recentDonations || [];
+      const counts: Record<string, number> = {};
+      
+      await Promise.all(
+        distributions.map(async (d: any) => {
+          const disID = d.disID || d.id;
+          if (disID) {
+            try {
+              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+              counts[disID] = countRes.data.count || 0;
+            } catch {
+              counts[disID] = 0;
+            }
+          }
+        })
+      );
+      
+      setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -108,17 +129,21 @@ export default function DonorHome() {
   };
 
   const getRecentItems = (): RecentItem[] => {
-    return (dashboardData?.recentDonations || []).map((d: any) => ({
-      id: d.disID || d.id,
-      title: d.foodName || "Food Donation",
-      quantity: `${d.quantity} servings`,
-      location: d.location || "Location",
-      time: d.timeAgo || "Recently",
-      status: d.status?.toLowerCase(),
-      recipientName: d.claimedBy,
-      rating: d.rating,
-      role: 'DONOR',
-    }));
+    return (dashboardData?.recentDonations || []).map((d: any) => {
+      const disID = d.disID || d.id;
+      return {
+        id: disID,
+        title: d.foodName || "Food Donation",
+        quantity: `${d.quantity} servings`,
+        location: d.location || "Location",
+        time: d.timeAgo || "Recently",
+        status: d.status?.toLowerCase(),
+        recipientName: d.claimedBy,
+        rating: d.rating,
+        role: 'DONOR',
+        unreadMessages: unreadCounts[disID] || 0,
+      };
+    });
   };
 
 
@@ -217,20 +242,31 @@ export default function DonorHome() {
               setLoading(true);
               setTimeout(() => {
                 if (item.rating) {
-                  router.push({ pathname: "/(donor)/review-details", params: { disID: item.id } });
+                  // Navigate to review-details for items that have feedback
+                  router.push({
+                    pathname: "/(donor)/review-details",
+                    params: { disID: item.id }
+                  });
                 } else {
-                  router.push({ pathname: "/(donor)/active-details", params: { disID: item.id } });
+                  // Navigate to active-details for items without feedback
+                  router.push({
+                    pathname: "/(donor)/active-details",
+                    params: { disID: item.id }
+                  });
                 }
                 setLoading(false);
               }, 100);
             }}
             onFeedback={(id) => {
               setLoading(true);
+              // Small timeout to allow UI to update before freezing on navigation
               setTimeout(() => {
                 router.push({
                   pathname: "/(donor)/review-details",
                   params: { disID: id }
                 });
+                // Reset loading state after navigation (when coming back)
+                // Use a focus effect or just time it out if push is instant
                 setLoading(false);
               }, 100);
             }}

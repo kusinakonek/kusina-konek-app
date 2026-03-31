@@ -13,6 +13,10 @@ export default function DonorLayout() {
             >
                 <Stack.Screen name="donate/index" />
                 <Stack.Screen name="all-recent-donations" />
+                <Stack.Screen name="active-details" />
+                <Stack.Screen name="chat" />
+                <Stack.Screen name="review-details" />
+                <Stack.Screen name="feedback" />
             </Stack>
         </DonationProvider>
     );

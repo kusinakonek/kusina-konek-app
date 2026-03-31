@@ -38,9 +38,11 @@ export default function Chat() {
 
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
-  const { messages, loading, sending, error, sendTextMessage, sendImageMessage, editMessage, deleteMessage } =
+  const { messages, loading, sending, error, sendTextMessage, sendImageMessage, editMessage, deleteMessage, otherUserOnline, otherUserLastSeen } =
     useRealtimeMessages(disID || null, user?.id || '');
   const flatListRef = useRef<FlatList>(null);
+
+  const canSend = (inputText.trim().length > 0 || selectedImage !== null) && !sending;
 
   // Fetch distribution to get donor name
   useEffect(() => {
@@ -219,11 +221,14 @@ export default function Chat() {
           <ArrowLeft size={24} color={colors.text} />
         </Pressable>
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-            {donorName}
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Chat about this food
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+              {donorName}
+            </Text>
+            <View style={[styles.onlineIndicator, { backgroundColor: otherUserOnline ? '#4CAF50' : '#9E9E9E' }]} />
+          </View>
+          <Text style={[styles.headerSubtitle, { color: otherUserOnline ? '#4CAF50' : colors.textSecondary }]}>
+            {otherUserOnline ? 'Online' : 'Offline'}
           </Text>
         </View>
         <View style={{ width: 40 }} />
@@ -435,8 +440,18 @@ export default function Chat() {
   );
 }
 
+interface MessageItemProps {
+  item: Message;
+  userID: string | undefined;
+  colors: any;
+  isDark: boolean;
+  onReply: (msg: Message) => void;
+  onLongPress: (msg: Message) => void;
+  onZoom: (url: string) => void;
+}
+
 // Separate component to handle swipeable refs
-function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoom }: any) {
+function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoom }: MessageItemProps) {
   const swipeableRef = useRef<Swipeable>(null);
   const isOwnMessage = item.senderID === userID;
 
@@ -524,9 +539,9 @@ function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoo
           </Text>
         ) : null}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 4 }}>
           {item.isSending && (
-            <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" style={{ marginRight: 6 }} />
+            <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" style={{ marginRight: 2 }} />
           )}
           <Text
             style={[
@@ -538,6 +553,10 @@ function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoo
               minute: '2-digit',
             })}
           </Text>
+          {/* Show seen status for own messages */}
+          {isOwnMessage && !item.isSending && item.isRead && (
+            <Text style={{ color: '#4FC3F7', fontSize: 11, fontWeight: '500' }}>Seen</Text>
+          )}
         </View>
       </Pressable>
     </Swipeable>
@@ -572,6 +591,12 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     marginTop: 4,
+  },
+  onlineIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   keyboardView: {
     flex: 1,

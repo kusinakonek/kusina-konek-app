@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, User, MessageCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -16,6 +17,7 @@ export default function DonorActiveDetailsScreen() {
 
     const [distribution, setDistribution] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchDetails = async () => {
         try {
@@ -30,9 +32,25 @@ export default function DonorActiveDetailsScreen() {
         }
     };
 
+    const fetchUnreadCount = async () => {
+        try {
+            const response = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
+            setUnreadCount(response.data.count || 0);
+        } catch (error) {
+            console.error("Failed to fetch unread count", error);
+        }
+    };
+
     useEffect(() => {
         fetchDetails();
     }, [disID]);
+
+    // Refresh unread count when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchUnreadCount();
+        }, [disID])
+    );
 
     const handleChat = () => {
         router.push({
@@ -119,6 +137,13 @@ export default function DonorActiveDetailsScreen() {
                     onPress={handleChat}
                 >
                     <MessageCircle size={28} color="#fff" />
+                    {unreadCount > 0 && (
+                        <View style={styles.chatBadge}>
+                            <Text style={styles.chatBadgeText}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
             )}
         </SafeAreaView>
@@ -153,5 +178,24 @@ const styles = StyleSheet.create({
         justifyContent: 'center', alignItems: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+    },
+    chatBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: '#F44336',
+        borderRadius: 12,
+        minWidth: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    chatBadgeText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
     }
 });
