@@ -401,7 +401,15 @@ export const foodService = {
     if (existing.userID !== params.userID)
       throw new HttpError(403, "Forbidden");
 
-    // Delete associated locations first
+    // Check if distribution exists for this food
+    const distribution = await distributionRepository.getByFoodId(params.foodID);
+
+    // 1) Delete distribution first (it references location via FK)
+    if (distribution) {
+      await distributionRepository.delete(distribution.disID);
+    }
+
+    // 2) Delete associated locations (now safe since distribution FK is gone)
     const locations = await locationService.listLocationsForFood({
       userID: params.userID,
       foodID: params.foodID,
@@ -414,7 +422,7 @@ export const foodService = {
       });
     }
 
-    // Delete the food/donation
+    // 3) Finally delete the food/donation itself
     await foodRepository.delete(params.foodID);
 
     return {
