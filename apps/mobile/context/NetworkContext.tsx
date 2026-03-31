@@ -46,6 +46,11 @@ export const NetworkProvider = ({ children }: { children: ReactNode }) => {
         setJustReconnected(true);
         setWasOffline(false);
         setIsSlowConnection(false); // Reset slow connection on reconnect
+
+        // Auto-clear justReconnected after 4 seconds so banner has time to show and animate away
+        setTimeout(() => {
+          setJustReconnected(false);
+        }, 4000);
       }
     });
 

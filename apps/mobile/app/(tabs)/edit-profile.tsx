@@ -157,8 +157,20 @@ export default function EditProfile() {
 
             await axiosClient.put(API_ENDPOINTS.USER.UPDATE_PROFILE, payload);
             
-            // Re-fetch caching internally so the profile screen is ready with changes
-            fetchProfile(); 
+            // Re-fetch and update all caches so both edit-profile and profile screens are in sync
+            try {
+                const res = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
+                const profile = res.data?.profile;
+                if (profile) {
+                    hydrateProfileData(profile);
+                    await cacheData(CACHE_KEYS.USER_PROFILE, res.data);
+                    // Also update the profile screen's cache key
+                    await cacheData(CACHE_KEYS.PROFILE_DATA, res.data);
+                }
+            } catch (e) {
+                // Fallback: just re-fetch
+                fetchProfile();
+            }
             setShowSuccessModal(true);
         } catch (error: any) {
             console.error('Error updating profile:', error);

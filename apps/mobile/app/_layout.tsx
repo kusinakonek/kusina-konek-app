@@ -13,6 +13,7 @@ import { AlertProvider } from "../context/AlertContext";
 import NoConnectionModal from "../src/components/NoConnectionModal";
 import { NetworkProvider } from "../context/NetworkContext";
 import SlowConnectionBanner from "../src/components/SlowConnectionBanner";
+import ConnectionRestoredBanner from "../src/components/ConnectionRestoredBanner";
 
 function AppContent() {
   const { notification, clearNotification } = useNotification();
@@ -41,6 +42,7 @@ function AppContent() {
       </CartProvider>
       </FoodCacheProvider>
       <SlowConnectionBanner />
+      <ConnectionRestoredBanner />
       <NoConnectionModal />
     </>
   );

@@ -78,7 +78,7 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
   const lastLocationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const { isOnline, justReconnected, clearJustReconnected } = useNetwork();
+  const { isOnline, justReconnected } = useNetwork();
 
   // Load from offline cache initially
   useEffect(() => {
@@ -169,9 +169,8 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
     if (justReconnected) {
       const loc = lastLocationRef.current;
       fetchDistributions(true, loc?.lat, loc?.lng);
-      clearJustReconnected();
     }
-  }, [justReconnected, fetchDistributions, clearJustReconnected]);
+  }, [justReconnected, fetchDistributions]);
 
   // Also refresh when app comes back to foreground
   useEffect(() => {

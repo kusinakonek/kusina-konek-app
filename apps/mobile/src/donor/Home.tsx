@@ -36,7 +36,7 @@ export default function DonorHome() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
-  const { isOnline, justReconnected, clearJustReconnected } = useNetwork();
+  const { isOnline, justReconnected } = useNetwork();
 
   // Load from cache on mount for instant UI
   useEffect(() => {
@@ -100,10 +100,10 @@ export default function DonorHome() {
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
+      console.log("[DonorHome] Reconnected, refreshing dashboard...");
       fetchDashboardData();
-      clearJustReconnected();
     }
-  }, [justReconnected, fetchDashboardData, clearJustReconnected]);
+  }, [justReconnected, fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled donations disappear immediately when navigating back

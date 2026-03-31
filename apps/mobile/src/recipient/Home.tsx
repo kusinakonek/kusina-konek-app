@@ -40,7 +40,10 @@ export default function RecipientHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const channelsRef = useRef<any[]>([]);
-  const { isOnline, justReconnected, clearJustReconnected } = useNetwork();
+  const { isOnline, justReconnected } = useNetwork();
+  const dashboardDataRef = useRef<any>(null);
+  const isOnlineRef = useRef(isOnline);
+  const isFetchingRef = useRef(false);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -49,34 +52,41 @@ export default function RecipientHome() {
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
+  // Keep refs in sync with latest state
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+
   // Load from cache on mount for instant UI
   useEffect(() => {
     const loadCache = async () => {
       const cached = await getCachedDataAnyAge(CACHE_KEYS.RECIPIENT_DASHBOARD);
-      if (cached && !dashboardData) {
+      if (cached && !dashboardDataRef.current) {
         setDashboardData(cached);
-        setLoading(false); // Only set loading false if we have cache to show
+        dashboardDataRef.current = cached;
+        setLoading(false);
       }
     };
     loadCache();
   }, []);
 
   const fetchDashboardData = useCallback(async () => {
-    if (!user) return; // Prevent fetching if logged out
+    if (!user) return;
 
-    if (!isOnline && dashboardData) {
-       // If offline and we already have cache, just stop loading
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+
+    if (!isOnlineRef.current && dashboardDataRef.current) {
        setLoading(false);
        setRefreshing(false);
        return;
     }
 
+    isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setDashboardData(response.data);
+      dashboardDataRef.current = response.data;
       await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
       
-      // Initialize unread counts from the new backend response
       const distributions = response.data?.recentFoods || [];
       const counts: Record<string, number> = {};
       
@@ -92,8 +102,9 @@ export default function RecipientHome() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isFetchingRef.current = false;
     }
-  }, [user, isOnline, dashboardData]);
+  }, [user]); // Only depends on user - no dashboardData/isOnline to prevent infinite loop
 
   useEffect(() => {
     fetchDashboardData();
@@ -112,10 +123,10 @@ export default function RecipientHome() {
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
+      console.log("[RecipientHome] Reconnected, refreshing dashboard...");
       fetchDashboardData();
-      clearJustReconnected();
     }
-  }, [justReconnected, fetchDashboardData, clearJustReconnected]);
+  }, [justReconnected, fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled/updated donations reflect immediately

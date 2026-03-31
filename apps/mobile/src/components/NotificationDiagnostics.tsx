@@ -32,7 +32,7 @@ export const NotificationDiagnostics = () => {
             results[0] = {
                 label: 'Auth Status',
                 status: 'success',
-                message: `User: ${user.user_metadata?.full_name || user.email || 'Unknown user'}`,
+                message: `User: ${user.name || user.email}`,
             };
         } else {
             results[0] = {
