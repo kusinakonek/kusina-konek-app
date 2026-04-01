@@ -9,13 +9,14 @@ import {
     ScrollView,
     useWindowDimensions,
 } from 'react-native';
-import { X, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { X, ChevronRight, ChevronLeft, Icon } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface TutorialStep {
     id: string;
     title: string;
     description: string;
+    icon?: React.ReactNode;
 }
 
 export interface TutorialStepWithTarget extends TutorialStep {
@@ -251,7 +252,7 @@ export default function TutorialOverlay({
                             {isButtonLikeStep ? (
                                 <View style={[styles.previewButton, isSmallPhone && styles.previewButtonCompact]}>
                                     <View style={[styles.previewButtonIconWrap, isSmallPhone && styles.previewButtonIconWrapCompact]}>
-                                        <Text style={[styles.previewButtonIcon, isSmallPhone && styles.previewButtonIconCompact]}>{previewIcon}</Text>
+                                        {currentStepData.icon || <Text style={[styles.previewButtonIcon, isSmallPhone && styles.previewButtonIconCompact]}>{previewIcon}</Text>}
                                     </View>
                                     <Text
                                         numberOfLines={1}
@@ -264,7 +265,7 @@ export default function TutorialOverlay({
                             ) : (
                                 <View style={[styles.previewHeader, isSmallPhone && styles.previewHeaderCompact]}>
                                     <View style={[styles.previewIconWrap, isSmallPhone && styles.previewIconWrapCompact]}>
-                                        <Text style={[styles.previewIcon, isSmallPhone && styles.previewIconCompact]}>{previewIcon}</Text>
+                                        {currentStepData.icon || <Text style={[styles.previewIcon, isSmallPhone && styles.previewIconCompact]}>{previewIcon}</Text>}
                                     </View>
                                     <Text
                                         numberOfLines={isWelcomeStep ? 1 : 2}
@@ -448,18 +449,17 @@ const styles = StyleSheet.create({
     previewHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#F3FBF6',
         borderWidth: 1,
         borderColor: '#D8F2E1',
         borderRadius: 14,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        gap: 12,
     },
     previewHeaderCompact: {
         paddingHorizontal: 12,
         paddingVertical: 10,
-        gap: 10,
     },
     previewIconWrap: {
         width: 40,
@@ -468,6 +468,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#E8F9EF',
+        flexShrink: 0,
+        marginRight: 12,
     },
     previewIconWrapCompact: {
         width: 34,
@@ -481,17 +483,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     previewTitle: {
-        flex: 1,
+        flexGrow: 0,
+        flexShrink: 1,
         fontSize: 18,
         lineHeight: 22,
         fontWeight: '700',
         color: '#1a1a1a',
-        paddingRight: 20,
+        textAlign: 'center',
     },
     previewTitleCompact: {
         fontSize: 18,
         lineHeight: 22,
-        paddingRight: 12,
+        textAlign: 'center',
     },
     previewButton: {
         minHeight: 52,
@@ -500,100 +503,94 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: '#00C853',
         borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    previewButtonCompact: {
+        minHeight: 48,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
-    previewButtonCompact: {
-        minHeight: 46,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-    },
     previewButtonIconWrap: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        marginRight: 10,
-    },
-    previewButtonIconWrapCompact: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: 'auto',
+        height: 'auto',
+        borderRadius: 0,
+        backgroundColor: 'transparent',
         marginRight: 8,
     },
+    previewButtonIconWrapCompact: {},
     previewButtonIcon: {
-        fontSize: 14,
+        fontSize: 18,
         color: '#fff',
     },
     previewButtonIconCompact: {
-        fontSize: 12,
+        fontSize: 16,
     },
     previewButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
         color: '#fff',
-        fontSize: 18,
-        lineHeight: 22,
-        fontWeight: '700',
-        flexShrink: 1,
     },
     previewButtonTextCompact: {
-        fontSize: 18,
-        lineHeight: 22,
+        fontSize: 15,
     },
     description: {
-        fontSize: 16,
+        fontSize: 15,
+        lineHeight: 22,
         color: '#555',
-        lineHeight: 24,
-        marginBottom: 24,
+        textAlign: 'center',
+        marginBottom: 20,
     },
     descriptionCompact: {
         fontSize: 14,
-        lineHeight: 21,
-        marginBottom: 18,
+        lineHeight: 20,
+        marginBottom: 16,
     },
     navigationContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginTop: 'auto',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
     },
     navigationContainerCompact: {
-        marginBottom: 14,
+        paddingTop: 10,
     },
     navButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
     },
     navButtonCompact: {
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
     },
     navButtonPlaceholder: {
-        width: 100,
+        width: 90,
     },
     navButtonPlaceholderCompact: {
-        width: 80,
+        width: 75,
     },
     navButtonText: {
-        fontSize: 16,
-        color: '#00C853',
+        fontSize: 14,
         fontWeight: '600',
+        color: '#00C853',
+        marginLeft: 4,
+        marginRight: 4,
     },
     navButtonTextCompact: {
-        fontSize: 14,
+        fontSize: 13,
     },
     completeButton: {
         backgroundColor: '#00C853',
         borderRadius: 10,
         paddingHorizontal: 24,
     },
-    completeButtonCompact: {
-        paddingHorizontal: 18,
-    },
+    completeButtonCompact: {},
     completeButtonText: {
         color: '#fff',
     },
@@ -601,27 +598,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 8,
+        marginTop: 16,
     },
     dotsContainerCompact: {
-        gap: 6,
+        marginTop: 12,
     },
     dot: {
         width: 8,
         height: 8,
         borderRadius: 4,
         backgroundColor: '#ddd',
+        marginHorizontal: 4,
     },
     dotCompact: {
         width: 7,
         height: 7,
         borderRadius: 3.5,
+        marginHorizontal: 3,
     },
     dotActive: {
-        width: 24,
         backgroundColor: '#00C853',
+        width: 10,
+        height: 10,
+        borderRadius: 5,
     },
     dotActiveCompact: {
-        width: 20,
+        width: 9,
+        height: 9,
+        borderRadius: 4.5,
     },
 });
