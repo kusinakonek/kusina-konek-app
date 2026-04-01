@@ -128,6 +128,37 @@ export default function LoadingScreen({
         );
     };
 
+    const isPremiumUi = isLogout === true || (steps && steps.length > 0);
+
+    if (!isPremiumUi) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
+                <View style={[styles.content, { justifyContent: 'center' }]}>
+                    <View style={styles.dotsContainer}>
+                        {[dotAnim1, dotAnim2, dotAnim3].map((anim, i) => (
+                            <Animated.View
+                                key={i}
+                                style={[
+                                    styles.dot,
+                                    {
+                                        width: dotSize,
+                                        height: dotSize,
+                                        borderRadius: dotSize / 2,
+                                        transform: [{ translateY: anim }],
+                                        backgroundColor: colors.primary
+                                    },
+                                ]}
+                            />
+                        ))}
+                    </View>
+                    <Text style={[styles.text, { fontSize: fp(isSmall ? 13 : 15), color: colors.textSecondary, marginTop: 16 }]}>
+                        {message}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
             <View style={styles.content}>
@@ -151,7 +182,7 @@ export default function LoadingScreen({
                     <Text style={[styles.subtitleText, { color: 'rgba(255,255,255,0.8)' }]}>Connecting Communities</Text>
                 </View>
 
-                {(!steps || (steps && !isLogout)) && (
+                {(!steps || steps.length === 0) && !isLogout && (
                     <View style={styles.dotsContainer}>
                         {[dotAnim1, dotAnim2, dotAnim3].map((anim, i) => (
                             <Animated.View
@@ -172,7 +203,7 @@ export default function LoadingScreen({
                 )}
 
                 {isLogout ? (
-                    <Text style={[styles.text, { fontSize: fp(isSmall ? 15 : 18), color: '#FFFFFF' }]}>
+                    <Text style={[styles.text, { fontSize: fp(isSmall ? 15 : 18), color: '#FFFFFF', marginTop: 16 }]}>
                         Goodbye {logoutName}...
                     </Text>
                 ) : steps && steps.length > 0 ? (
@@ -181,11 +212,7 @@ export default function LoadingScreen({
                         {renderProgressBar()}
                         {renderSteps()}
                     </View>
-                ) : (
-                    <Text style={[styles.text, { fontSize: fp(isSmall ? 13 : 15), color: '#FFFFFF' }]}>
-                        {message}
-                    </Text>
-                )}
+                ) : null}
             </View>
         </View>
     );
