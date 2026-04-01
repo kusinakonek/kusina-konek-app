@@ -626,8 +626,8 @@ export default function Profile() {
                 <Heart size={wp(24)} color="#2E7D32" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Donor</Text>
-                <Text style={styles.roleOptionDesc}>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Donor</Text>
+                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
                   Share food with families in need
                 </Text>
               </View>
@@ -645,8 +645,8 @@ export default function Profile() {
                 <Package size={wp(24)} color="#1E88E5" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.roleOptionTitle}>Recipient</Text>
-                <Text style={styles.roleOptionDesc}>
+                <Text style={[styles.roleOptionTitle, { color: colors.text }]}>Recipient</Text>
+                <Text style={[styles.roleOptionDesc, { color: colors.textSecondary }]}>
                   Browse and receive free food
                 </Text>
               </View>
