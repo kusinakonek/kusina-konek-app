@@ -49,6 +49,8 @@ import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useAlert } from "../../../context/AlertContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../utils/dataCache";
 import { useNetwork } from "../../../context/NetworkContext";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../TutorialOverlay";
+import { PROFILE_STEPS, useTutorial } from "../../hooks/useTutorial";
 
 export default function Profile() {
   const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
@@ -76,6 +78,13 @@ export default function Profile() {
   const profileCacheRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
+
+  // Tutorial - only show when profile data is loaded
+  const tutorial = useTutorial({
+    steps: PROFILE_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.PROFILE,
+    enabled: !loading && profileData !== null,
+  });
 
   // Auto-load cache on mount or role change
   useEffect(() => {
@@ -365,21 +374,24 @@ export default function Profile() {
         )}
 
         {/* Profile Card with Banner */}
-        <View style={[styles.profileCard, { backgroundColor: colors.card }]}>
-          <View style={styles.bannerImage}>
-            <View style={styles.bannerGradient} />
-          </View>
-          <View style={styles.avatarWrapper}>
-            <View style={[styles.avatarContainer, { borderColor: colors.card }]}>
-              <User size={wp(40)} color="#2E7D32" />
+        <View collapsable={false} ref={tutorial.refs.profileHeader}>
+          <View 
+            style={[styles.profileCard, { backgroundColor: colors.card }]}>
+            <View style={styles.bannerImage}>
+              <View style={styles.bannerGradient} />
             </View>
-          </View>
+            <View style={styles.avatarWrapper}>
+              <View style={[styles.avatarContainer, { borderColor: colors.card }]}>
+                <User size={wp(40)} color="#2E7D32" />
+              </View>
+            </View>
 
           {/* Role Switcher */}
-          <TouchableOpacity
-            style={styles.roleBadge}
-            onPress={() => setShowRolePicker(true)}
-            activeOpacity={0.7}>
+          <View collapsable={false} ref={tutorial.refs.roleBadge}>
+            <TouchableOpacity
+              style={styles.roleBadge}
+              onPress={() => setShowRolePicker(true)}
+              activeOpacity={0.7}>
             <View style={styles.roleDot} />
             <Text style={styles.roleText}>{role || "USER"}</Text>
             <ChevronDown size={wp(14)} color="#1E88E5" />
@@ -390,7 +402,8 @@ export default function Profile() {
                 style={{ marginLeft: wp(4) }}
               />
             )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
           {/* Info Rows */}
           <View style={styles.infoSection}>
@@ -424,10 +437,12 @@ export default function Profile() {
             </View>
             <Text style={[styles.infoValue, { color: colors.text }]}>{memberSince}</Text>
           </View>
+          </View>
         </View>
 
         {/* Statistics Card */}
-        <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
+        <View collapsable={false} ref={tutorial.refs.profileStats}>
+          <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
           <View style={styles.statsHeader}>
             <View style={styles.statsIconWrap}>
               <Star size={wp(20)} color="#FFC107" />
@@ -529,26 +544,56 @@ export default function Profile() {
             </View>
           </View>
         )}
+        </View>
 
         {/* Account Settings */}
         <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.settingsTitle, { color: colors.text }]}>Account Settings</Text>
 
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setShowSettingsModal(true)}>
-            <Settings size={wp(20)} color={colors.text} />
-            <Text style={[styles.settingsRowText, { color: colors.text }]}>
-              Settings
-            </Text>
-          </TouchableOpacity>
+          <View collapsable={false} ref={tutorial.refs.settingsButton}>
+            <TouchableOpacity style={styles.settingsRow} onPress={() => setShowSettingsModal(true)}>
+              <Settings size={wp(20)} color={colors.text} />
+              <Text style={[styles.settingsRowText, { color: colors.text }]}>
+                Settings
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <TouchableOpacity style={styles.settingsRow} onPress={handleLogout}>
-            <LogOut size={wp(20)} color="#E53935" />
-            <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
-              Log Out
-            </Text>
-          </TouchableOpacity>
+          {/* Dev-only: Reset Tutorials */}
+          {__DEV__ && (
+            <>
+              <TouchableOpacity 
+                style={styles.settingsRow} 
+                onPress={async () => {
+                  try {
+                    const { resetAllTutorials } = await import('../TutorialOverlay');
+                    await resetAllTutorials();
+                    console.log('[Tutorial Reset] All tutorials cleared');
+                    showAlert('success', 'Tutorials reset! Close and reopen the app.');
+                  } catch (error) {
+                    console.error('[Tutorial Reset] Error:', error);
+                    showAlert('error', 'Failed to reset tutorials');
+                  }
+                }}>
+                <RefreshCw size={wp(20)} color="#00C853" />
+                <Text style={[styles.settingsRowText, { color: colors.text }]}>
+                  Reset Tutorials (Dev)
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            </>
+          )}
+
+          <View collapsable={false} ref={tutorial.refs.logoutButton}>
+            <TouchableOpacity style={styles.settingsRow} onPress={handleLogout}>
+              <LogOut size={wp(20)} color="#E53935" />
+              <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
+                Log Out
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ height: hp(30) }} />
@@ -785,6 +830,19 @@ export default function Profile() {
           <LoadingScreen message="Logging out..." />
         </View>
       )}
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Profile Tutorial] Step changed to:', step);
+        }}
+      />
     </SafeAreaView>
   );
 }

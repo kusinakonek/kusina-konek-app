@@ -38,6 +38,8 @@ import SuccessModal from "../../../src/components/SuccessModal";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAlert } from "../../../context/AlertContext";
 import LoadingScreen from "../../../src/components/LoadingScreen";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../../../src/components/TutorialOverlay";
+import { DONATE_LOCATION_STEPS, useTutorial } from "../../../src/hooks/useTutorial";
 
 export default function LocationScreen() {
   const router = useRouter();
@@ -47,6 +49,12 @@ export default function LocationScreen() {
   const { showAlert } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const tutorial = useTutorial({
+    steps: DONATE_LOCATION_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.DONATE_LOCATION,
+    enabled: !submitting && !showSuccessModal,
+  });
 
   const openGoogleMapsNavigation = (lat: number, lng: number, label?: string) => {
     const destination = `${lat},${lng}`;
@@ -453,6 +461,14 @@ export default function LocationScreen() {
           resetForm();
           router.replace("/(tabs)");
         }}
+      />
+
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
       />
     </SafeAreaView>
   );

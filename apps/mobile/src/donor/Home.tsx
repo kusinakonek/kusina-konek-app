@@ -26,6 +26,8 @@ import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS, isTutorialCompleted } from "../components/TutorialOverlay";
+import { DONOR_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -42,6 +44,13 @@ export default function DonorHome() {
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
+
+  // Tutorial - only show when dashboard data is loaded
+  const tutorial = useTutorial({
+    steps: DONOR_HOME_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.DONOR_HOME,
+    enabled: !loading && dashboardData !== null,
+  });
 
   // Load from cache on mount for instant UI
   useEffect(() => {
@@ -265,33 +274,37 @@ export default function DonorHome() {
             <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/notifications')}
-          style={{ padding: 8, position: "relative" }}
-        >
-          <Bell size={wp(24)} color="#00C853" />
-          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                backgroundColor: "#FF3B30",
-                width: wp(16),
-                height: wp(16),
-                borderRadius: wp(8),
-                justifyContent: "center",
-                alignItems: "center",
-                borderWidth: 1.5,
-                borderColor: colors.headerBg,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.notificationBell}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/notifications')}
+            style={{ padding: 8, position: "relative" }}
+          >
+            <View>
+              <Bell size={wp(24)} color="#00C853" />
+              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#FF3B30",
+                  width: wp(16),
+                  height: wp(16),
+                  borderRadius: wp(8),
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: colors.headerBg,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -320,18 +333,20 @@ export default function DonorHome() {
             </ImageBackground>
           </View>
 
-          <View style={styles.statsContainer}>
+          <View collapsable={false} ref={tutorial.refs.statsContainer} style={styles.statsContainer}>
             <DashboardStats stats={getStats()} />
           </View>
 
-          <TouchableOpacity
-            style={styles.mainButton}
-            onPress={() => router.push("/donate")}>
+          <View collapsable={false} ref={tutorial.refs.donateButton}>
+            <TouchableOpacity
+              style={styles.mainButton}
+              onPress={() => router.push("/donate")}>
             <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
+          </View>
 
-          <View>
+          <View collapsable={false} ref={tutorial.refs.recentDonations}>
             <RecentItemsList
               items={getRecentItems()}
               role="DONOR"
@@ -368,6 +383,19 @@ export default function DonorHome() {
           </View>
         )}
       </View>
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Donor Home Tutorial] Step changed to:', step);
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -30,6 +30,8 @@ import { BrowseFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import { useAlert } from "../../context/AlertContext";
 import RecipientDisclaimerModal from "../../src/components/RecipientDisclaimerModal";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../../src/components/TutorialOverlay";
+import { BROWSE_FOOD_STEPS, useTutorial } from "../../src/hooks/useTutorial";
 
 /** Returns a human-readable relative time string */
 function timeAgo(dateString: string): string {
@@ -68,6 +70,12 @@ export default function BrowseFood() {
 
   // Disclaimer State
   const [showDisclaimer, setShowDisclaimer] = useState(true);
+
+  const tutorial = useTutorial({
+    steps: BROWSE_FOOD_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.BROWSE_FOOD,
+    enabled: !showDisclaimer && !initializing,
+  });
 
   const handleAcceptDisclaimer = () => {
     setShowDisclaimer(false);
@@ -431,6 +439,14 @@ export default function BrowseFood() {
           />
         )}
       </View>
+
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+      />
     </SafeAreaView>
   );
 }

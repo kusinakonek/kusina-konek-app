@@ -30,46 +30,75 @@ export default function ReviewDetailsScreen() {
     const [loading, setLoading] = useState(true);
     const [feedback, setFeedback] = useState<any>(null);
 
-    useEffect(() => {
-        loadData();
-    }, [params]);
+    const itemParam =
+        typeof params.item === 'string'
+            ? params.item
+            : Array.isArray(params.item)
+                ? params.item[0]
+                : undefined;
 
-    const loadData = async () => {
-        try {
-            if (params.item) {
-                const parsedItem = JSON.parse(params.item as string);
-                setFeedback(parsedItem);
-            } else if (params.disID) {
-                const response = await axiosClient.get(API_ENDPOINTS.FEEDBACK.LIST_FOR_DISTRIBUTION(params.disID as string));
-                const data = response.data.feedbacks;
-                if (data && data.length > 0) {
-                    setFeedback(data[0]);
+    const disIDParam =
+        typeof params.disID === 'string'
+            ? params.disID
+            : Array.isArray(params.disID)
+                ? params.disID[0]
+                : undefined;
+
+    useEffect(() => {
+        // IMPORTANT: do NOT depend on the whole `params` object.
+        // `useLocalSearchParams()` returns a new object frequently,
+        // and this effect sets state, which can cause an infinite render loop.
+        let cancelled = false;
+
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                if (itemParam) {
+                    const parsedItem = JSON.parse(itemParam);
+                    if (!cancelled) setFeedback(parsedItem);
+                    return;
                 }
+
+                if (disIDParam) {
+                    const response = await axiosClient.get(
+                        API_ENDPOINTS.FEEDBACK.LIST_FOR_DISTRIBUTION(disIDParam),
+                    );
+                    const data = response.data.feedbacks;
+                    if (!cancelled) setFeedback(data && data.length > 0 ? data[0] : null);
+                    return;
+                }
+
+                if (!cancelled) setFeedback(null);
+            } catch (error) {
+                console.error('Error loading review details:', error);
+                if (!cancelled) setFeedback(null);
+            } finally {
+                if (!cancelled) setLoading(false);
             }
-        } catch (error) {
-            console.error("Error loading review details:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
+        };
+
+        loadData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [itemParam, disIDParam]);
 
     if (loading) {
-        if (loading) {
-            return (
-                <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-                    <View style={[styles.header, { borderBottomColor: colors.border }]}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                            <ArrowLeft size={24} color={colors.text} />
-                        </TouchableOpacity>
-                        <Text style={[styles.headerTitle, { color: colors.text }]}>Review Details</Text>
-                        <View style={{ width: 24 }} />
-                    </View>
-                    <View style={styles.centerContent}>
-                        <ActivityIndicator size="large" color="#00C853" />
-                    </View>
-                </SafeAreaView>
-            );
-        }
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+                <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <ArrowLeft size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: colors.text }]}>Review Details</Text>
+                    <View style={{ width: 24 }} />
+                </View>
+                <View style={styles.centerContent}>
+                    <ActivityIndicator size="large" color="#00C853" />
+                </View>
+            </SafeAreaView>
+        );
     }
 
     if (!feedback) {
@@ -96,7 +125,7 @@ export default function ReviewDetailsScreen() {
     const recipientUser = feedback.recipient || distribution?.recipient;
 
     const handleChat = () => {
-        const id = params.disID || feedback?.disID || distribution?.id;
+        const id = disIDParam || feedback?.disID || distribution?.id;
         if (!id) return;
         router.push({
             pathname: '/(donor)/chat',

@@ -30,6 +30,8 @@ import { useAlert } from "../../context/AlertContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../components/TutorialOverlay";
+import { RECIPIENT_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -53,6 +55,13 @@ export default function RecipientHome() {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Tutorial - only show when dashboard data is loaded
+  const tutorial = useTutorial({
+    steps: RECIPIENT_HOME_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.RECIPIENT_HOME,
+    enabled: !loading && dashboardData !== null,
+  });
 
   // Keep refs in sync with latest state
   useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
@@ -413,32 +422,36 @@ export default function RecipientHome() {
             </Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/notifications")}
-          style={{ padding: 8, position: "relative" }}>
-          <Bell size={wp(24)} color="#00C853" />
-          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                backgroundColor: "#FF3B30",
-                width: wp(16),
-                height: wp(16),
-                borderRadius: wp(8),
-                justifyContent: "center",
-                alignItems: "center",
-                borderWidth: 1.5,
-                borderColor: colors.headerBg,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.notificationBell}>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/notifications")}
+            style={{ padding: 8, position: "relative" }}>
+            <View>
+              <Bell size={wp(24)} color="#00C853" />
+              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#FF3B30",
+                  width: wp(16),
+                  height: wp(16),
+                  borderRadius: wp(8),
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: colors.headerBg,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -495,14 +508,15 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View
-          style={[
-            styles.recipientStatsCard,
-            {
-              backgroundColor: colors.primaryLight,
-              borderColor: colors.border,
-            },
-          ]}>
+        <View collapsable={false} ref={tutorial.refs.statsCard}>
+          <View
+            style={[
+              styles.recipientStatsCard,
+              {
+                backgroundColor: colors.primaryLight,
+                borderColor: colors.border,
+              },
+            ]}>
           <View style={styles.recipientStatsIconContainer}>
             <Package size={wp(48)} color={colors.primary} />
           </View>
@@ -540,20 +554,24 @@ export default function RecipientHome() {
             </View>
           </View>
         </View>
+        </View>
 
         {/* Browse Food Button */}
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => router.push("/(recipient)/browse-food")}>
-          <Search size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
-          <Text style={styles.mainButtonText}>Browse Food</Text>
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.browseButton}>
+          <TouchableOpacity
+            style={styles.mainButton}
+            onPress={() => router.push("/(recipient)/browse-food")}>
+            <Search size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
+            <Text style={styles.mainButtonText}>Browse Food</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Recent Food */}
         {loading && !refreshing ? (
           <RecentFoodSkeleton count={3} />
         ) : getRecentItems().length > 0 ? (
-          <RecentItemsList
+          <View collapsable={false} ref={tutorial.refs.recentFoods}>
+            <RecentItemsList
             items={getRecentItems().slice(0, 4)}
             role="RECIPIENT"
             onSeeAll={() => router.push("/(recipient)/all-recent-foods")}
@@ -565,6 +583,7 @@ export default function RecipientHome() {
               params: { disID: item.id }
             })}
           />
+          </View>
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
@@ -593,6 +612,19 @@ export default function RecipientHome() {
         onClose={() => setFeedbackVisible(false)}
         onSubmit={handleSubmitFeedback}
         isSubmitting={submittingFeedback}
+      />
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Recipient Home Tutorial] Step changed to:', step);
+        }}
       />
     </SafeAreaView>
   );
