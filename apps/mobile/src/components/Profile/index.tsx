@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import {
   Heart,
   Globe,
   Star,
-  ChevronDown,
+  ArrowRightLeft,
   Package,
   RefreshCw,
   Trash2,
@@ -47,9 +47,13 @@ import LoadingScreen from "../LoadingScreen";
 import { useTheme } from "../../../context/ThemeContext";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
 import { useAlert } from "../../../context/AlertContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../../utils/dataCache";
+import { useNetwork } from "../../../context/NetworkContext";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../TutorialOverlay";
+import { PROFILE_STEPS, useTutorial } from "../../hooks/useTutorial";
 
 export default function Profile() {
-  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
+  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp, isLoggingOut, logoutName } = useAuth();
   const router = useRouter();
   const { showAlert } = useAlert();
   const [profileData, setProfileData] = useState<any>(null);
@@ -70,49 +74,109 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
+  const { isOnline } = useNetwork();
+  const profileCacheRef = useRef<any>(null);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
+
+  // Tutorial - only show when profile data is loaded
+  const tutorial = useTutorial({
+    steps: PROFILE_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.PROFILE,
+    enabled: !loading && profileData !== null,
+  });
+
+  // Auto-load cache on mount or role change
+  useEffect(() => {
+    const loadCache = async () => {
+      const cacheKey = `${CACHE_KEYS.PROFILE_DATA}_${role}`;
+      const cached = await getCachedDataAnyAge(cacheKey);
+      if (cached && !profileCacheRef.current) {
+        setProfileData(cached.profileData);
+        setStatsData(cached.statsData);
+        setDonorHistoryStats(cached.donorHistoryStats);
+        profileCacheRef.current = cached;
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, [role]);
+
   const fetchProfileData = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
 
-    try {
-      const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
-      setProfileData(profileRes.data);
-    } catch (error: any) {
-      console.error("Error fetching profile:", error?.response?.data || error?.message || error);
+    if (isFetchingRef.current) return;
+
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (profileCacheRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
     }
 
-    try {
-      const dashboardRes =
-        role === "DONOR"
-          ? await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
-          : await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
-      setStatsData(dashboardRes.data?.stats || null);
-    } catch (error: any) {
-      console.error("Error fetching dashboard stats:", error?.response?.data || error?.message || error);
+    if (!isOnline && profileCacheRef.current) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
     }
 
-    // If current role is RECIPIENT, also fetch donor stats for history card
-    if (role === "RECIPIENT") {
+    isFetchingRef.current = true;
+
+    try {
+      let pData = profileData;
+      let sData = statsData;
+      let dStats = donorHistoryStats;
+
       try {
-        const donorRes = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
-        setDonorHistoryStats(donorRes.data?.stats || null);
-      } catch (error) {
-        // User may not have any donor activity — that's fine
-        setDonorHistoryStats(null);
+        const profileRes = await axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
+        pData = profileRes.data;
+        setProfileData(pData);
+      } catch (error: any) {
+        console.error("Error fetching profile:", error?.response?.data || error?.message || error);
       }
-    } else {
-      setDonorHistoryStats(null);
-    }
 
-    setLoading(false);
-    setRefreshing(false);
-  }, [role, user]);
+      try {
+        const [donorRes, recipientRes] = await Promise.all([
+          axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR).catch(() => null),
+          axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT).catch(() => null)
+        ]);
+
+        // Quietly cache the responses for Home.tsx to consume instantly upon role switch
+        if (donorRes?.data) {
+          await cacheData(CACHE_KEYS.DONOR_DASHBOARD, donorRes.data);
+        }
+        if (recipientRes?.data) {
+          await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, recipientRes.data);
+        }
+
+        sData = role === "DONOR" ? donorRes?.data?.stats : recipientRes?.data?.stats;
+        dStats = donorRes?.data?.stats || null;
+
+        setStatsData(sData || null);
+        setDonorHistoryStats(dStats || null);
+      } catch (error: any) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+
+      // Save to cache
+      const newCache = { profileData: pData, statsData: sData, donorHistoryStats: dStats };
+      await cacheData(`${CACHE_KEYS.PROFILE_DATA}_${role}`, newCache);
+      profileCacheRef.current = newCache;
+
+    } finally {
+      lastFetchTimeRef.current = Date.now();
+      isFetchingRef.current = false;
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [role, user, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchProfileData();
     }, [fetchProfileData])
   );
@@ -122,12 +186,14 @@ export default function Profile() {
     if (notification) {
       console.log("[Profile] Notification received, performing silent refresh...");
       // We call fetchProfileData without setting loading(true)
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchProfileData();
     }
   }, [notification, fetchProfileData]); // Added fetchProfileData to dependencies
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    lastFetchTimeRef.current = 0; // Bypass throttle on manual refresh
     fetchProfileData();
   }, [fetchProfileData]);
 
@@ -140,11 +206,7 @@ export default function Profile() {
     setShowRolePicker(false);
     try {
       await setRole(newRole);
-      // Re-fetch all data for the new role
-      setStatsData(null);
-      setDonorHistoryStats(null);
-      setLoading(true);
-      // fetchProfileData will run due to the role dependency change
+      // The `useEffect` tied to `[role]` will immediately load the pre-fetched cache for the new role.
     } catch (error) {
       console.error("Error switching role:", error);
       showAlert("Error", "Failed to switch role. Please try again.", undefined, { type: 'error' });
@@ -313,24 +375,27 @@ export default function Profile() {
         )}
 
         {/* Profile Card with Banner */}
-        <View style={[styles.profileCard, { backgroundColor: colors.card }]}>
-          <View style={styles.bannerImage}>
-            <View style={styles.bannerGradient} />
-          </View>
-          <View style={styles.avatarWrapper}>
-            <View style={[styles.avatarContainer, { borderColor: colors.card }]}>
-              <User size={wp(40)} color="#2E7D32" />
+        <View collapsable={false} ref={tutorial.refs.profileHeader}>
+          <View 
+            style={[styles.profileCard, { backgroundColor: colors.card }]}>
+            <View style={styles.bannerImage}>
+              <View style={styles.bannerGradient} />
             </View>
-          </View>
+            <View style={styles.avatarWrapper}>
+              <View style={[styles.avatarContainer, { borderColor: colors.card }]}>
+                <User size={wp(40)} color="#2E7D32" />
+              </View>
+            </View>
 
           {/* Role Switcher */}
-          <TouchableOpacity
-            style={styles.roleBadge}
-            onPress={() => setShowRolePicker(true)}
-            activeOpacity={0.7}>
+          <View collapsable={false} ref={tutorial.refs.roleBadge}>
+            <TouchableOpacity
+              style={styles.roleBadge}
+              onPress={() => setShowRolePicker(true)}
+              activeOpacity={0.7}>
             <View style={styles.roleDot} />
             <Text style={styles.roleText}>{role || "USER"}</Text>
-            <ChevronDown size={wp(14)} color="#1E88E5" />
+            <ArrowRightLeft size={wp(14)} color="#1E88E5" />
             {switchingRole && (
               <ActivityIndicator
                 size="small"
@@ -338,7 +403,8 @@ export default function Profile() {
                 style={{ marginLeft: wp(4) }}
               />
             )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
           {/* Info Rows */}
           <View style={styles.infoSection}>
@@ -372,10 +438,12 @@ export default function Profile() {
             </View>
             <Text style={[styles.infoValue, { color: colors.text }]}>{memberSince}</Text>
           </View>
+          </View>
         </View>
 
         {/* Statistics Card */}
-        <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
+        <View collapsable={false} ref={tutorial.refs.profileStats}>
+          <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
           <View style={styles.statsHeader}>
             <View style={styles.statsIconWrap}>
               <Star size={wp(20)} color="#FFC107" />
@@ -477,26 +545,56 @@ export default function Profile() {
             </View>
           </View>
         )}
+        </View>
 
         {/* Account Settings */}
         <View style={[styles.settingsCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.settingsTitle, { color: colors.text }]}>Account Settings</Text>
 
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setShowSettingsModal(true)}>
-            <Settings size={wp(20)} color={colors.text} />
-            <Text style={[styles.settingsRowText, { color: colors.text }]}>
-              Settings
-            </Text>
-          </TouchableOpacity>
+          <View collapsable={false} ref={tutorial.refs.settingsButton}>
+            <TouchableOpacity style={styles.settingsRow} onPress={() => setShowSettingsModal(true)}>
+              <Settings size={wp(20)} color={colors.text} />
+              <Text style={[styles.settingsRowText, { color: colors.text }]}>
+                Settings
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <TouchableOpacity style={styles.settingsRow} onPress={handleLogout}>
-            <LogOut size={wp(20)} color="#E53935" />
-            <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
-              Log Out
-            </Text>
-          </TouchableOpacity>
+          {/* Dev-only: Reset Tutorials */}
+          {__DEV__ && (
+            <>
+              <TouchableOpacity 
+                style={styles.settingsRow} 
+                onPress={async () => {
+                  try {
+                    const { resetAllTutorials } = await import('../TutorialOverlay');
+                    await resetAllTutorials();
+                    console.log('[Tutorial Reset] All tutorials cleared');
+                    showAlert('success', 'Tutorials reset! Close and reopen the app.');
+                  } catch (error) {
+                    console.error('[Tutorial Reset] Error:', error);
+                    showAlert('error', 'Failed to reset tutorials');
+                  }
+                }}>
+                <RefreshCw size={wp(20)} color="#00C853" />
+                <Text style={[styles.settingsRowText, { color: colors.text }]}>
+                  Reset Tutorials (Dev)
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            </>
+          )}
+
+          <View collapsable={false} ref={tutorial.refs.logoutButton}>
+            <TouchableOpacity style={styles.settingsRow} onPress={handleLogout}>
+              <LogOut size={wp(20)} color="#E53935" />
+              <Text style={[styles.settingsRowText, { color: "#E53935" }]}>
+                Log Out
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ height: hp(30) }} />
@@ -581,7 +679,7 @@ export default function Profile() {
                 <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
               </View>
               <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
-              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.2</Text>
+              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 2.0.0</Text>
             </View>
 
             <Text style={[styles.modalSubtitle, { color: colors.text, textAlign: 'center', lineHeight: 22 }]}>
@@ -727,12 +825,20 @@ export default function Profile() {
         </Pressable>
       </Modal>
 
-      {/* Logout Loading Overlay */}
-      {isLoadingLogout && (
-        <View style={StyleSheet.absoluteFill}>
-          <LoadingScreen message="Logging out..." />
-        </View>
-      )}
+      {/* Logout Loading Overlay - Moved to global tabs layout to cover entire screen cleanly */}
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Profile Tutorial] Step changed to:', step);
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -7,6 +7,8 @@ import { useDonation, PRESET_FOODS, FoodItem } from '../../../context/DonationCo
 import DisclaimerModal from '../../../src/components/DisclaimerModal';
 import { useTheme } from '../../../context/ThemeContext';
 import LoadingScreen from '../../../src/components/LoadingScreen';
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from '../../../src/components/TutorialOverlay';
+import { DONATE_SELECT_STEPS, useTutorial } from '../../../src/hooks/useTutorial';
 
 export default function SelectFoodScreen() {
     const router = useRouter();
@@ -24,6 +26,12 @@ export default function SelectFoodScreen() {
     };
 
     const [loading, setLoading] = useState(false);
+
+    const tutorial = useTutorial({
+        steps: DONATE_SELECT_STEPS,
+        storageKey: TUTORIAL_STORAGE_KEYS.DONATE_SELECT,
+        enabled: !showDisclaimer && !loading,
+    });
 
     const handleSelectFood = (food: FoodItem) => {
         setLoading(true);
@@ -129,6 +137,14 @@ export default function SelectFoodScreen() {
                     </ScrollView>
                 </>
             )}
+
+            <TutorialOverlay
+                steps={tutorial.steps}
+                storageKey={tutorial.storageKey}
+                visible={tutorial.showTutorial}
+                onComplete={tutorial.handleComplete}
+                onSkip={tutorial.handleSkip}
+            />
         </SafeAreaView>
     );
 }

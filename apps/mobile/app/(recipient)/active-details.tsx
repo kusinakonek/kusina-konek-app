@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, User, MessageCircle, Navigation, CheckCircle, Star } from 'lucide-react-native';
@@ -83,6 +83,7 @@ export default function ActiveDetailsScreen() {
                     try {
                         await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(disID));
                         await fetchDetails();
+                        DeviceEventEmitter.emit('dashboard:force-refresh');
                         handleTrack(); 
                     } catch (error) {
                         console.error("Failed", error);
@@ -108,6 +109,7 @@ export default function ActiveDetailsScreen() {
                         try {
                             await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(disID));
                             await fetchDetails();
+                            DeviceEventEmitter.emit('dashboard:force-refresh');
                             setFeedbackVisible(true);
                         } catch (error) {
                             console.error("Failed", error);
@@ -131,8 +133,20 @@ export default function ActiveDetailsScreen() {
                 photoUrl: photo,
             });
             setFeedbackVisible(false);
-            showAlert("Thank You!", "Your feedback has been submitted.", undefined, { type: 'success' });
-            fetchDetails();
+            
+            setTimeout(() => {
+                showAlert("Thank You!", "Your feedback has been submitted.", [
+                    { 
+                        text: "Go to Dashboard", 
+                        style: "default", 
+                        onPress: () => {
+                            DeviceEventEmitter.emit('dashboard:force-refresh');
+                            router.replace('/(tabs)');
+                        }
+                    }
+                ], { type: 'success' });
+            }, 300);
+
         } catch (error) {
             console.error("Feedback error:", error);
             showAlert("Error", "Failed to submit feedback.");
@@ -212,7 +226,8 @@ export default function ActiveDetailsScreen() {
                                 onPress={handleMarkOnTheWay}
                                 disabled={actionLoading}
                             >
-                                <Text style={styles.actionButtonText}>🚶 I'm On My Way</Text>
+                                {actionLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.actionButtonText}>🚶</Text>}
+                                <Text style={styles.actionButtonText}>{actionLoading ? "Processing..." : "I'm On My Way"}</Text>
                             </TouchableOpacity>
                         )}
 
@@ -227,12 +242,12 @@ export default function ActiveDetailsScreen() {
                                 </TouchableOpacity>
                                 
                                 <TouchableOpacity 
-                                    style={[styles.actionButtonHalf, { backgroundColor: '#4CAF50' }]}
+                                    style={[styles.actionButtonHalf, { backgroundColor: '#4CAF50', opacity: actionLoading ? 0.7 : 1 }]}
                                     onPress={handleConfirmReceived}
                                     disabled={actionLoading}
                                 >
-                                    <CheckCircle size={20} color="#fff" />
-                                    <Text style={styles.actionButtonTextInside}>Received</Text>
+                                    {actionLoading ? <ActivityIndicator size="small" color="#fff" /> : <CheckCircle size={20} color="#fff" />}
+                                    <Text style={styles.actionButtonTextInside}>{actionLoading ? "Processing..." : "Received"}</Text>
                                 </TouchableOpacity>
                             </View>
                         )}

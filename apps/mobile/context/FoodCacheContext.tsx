@@ -10,6 +10,8 @@ import React, {
 import { AppState, AppStateStatus } from "react-native";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
+import { useNetwork } from "./NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS, cacheImage } from "../src/utils/dataCache";
 
 export type Distribution = {
   disID: string;
@@ -76,12 +78,29 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
   const lastLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const { isOnline, justReconnected } = useNetwork();
+
+  // Load from offline cache initially
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge<Distribution[]>(CACHE_KEYS.FOOD_BROWSE_LIST);
+      if (cached && !isCached) {
+        setDistributions(cached);
+        setIsCached(true);
+      }
+    };
+    loadCache();
+  }, []);
 
   const fetchDistributions = useCallback(
     async (forceRefresh: boolean = false, lat?: number, lng?: number) => {
       // If data is already cached and not forcing refresh, skip fetch
       if (isCached && !forceRefresh) {
         return;
+      }
+
+      if (!isOnline) {
+         return; // Don't try to fetch if offline, rely on cache
       }
 
       setLoading(true);
@@ -100,9 +119,23 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
           API_ENDPOINTS.DISTRIBUTION.GET_AVAILABLE,
           { params },
         );
-        const data = response.data?.distributions ?? [];
+        let data = response.data?.distributions ?? [];
+        
+        // Asynchronously cache food images for offline viewing
+        data = await Promise.all(data.map(async (dist: Distribution) => {
+          if (dist.food?.image) {
+            const cachedImage = await cacheImage(dist.food.image);
+            if (cachedImage) {
+              return { ...dist, food: { ...dist.food, image: cachedImage } };
+            }
+          }
+          return dist;
+        }));
+
         setDistributions(data);
         setIsCached(true);
+        // Save to offline storage
+        await cacheData(CACHE_KEYS.FOOD_BROWSE_LIST, data);
       } catch (err: any) {
         console.error("Failed to fetch distributions:", err);
         setError(
@@ -112,7 +145,7 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    [isCached],
+    [isCached, isOnline],
   );
 
   const invalidateCache = useCallback(() => {
@@ -120,28 +153,36 @@ export function FoodCacheProvider({ children }: { children: ReactNode }) {
     setDistributions([]);
   }, []);
 
-  // Auto-refresh every 2 minutes to keep data in sync with server
+  // Auto-refresh every 2 minutes to keep data in sync with server (only if online)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isCached) return; // Don't auto-refresh if never fetched
+      if (!isCached || !isOnline) return; // Don't auto-refresh if never fetched or offline
       const loc = lastLocationRef.current;
       fetchDistributions(true, loc?.lat, loc?.lng);
     }, AUTO_REFRESH_MS);
 
     return () => clearInterval(interval);
-  }, [isCached, fetchDistributions]);
+  }, [isCached, isOnline, fetchDistributions]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      const loc = lastLocationRef.current;
+      fetchDistributions(true, loc?.lat, loc?.lng);
+    }
+  }, [justReconnected, fetchDistributions]);
 
   // Also refresh when app comes back to foreground
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
-      if (state === "active" && isCached) {
+      if (state === "active" && isCached && isOnline) {
         const loc = lastLocationRef.current;
         fetchDistributions(true, loc?.lat, loc?.lng);
       }
     };
     const sub = AppState.addEventListener("change", handleAppState);
     return () => sub.remove();
-  }, [isCached, fetchDistributions]);
+  }, [isCached, isOnline, fetchDistributions]);
 
   return (
     <FoodCacheContext.Provider

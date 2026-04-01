@@ -5,11 +5,10 @@ import RecipientHome from '../../src/recipient/Home';
 import LoadingScreen from '../../src/components/LoadingScreen';
 
 export default function Home() {
-    const { role, isLoading, user } = useAuth();
+    const { role, isLoggingOut } = useAuth();
 
-    if (isLoading || !user) {
-        return <LoadingScreen message="Preparing your dashboard..." />;
-    }
+    // Prevent rendering children during logout to avoid flashes
+    if (isLoggingOut) return null;
 
     return role === 'DONOR' ? <DonorHome /> : <RecipientHome />;
 }

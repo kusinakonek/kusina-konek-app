@@ -11,6 +11,9 @@ import { PresenceProvider } from "../context/PresenceContext";
 import { NotificationBanner } from "../src/components/NotificationBanner";
 import { AlertProvider } from "../context/AlertContext";
 import NoConnectionModal from "../src/components/NoConnectionModal";
+import { NetworkProvider } from "../context/NetworkContext";
+import SlowConnectionBanner from "../src/components/SlowConnectionBanner";
+import ConnectionRestoredBanner from "../src/components/ConnectionRestoredBanner";
 
 function AppContent() {
   const { notification, clearNotification } = useNotification();
@@ -38,6 +41,8 @@ function AppContent() {
           />
       </CartProvider>
       </FoodCacheProvider>
+      <SlowConnectionBanner />
+      <ConnectionRestoredBanner />
       <NoConnectionModal />
     </>
   );
@@ -47,17 +52,19 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <AlertProvider>
-            <AuthProvider>
-              <PresenceProvider>
-                <NotificationProvider>
-                  <AppContent />
-                </NotificationProvider>
-              </PresenceProvider>
-            </AuthProvider>
-          </AlertProvider>
-        </ThemeProvider>
+        <NetworkProvider>
+          <ThemeProvider>
+            <AlertProvider>
+              <AuthProvider>
+                <PresenceProvider>
+                  <NotificationProvider>
+                    <AppContent />
+                  </NotificationProvider>
+                </PresenceProvider>
+              </AuthProvider>
+            </AlertProvider>
+          </ThemeProvider>
+        </NetworkProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

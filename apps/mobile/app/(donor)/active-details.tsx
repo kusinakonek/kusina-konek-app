@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MapPin, User, MessageCircle } from 'lucide-react-native';
@@ -68,6 +68,7 @@ export default function DonorActiveDetailsScreen() {
         try {
             await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(distribution.food.foodID));
             showAlert("Success", "Donation has been cancelled.");
+            DeviceEventEmitter.emit('dashboard:force-refresh');
             router.back();
         } catch (error: any) {
             console.error("Failed to cancel donation:", error);

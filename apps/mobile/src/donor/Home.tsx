@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -23,6 +24,10 @@ import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import { useNetwork } from "../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS, isTutorialCompleted } from "../components/TutorialOverlay";
+import { DONOR_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -34,86 +39,112 @@ export default function DonorHome() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
+  const { isOnline, justReconnected } = useNetwork();
+  const dashboardDataRef = useRef<any>(null);
+  const isOnlineRef = useRef(isOnline);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
+
+  // Tutorial - only show when dashboard data is loaded
+  const tutorial = useTutorial({
+    steps: DONOR_HOME_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.DONOR_HOME,
+    enabled: !loading && dashboardData !== null,
+  });
+
+  // Load from cache on mount for instant UI
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.DONOR_DASHBOARD);
+      if (cached && !dashboardData) {
+        setDashboardData(cached);
+        setLoading(false); // Only set loading false if we have cache to show
+      }
+    };
+    loadCache();
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
 
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (dashboardDataRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    if (!isOnline && dashboardData) {
+       // If offline and we already have cache, just stop loading
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
       setDashboardData(response.data);
+      dashboardDataRef.current = response.data;
+      await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
       
-      // Fetch unread message counts for each distribution
+      // Initialize unread counts from the new backend response
       const distributions = response.data?.recentDonations || [];
       const counts: Record<string, number> = {};
       
-      await Promise.all(
-        distributions.map(async (d: any) => {
-          const disID = d.disID || d.id;
-          if (disID) {
-            try {
-              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-              counts[disID] = countRes.data.count || 0;
-            } catch {
-              counts[disID] = 0;
-            }
-          }
-        })
-      );
+      for (const d of distributions) {
+        if (d.disID || d.id) {
+          counts[d.disID || d.id] = d.unreadMessages || 0;
+        }
+      }
       
       setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
+      lastFetchTimeRef.current = Date.now();
+      isFetchingRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
   }, [user]);
 
-  // Fetch only unread counts (faster, for screen focus)
-  const fetchUnreadCounts = useCallback(async () => {
-    if (!user) return;
-    
-    // Get distributions from current state
-    const distributions = dashboardData?.recentDonations || [];
-    if (distributions.length === 0) return;
-    
-    const counts: Record<string, number> = {};
-    
-    await Promise.all(
-      distributions.map(async (d: any) => {
-        const disID = d.disID || d.id;
-        if (disID) {
-          try {
-            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-            counts[disID] = countRes.data.count || 0;
-          } catch {
-            counts[disID] = 0;
-          }
-        }
-      })
-    );
-    
-    setUnreadCounts(counts);
-  }, [user, dashboardData?.recentDonations]);
-
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
-  
-  // Fetch unread counts after dashboard data loads
-  useEffect(() => {
-    if (dashboardData?.recentDonations) {
-      fetchUnreadCounts();
-    }
-  }, [dashboardData?.recentDonations, fetchUnreadCounts]);
+
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
     if (notification) {
       console.log("[DonorHome] Notification received, auto-refreshing stats...");
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      console.log("[DonorHome] Reconnected, fetching fresh data.");
+      fetchDashboardData();
+    }
+  }, [justReconnected, fetchDashboardData]);
+
+  // Listen for force-refresh events strictly from user actions (Claim, Add, Cancel, Feedback)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('dashboard:force-refresh', () => {
+      console.log("[DonorHome] Force refresh event received after user action!");
+      // Reset throttle so fetch is allowed
+      lastFetchTimeRef.current = 0;
+      // Show subtle pull-to-refresh spinner instead of full screen loading
+      setRefreshing(true);
+      fetchDashboardData();
+    });
+    
+    return () => subscription.remove();
+  }, [fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled donations disappear immediately when navigating back
@@ -202,13 +233,7 @@ export default function DonorHome() {
         label: "Ratings",
         color: "#FFC107",
         bgColor: "#FFF8E1",
-        onPress: () => {
-          setLoading(true);
-          setTimeout(() => {
-            router.push("/(donor)/feedback");
-            setLoading(false);
-          }, 100);
-        },
+        onPress: () => router.push("/(donor)/feedback"),
       },
     ];
   };
@@ -227,6 +252,7 @@ export default function DonorHome() {
         recipientName: d.claimedBy,
         rating: d.rating,
         role: 'DONOR',
+        image: d.image || null,
         unreadMessages: unreadCounts[disID] || 0,
       };
     });
@@ -248,33 +274,37 @@ export default function DonorHome() {
             <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/notifications')}
-          style={{ padding: 8, position: "relative" }}
-        >
-          <Bell size={wp(24)} color="#00C853" />
-          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                backgroundColor: "#FF3B30",
-                width: wp(16),
-                height: wp(16),
-                borderRadius: wp(8),
-                justifyContent: "center",
-                alignItems: "center",
-                borderWidth: 1.5,
-                borderColor: colors.headerBg,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.notificationBell}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/notifications')}
+            style={{ padding: 8, position: "relative" }}
+          >
+            <View>
+              <Bell size={wp(24)} color="#00C853" />
+              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#FF3B30",
+                  width: wp(16),
+                  height: wp(16),
+                  borderRadius: wp(8),
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: colors.headerBg,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -303,59 +333,44 @@ export default function DonorHome() {
             </ImageBackground>
           </View>
 
-          <View style={styles.statsContainer}>
+          <View collapsable={false} ref={tutorial.refs.statsContainer} style={styles.statsContainer}>
             <DashboardStats stats={getStats()} />
           </View>
 
-          <TouchableOpacity
-            style={styles.mainButton}
-            onPress={() => {
-              setLoading(true);
-              setTimeout(() => {
-                router.push("/donate");
-                setLoading(false);
-              }, 100);
-            }}>
+          <View collapsable={false} ref={tutorial.refs.donateButton}>
+            <TouchableOpacity
+              style={styles.mainButton}
+              onPress={() => router.push("/donate")}>
             <Plus size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
             <Text style={styles.mainButtonText}>Donate Food</Text>
           </TouchableOpacity>
+          </View>
 
-          <View>
+          <View collapsable={false} ref={tutorial.refs.recentDonations}>
             <RecentItemsList
               items={getRecentItems()}
               role="DONOR"
               onSeeAll={() => router.push("/(donor)/all-recent-donations")}
               onPressCard={(item) => {
-                setLoading(true);
-                setTimeout(() => {
-                  if (item.rating) {
-                    // Navigate to review-details for items that have feedback
-                    router.push({
-                      pathname: "/(donor)/review-details",
-                      params: { disID: item.id }
-                    });
-                  } else {
-                    // Navigate to active-details for items without feedback
-                    router.push({
-                      pathname: "/(donor)/active-details",
-                      params: { disID: item.id }
-                    });
-                  }
-                  setLoading(false);
-                }, 100);
-              }}
-              onFeedback={(id) => {
-                setLoading(true);
-                // Small timeout to allow UI to update before freezing on navigation
-                setTimeout(() => {
+                if (item.rating) {
+                  // Navigate to review-details for items that have feedback
                   router.push({
                     pathname: "/(donor)/review-details",
-                    params: { disID: id }
+                    params: { disID: item.id }
                   });
-                  // Reset loading state after navigation (when coming back)
-                  // Use a focus effect or just time it out if push is instant
-                  setLoading(false);
-                }, 100);
+                } else {
+                  // Navigate to active-details for items without feedback
+                  router.push({
+                    pathname: "/(donor)/active-details",
+                    params: { disID: item.id }
+                  });
+                }
+              }}
+              onFeedback={(id) => {
+                router.push({
+                  pathname: "/(donor)/review-details",
+                  params: { disID: id }
+                });
               }}
             />
           </View>
@@ -368,6 +383,19 @@ export default function DonorHome() {
           </View>
         )}
       </View>
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Donor Home Tutorial] Step changed to:', step);
+        }}
+      />
     </SafeAreaView>
   );
 }

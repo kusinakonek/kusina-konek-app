@@ -10,6 +10,7 @@ import {
   Image,
   Platform,
   Linking,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -27,6 +28,10 @@ import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 import { useAlert } from "../../context/AlertContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
+import { useNetwork } from "../../context/NetworkContext";
+import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../components/TutorialOverlay";
+import { RECIPIENT_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
 
 export default function RecipientHome() {
   const { user } = useAuth();
@@ -38,6 +43,11 @@ export default function RecipientHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const channelsRef = useRef<any[]>([]);
+  const { isOnline, justReconnected } = useNetwork();
+  const dashboardDataRef = useRef<any>(null);
+  const isOnlineRef = useRef(isOnline);
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -46,85 +56,112 @@ export default function RecipientHome() {
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
-  const fetchDashboardData = useCallback(async () => {
-    if (!user) return; // Prevent fetching if logged out
+  // Tutorial - only show when dashboard data is loaded
+  const tutorial = useTutorial({
+    steps: RECIPIENT_HOME_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.RECIPIENT_HOME,
+    enabled: !loading && dashboardData !== null,
+  });
 
+  // Keep refs in sync with latest state
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+
+  // Load from cache on mount for instant UI
+  useEffect(() => {
+    const loadCache = async () => {
+      const cached = await getCachedDataAnyAge(CACHE_KEYS.RECIPIENT_DASHBOARD);
+      if (cached && !dashboardDataRef.current) {
+        setDashboardData(cached);
+        dashboardDataRef.current = cached;
+        setLoading(false);
+      }
+    };
+    loadCache();
+  }, []);
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+
+    if (!isOnlineRef.current && dashboardDataRef.current) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    // Prevent fetching if we just fetched within exactly 30 seconds
+    const now = Date.now();
+    if (dashboardDataRef.current && (now - lastFetchTimeRef.current < 30000)) {
+       setLoading(false);
+       setRefreshing(false);
+       return;
+    }
+
+    isFetchingRef.current = true;
     try {
       const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
       setDashboardData(response.data);
+      dashboardDataRef.current = response.data;
+      await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
       
-      // Fetch unread message counts for each distribution
       const distributions = response.data?.recentFoods || [];
       const counts: Record<string, number> = {};
       
-      await Promise.all(
-        distributions.map(async (f: any) => {
-          const disID = f.disID || f.id;
-          if (disID) {
-            try {
-              const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-              counts[disID] = countRes.data.count || 0;
-            } catch {
-              counts[disID] = 0;
-            }
-          }
-        })
-      );
+      for (const f of distributions) {
+        if (f.disID || f.id) {
+          counts[f.disID || f.id] = f.unreadMessages || 0;
+        }
+      }
       
       setUnreadCounts(counts);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
+      lastFetchTimeRef.current = Date.now();
       setLoading(false);
       setRefreshing(false);
+      isFetchingRef.current = false;
     }
-  }, [user]);
-
-  // Fetch only unread counts (faster, for screen focus)
-  const fetchUnreadCounts = useCallback(async () => {
-    if (!user) return;
-    
-    // Get distributions from current state or fetch them
-    const distributions = dashboardData?.recentFoods || [];
-    if (distributions.length === 0) return;
-    
-    const counts: Record<string, number> = {};
-    
-    await Promise.all(
-      distributions.map(async (f: any) => {
-        const disID = f.disID || f.id;
-        if (disID) {
-          try {
-            const countRes = await axiosClient.get(API_ENDPOINTS.MESSAGE.UNREAD_COUNT(disID));
-            counts[disID] = countRes.data.count || 0;
-          } catch {
-            counts[disID] = 0;
-          }
-        }
-      })
-    );
-    
-    setUnreadCounts(counts);
-  }, [user, dashboardData?.recentFoods]);
+  }, [user]); // Only depends on user - no dashboardData/isOnline to prevent infinite loop
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
   
-  // Fetch unread counts after dashboard data loads
-  useEffect(() => {
-    if (dashboardData?.recentFoods) {
-      fetchUnreadCounts();
-    }
-  }, [dashboardData?.recentFoods, fetchUnreadCounts]);
+
 
   // Handle auto-refresh when a notification is received
   useEffect(() => {
     if (notification) {
       console.log("[RecipientHome] Notification received, auto-refreshing stats...");
+      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
       fetchDashboardData();
     }
   }, [notification, fetchDashboardData]);
+
+  // Handle reconnect auto-refresh
+  useEffect(() => {
+    if (justReconnected) {
+      console.log("[RecipientHome] Reconnected, refreshing dashboard...");
+      fetchDashboardData();
+    }
+  }, [justReconnected, fetchDashboardData]);
+
+  // Listen for force-refresh events strictly from user actions (Claim, Add, Cancel, Feedback)
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('dashboard:force-refresh', () => {
+      console.log("[RecipientHome] Force refresh event received after user action!");
+      // Reset throttle so fetch is allowed
+      lastFetchTimeRef.current = 0;
+      // Show subtle pull-to-refresh spinner instead of full screen loading
+      setRefreshing(true);
+      fetchDashboardData();
+    });
+    
+    return () => subscription.remove();
+  }, [fetchDashboardData]);
 
   // Refetch full dashboard data whenever the screen comes into focus
   // This ensures cancelled/updated donations reflect immediately
@@ -218,6 +255,7 @@ export default function RecipientHome() {
         showFeedback: f.canGiveFeedback,
         latitude: f.latitude ?? null,
         longitude: f.longitude ?? null,
+        image: f.image || null,
         unreadMessages: unreadCounts[disID] || 0,
       };
     });
@@ -384,32 +422,36 @@ export default function RecipientHome() {
             </Text>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/notifications")}
-          style={{ padding: 8, position: "relative" }}>
-          <Bell size={wp(24)} color="#00C853" />
-          {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-            <View
-              style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                backgroundColor: "#FF3B30",
-                width: wp(16),
-                height: wp(16),
-                borderRadius: wp(8),
-                justifyContent: "center",
-                alignItems: "center",
-                borderWidth: 1.5,
-                borderColor: colors.headerBg,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.notificationBell}>
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/notifications")}
+            style={{ padding: 8, position: "relative" }}>
+            <View>
+              <Bell size={wp(24)} color="#00C853" />
+              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#FF3B30",
+                  width: wp(16),
+                  height: wp(16),
+                  borderRadius: wp(8),
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: colors.headerBg,
+                }}
+              >
+                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -466,14 +508,15 @@ export default function RecipientHome() {
         </View>
 
         {/* Available Foods Stats Card */}
-        <View
-          style={[
-            styles.recipientStatsCard,
-            {
-              backgroundColor: colors.primaryLight,
-              borderColor: colors.border,
-            },
-          ]}>
+        <View collapsable={false} ref={tutorial.refs.statsCard}>
+          <View
+            style={[
+              styles.recipientStatsCard,
+              {
+                backgroundColor: colors.primaryLight,
+                borderColor: colors.border,
+              },
+            ]}>
           <View style={styles.recipientStatsIconContainer}>
             <Package size={wp(48)} color={colors.primary} />
           </View>
@@ -511,20 +554,24 @@ export default function RecipientHome() {
             </View>
           </View>
         </View>
+        </View>
 
         {/* Browse Food Button */}
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => router.push("/(recipient)/browse-food")}>
-          <Search size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
-          <Text style={styles.mainButtonText}>Browse Food</Text>
-        </TouchableOpacity>
+        <View collapsable={false} ref={tutorial.refs.browseButton}>
+          <TouchableOpacity
+            style={styles.mainButton}
+            onPress={() => router.push("/(recipient)/browse-food")}>
+            <Search size={wp(24)} color="#fff" style={{ marginRight: wp(8) }} />
+            <Text style={styles.mainButtonText}>Browse Food</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Recent Food */}
         {loading && !refreshing ? (
           <RecentFoodSkeleton count={3} />
         ) : getRecentItems().length > 0 ? (
-          <RecentItemsList
+          <View collapsable={false} ref={tutorial.refs.recentFoods}>
+            <RecentItemsList
             items={getRecentItems().slice(0, 4)}
             role="RECIPIENT"
             onSeeAll={() => router.push("/(recipient)/all-recent-foods")}
@@ -536,6 +583,7 @@ export default function RecipientHome() {
               params: { disID: item.id }
             })}
           />
+          </View>
         ) : (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
@@ -564,6 +612,19 @@ export default function RecipientHome() {
         onClose={() => setFeedbackVisible(false)}
         onSubmit={handleSubmitFeedback}
         isSubmitting={submittingFeedback}
+      />
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        steps={tutorial.steps}
+        storageKey={tutorial.storageKey}
+        visible={tutorial.showTutorial}
+        onComplete={tutorial.handleComplete}
+        onSkip={tutorial.handleSkip}
+        targetRefs={tutorial.refs}
+        onStepChange={(step) => {
+          console.log('[Recipient Home Tutorial] Step changed to:', step);
+        }}
       />
     </SafeAreaView>
   );
