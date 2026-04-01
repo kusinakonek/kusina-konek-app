@@ -30,7 +30,7 @@ import {
   Heart,
   Globe,
   Star,
-  ChevronDown,
+  ArrowRightLeft,
   Package,
   RefreshCw,
   Trash2,
@@ -193,6 +193,7 @@ export default function Profile() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    lastFetchTimeRef.current = 0; // Bypass throttle on manual refresh
     fetchProfileData();
   }, [fetchProfileData]);
 
@@ -394,7 +395,7 @@ export default function Profile() {
               activeOpacity={0.7}>
             <View style={styles.roleDot} />
             <Text style={styles.roleText}>{role || "USER"}</Text>
-            <ChevronDown size={wp(14)} color="#1E88E5" />
+            <ArrowRightLeft size={wp(14)} color="#1E88E5" />
             {switchingRole && (
               <ActivityIndicator
                 size="small"
@@ -678,7 +679,7 @@ export default function Profile() {
                 <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
               </View>
               <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
-              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 1.0.2</Text>
+              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 2.0.0</Text>
             </View>
 
             <Text style={[styles.modalSubtitle, { color: colors.text, textAlign: 'center', lineHeight: 22 }]}>

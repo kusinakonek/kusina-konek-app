@@ -76,11 +76,11 @@ export const dashboardRepository = {
    */
   async getDonorStats(userID: string): Promise<DonorStats> {
     const [totalDonated, availableItems, avgRating, familiesHelped, unreadNotifications] = await Promise.all([
-      // Count distributions that have been claimed/on-the-way/completed
+      // Count distributions that have been claimed/on-the-way/delivered/completed
       prisma.distribution.count({
         where: {
           donorID: userID,
-          status: { in: ["CLAIMED", "ON_THE_WAY", "COMPLETED"] },
+          status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED", "COMPLETED"] },
         },
       }),
 
@@ -99,14 +99,11 @@ export const dashboardRepository = {
       }),
 
       // Count distinct recipients (families helped)
-      prisma.distribution.findMany({
-        where: {
-          donorID: userID,
-          recipientID: { not: null },
-        },
-        select: { recipientID: true },
-        distinct: ["recipientID"],
-      }),
+      prisma.$queryRaw<{count: bigint}[]>`
+        SELECT COUNT(DISTINCT "recipientID") as count 
+        FROM "Distribution" 
+        WHERE "donorID" = ${userID} AND "recipientID" IS NOT NULL
+      `,
 
       // Count unread notifications
       prisma.notification.count({
@@ -121,7 +118,7 @@ export const dashboardRepository = {
       totalDonated,
       availableItems,
       averageRating: Math.round((avgRating._avg.ratingScore ?? 0) * 10) / 10,
-      familiesHelped: familiesHelped.length,
+      familiesHelped: Number(familiesHelped[0]?.count || 0),
       unreadNotifications,
     };
   },
@@ -189,30 +186,24 @@ export const dashboardRepository = {
    */
   async getRecipientStats(userID: string): Promise<RecipientStats> {
     // quantity is a String field, so we can't use _sum in aggregate.
-    // Fetch counts + quantities separately.
-    const [availableCount, locationCount, quantities, unreadNotifications] = await Promise.all([
+    // Fetch counts using raw query for performance on large tables
+    const [availableCount, locationsRaw, quantitiesRaw, unreadNotifications] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
           recipientID: null,
         },
       }),
-      prisma.dropOffLocation.count({
-        where: {
-          distributions: {
-            some: {
-              status: "PENDING",
-            },
-          },
-        },
-      }),
-      prisma.distribution.findMany({
-        where: {
-          status: "PENDING",
-          recipientID: null,
-        },
-        select: { quantity: true },
-      }),
+      prisma.$queryRaw<{count: bigint}[]>`
+        SELECT COUNT(DISTINCT "locID") as count 
+        FROM "Distribution" 
+        WHERE status = 'PENDING' AND "recipientID" IS NULL
+      `,
+      prisma.$queryRaw<{sum: bigint}[]>`
+        SELECT SUM(CAST("quantity" AS INTEGER)) as sum 
+        FROM "Distribution" 
+        WHERE status = 'PENDING' AND "recipientID" IS NULL AND "quantity" ~ '^[0-9]+$'
+      `,
       prisma.notification.count({
         where: {
           userID,
@@ -221,11 +212,8 @@ export const dashboardRepository = {
       }),
     ]);
 
-    // Parse and sum quantity strings manually
-    const totalServings = quantities.reduce((sum, d) => {
-      const parsed = parseInt(String(d.quantity), 10);
-      return sum + (isNaN(parsed) ? 0 : parsed);
-    }, 0);
+    const locationCount = Number(locationsRaw[0]?.count || 0);
+    const totalServings = Number(quantitiesRaw[0]?.sum || 0);
 
     // Count completed distributions for this recipient (food received)
     const totalReceived = await prisma.distribution.count({
@@ -235,11 +223,11 @@ export const dashboardRepository = {
       },
     });
 
-    // Count active distributions for this recipient (claimed / on the way)
+    // Count active distributions for this recipient (claimed / on the way / delivered)
     const activeNow = await prisma.distribution.count({
       where: {
         recipientID: userID,
-        status: { in: ["CLAIMED", "ON_THE_WAY"] },
+        status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED"] },
       },
     });
 
