@@ -70,6 +70,21 @@ export async function clearCache(key: string): Promise<void> {
   }
 }
 
+/**
+ * Clear all data cache entries. Useful on logout.
+ */
+export async function clearAllCache(): Promise<void> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const cacheKeys = keys.filter(k => k.startsWith(CACHE_PREFIX));
+    if (cacheKeys.length > 0) {
+      await AsyncStorage.multiRemove(cacheKeys);
+    }
+  } catch (error) {
+    console.warn('[DataCache] Failed to clear all cache:', error);
+  }
+}
+
 // Cache keys used throughout the app
 export const CACHE_KEYS = {
   DONOR_DASHBOARD: 'donor_dashboard',
