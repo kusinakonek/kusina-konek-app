@@ -5,11 +5,19 @@ import { router } from 'expo-router';
 import { Session, User } from '@supabase/supabase-js';
 
 // Define the shape of the AuthContext
+import { clearAllCache } from '../src/utils/dataCache';
+
 interface AuthContextType {
     userToken: string | null;
     session: Session | null;
     user: User | null;
     isLoading: boolean;
+    isPostLoginLoading: boolean;
+    loadingSteps?: string[];
+    currentLoadingStep?: number;
+    loadingProgress?: number;
+    isLoggingOut?: boolean;
+    logoutName?: string;
     role: 'DONOR' | 'RECIPIENT' | null;
     setRole: (role: 'DONOR' | 'RECIPIENT') => void;
     signIn: (email: string, password: string) => Promise<void>;
@@ -23,6 +31,7 @@ interface AuthContextType {
     sendDeleteAccountOtp: (email: string) => Promise<void>;
     verifyDeleteAccountOtp: (email: string, token: string) => Promise<void>;
     pendingSignup: { email: string; password: string; metadata?: any } | null;
+    prefetchUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,8 +41,85 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [userToken, setUserToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPostLoginLoading, setIsPostLoginLoading] = useState(false);
+    const [loadingSteps, setLoadingSteps] = useState<string[]>([]);
+    const [currentLoadingStep, setCurrentLoadingStep] = useState(0);
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [logoutName, setLogoutName] = useState('');
     const [role, setRoleState] = useState<'DONOR' | 'RECIPIENT' | null>(null);
     const [pendingSignup, setPendingSignup] = useState<{ email: string; password: string; metadata?: any } | null>(null);
+
+    const prefetchUserData = async () => {
+        try {
+            setLoadingSteps(['Server Connection', 'Authentication', 'Profile Data', 'Dashboard Setup', 'Finalizing']);
+            setCurrentLoadingStep(0);
+            setLoadingProgress(0.1);
+
+            console.log('[Auth] Prefetching user data during transition...');
+            const axiosClient = (await import('../src/api/axiosClient')).default;
+            const { API_ENDPOINTS } = await import('../src/api/endpoints');
+            const { cacheData, CACHE_KEYS } = await import('../src/utils/dataCache');
+
+            // Simulate Server Connection
+            setCurrentLoadingStep(0);
+            setLoadingProgress(0.2);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Simulate Authentication
+            setCurrentLoadingStep(1);
+            setLoadingProgress(0.4);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Fetch Profile Data
+            setCurrentLoadingStep(2);
+            setLoadingProgress(0.6);
+            const [profileRes, donorRes, recipientRes] = await Promise.all([
+                axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE).catch(() => null),
+                axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR).catch(() => null),
+                axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT).catch(() => null)
+            ]);
+
+            const pData = profileRes?.data;
+            const donorData = donorRes?.data;
+            const recipientData = recipientRes?.data;
+
+            // Setup Dashboard
+            setCurrentLoadingStep(3);
+            setLoadingProgress(0.8);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            if (pData) {
+                await cacheData(CACHE_KEYS.USER_PROFILE, pData);
+            }
+
+            if (donorData) {
+                await cacheData(CACHE_KEYS.DONOR_DASHBOARD, donorData);
+                await cacheData(`${CACHE_KEYS.PROFILE_DATA}_DONOR`, { 
+                    profileData: pData, 
+                    statsData: donorData.stats, 
+                    donorHistoryStats: donorData.stats 
+                });
+            }
+
+            if (recipientData) {
+                await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, recipientData);
+                await cacheData(`${CACHE_KEYS.PROFILE_DATA}_RECIPIENT`, { 
+                    profileData: pData, 
+                    statsData: recipientData.stats, 
+                    donorHistoryStats: donorData?.stats || null 
+                });
+            }
+
+            // Finalizing
+            setCurrentLoadingStep(4);
+            setLoadingProgress(1.0);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            console.log('[Auth] Prefetching complete.');
+        } catch (e) {
+            console.warn('[Auth] Failed to prefetch data:', e);
+        }
+    };
 
     useEffect(() => {
         // Get initial session
@@ -49,6 +135,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setSession(currentSession);
                     setUser(currentSession.user);
                     setUserToken(currentSession.access_token);
+                    
+                    // Pre-fetch fresh data during app startup
+                    await prefetchUserData();
                 }
 
                 const storedRole = await AsyncStorage.getItem('userRole');
@@ -116,16 +205,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             throw error;
         }
 
+        // Set post-login loading state FIRST
+        setIsPostLoginLoading(true);
+        
         setSession(data.session);
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
 
-        // Keep the role the user selected on the welcome screen.
-        // Do NOT override with user_metadata.role — the same account
-        // can switch between DONOR and RECIPIENT freely.
-        // `role` is already set by the welcome screen's setRole() call.
-        // Both roles use the tabs view
+        // Add small delay to ensure state updates are processed before navigation
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Navigate to tabs - LoadingScreen will render because isPostLoginLoading is true
         router.replace('/(tabs)');
+
+        // Fetch data while loading screen is visible
+        await Promise.all([
+            prefetchUserData(),
+            new Promise(resolve => setTimeout(resolve, 800)) // Minimum visible time
+        ]);
+
+        // Only set to false after all data is fetched
+        setIsPostLoginLoading(false);
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -172,6 +272,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             throw new Error('Verification succeeded but no session returned');
         }
 
+        setIsLoading(true);
+        
         // Set auth state
         setSession(data.session);
         setUser(data.user);
@@ -191,8 +293,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setPendingSignup(null);
         }
 
-        // Both roles use the tabs view
+        // Set post-login loading state FIRST
+        setIsPostLoginLoading(true);
+
+        // Add small delay to ensure state updates are processed before navigation
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Transition to tabs layer. The LoadingScreen.tsx component will show.
         router.replace('/(tabs)');
+
+        // Fetch data while loading screen is visible
+        await Promise.all([
+            prefetchUserData(),
+            new Promise(resolve => setTimeout(resolve, 800)) // Minimum visible time
+        ]);
+
+        // Only set to false after all data is fetched
+        setIsPostLoginLoading(false);
     };
 
     // Helper: Create user profile in database via the Node.js API
@@ -328,6 +445,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const signOut = async () => {
+        setIsLoggingOut(true);
+        const nameUser = user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.firstName || 'User';
+        setLogoutName(nameUser);
+
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate closing
+        
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);
@@ -335,16 +458,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setRoleState(null);
         setPendingSignup(null);
         await AsyncStorage.removeItem('userRole');
+        await clearAllCache(); // Clear everything from cache for the logged-out user
+        
+        // Use a short timeout to let the router replace take effect before we flip `isLoggingOut` to false, 
+        // to prevent the login loading screen from flashing up
         router.replace('/(auth)/welcome');
+        setTimeout(() => setIsLoggingOut(false), 500);
     };
 
     return (
         <AuthContext.Provider value={{
-            userToken, session, user, isLoading, role, setRole,
+            userToken, session, user, isLoading, isPostLoginLoading, role, setRole,
+            loadingSteps, currentLoadingStep, loadingProgress, isLoggingOut, logoutName,
             signIn, signOut, signUp, verifyOtp, resendOtp,
             sendRecoveryOtp, verifyRecoveryOtp, updatePassword,
             sendDeleteAccountOtp, verifyDeleteAccountOtp,
-            pendingSignup,
+            pendingSignup, prefetchUserData
         }}>
             {children}
         </AuthContext.Provider>

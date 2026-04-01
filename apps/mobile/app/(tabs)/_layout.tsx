@@ -1,17 +1,12 @@
 import { Tabs, router } from "expo-router";
 import { Home, ShoppingCart, User, Utensils } from "lucide-react-native";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Platform,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
+import LoadingScreen from "../../src/components/LoadingScreen";
 
 function CartIcon({
   color,
@@ -47,12 +42,26 @@ function FloatingActionButton() {
 }
 
 export default function TabLayout() {
-  const { role } = useAuth();
+  const { role, isLoading, isPostLoginLoading, user, loadingSteps, currentLoadingStep, loadingProgress, isLoggingOut, logoutName } = useAuth();
   const { items: cartItems } = useCart();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const isDonor = role === "DONOR";
   const isRecipient = role === "RECIPIENT";
+
+  if (isLoggingOut) {
+    return <LoadingScreen isLogout logoutName={logoutName} />;
+  }
+
+  if (isLoading || isPostLoginLoading || !user) {
+    return (
+      <LoadingScreen 
+        steps={loadingSteps}
+        currentStep={currentLoadingStep}
+        progress={loadingProgress}
+      />
+    );
+  }
 
   return (
     <Tabs

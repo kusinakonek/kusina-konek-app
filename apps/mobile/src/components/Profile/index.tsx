@@ -53,7 +53,7 @@ import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../TutorialOverlay";
 import { PROFILE_STEPS, useTutorial } from "../../hooks/useTutorial";
 
 export default function Profile() {
-  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp } = useAuth();
+  const { user, signOut, role, setRole, sendDeleteAccountOtp, verifyDeleteAccountOtp, isLoggingOut, logoutName } = useAuth();
   const router = useRouter();
   const { showAlert } = useAlert();
   const [profileData, setProfileData] = useState<any>(null);
@@ -825,12 +825,7 @@ export default function Profile() {
         </Pressable>
       </Modal>
 
-      {/* Logout Loading Overlay */}
-      {isLoadingLogout && (
-        <View style={StyleSheet.absoluteFill}>
-          <LoadingScreen message="Logging out..." />
-        </View>
-      )}
+      {/* Logout Loading Overlay - Moved to global tabs layout to cover entire screen cleanly */}
 
       {/* Tutorial Overlay */}
       <TutorialOverlay
