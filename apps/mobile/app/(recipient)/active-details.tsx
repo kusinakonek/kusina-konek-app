@@ -10,6 +10,8 @@ import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { Distribution } from '../../context/FoodCacheContext';
 import FeedbackModal from '../../src/components/FeedbackModal';
+import LoadingScreen from '../../src/components/LoadingScreen';
+import { cacheData, CACHE_KEYS } from '../../src/utils/dataCache';
 
 export default function ActiveDetailsScreen() {
     const { disID } = useLocalSearchParams<{ disID: string }>();
@@ -25,6 +27,7 @@ export default function ActiveDetailsScreen() {
     // Feedback Modal State
     const [feedbackVisible, setFeedbackVisible] = useState(false);
     const [submittingFeedback, setSubmittingFeedback] = useState(false);
+    const [updatingDashboardAfterFeedback, setUpdatingDashboardAfterFeedback] = useState(false);
 
     const fetchDetails = async () => {
         try {
@@ -139,10 +142,7 @@ export default function ActiveDetailsScreen() {
                     { 
                         text: "Go to Dashboard", 
                         style: "default", 
-                        onPress: () => {
-                            DeviceEventEmitter.emit('dashboard:force-refresh');
-                            router.replace('/(tabs)');
-                        }
+                        onPress: handleGoToDashboard
                     }
                 ], { type: 'success' });
             }, 300);
@@ -152,6 +152,21 @@ export default function ActiveDetailsScreen() {
             showAlert("Error", "Failed to submit feedback.");
         } finally {
             setSubmittingFeedback(false);
+        }
+    };
+
+    const handleGoToDashboard = async () => {
+        setUpdatingDashboardAfterFeedback(true);
+
+        try {
+            const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+            await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
+        } catch (error) {
+            console.error("Failed to prefetch recipient dashboard after feedback:", error);
+        } finally {
+            DeviceEventEmitter.emit('dashboard:force-refresh');
+            setUpdatingDashboardAfterFeedback(false);
+            router.replace('/(tabs)');
         }
     };
 
@@ -287,6 +302,12 @@ export default function ActiveDetailsScreen() {
                 onSubmit={handleSubmitFeedback}
                 isSubmitting={submittingFeedback}
             />
+
+            {updatingDashboardAfterFeedback && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+                    <LoadingScreen message="Updating dashboard..." />
+                </View>
+            )}
         </SafeAreaView>
     );
 }

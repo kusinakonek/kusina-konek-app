@@ -7,6 +7,9 @@
   "scripts": {
     "predev": "node -e \"const fs=require('fs'); const path=require('path'); const {execSync}=require('child_process'); const root=path.resolve(__dirname,'../..'); const prismaClientIndex=path.join(root,'node_modules','.prisma','client','index.js'); const tmpEngine=path.join(root,'node_modules','.prisma','client','query_engine-windows.dll.node.tmp'); if(fs.existsSync(prismaClientIndex)){ try{ const dir=path.dirname(prismaClientIndex); const tmp=fs.readdirSync(dir).find(f=>f.startsWith('query_engine-windows.dll.node.tmp')); if(tmp){ try{ fs.unlinkSync(path.join(dir,tmp)); }catch{} } }catch{} console.log('Prisma Client already generated; skipping.'); process.exit(0);} execSync('npm --workspace packages/database run generate',{cwd:root,stdio:'inherit'});\"",
     "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/server.ts",
+    "backfill:claimed-bot-messages": "ts-node-dev -r tsconfig-paths/register --transpile-only src/scripts/backfillClaimedBotMessages.ts",
+    "backfill:claimed-bot-messages:dry": "ts-node-dev -r tsconfig-paths/register --transpile-only src/scripts/backfillClaimedBotMessages.ts --dry-run",
+    "backfill:claimed-bot-messages:force": "ts-node-dev -r tsconfig-paths/register --transpile-only src/scripts/backfillClaimedBotMessages.ts --force",
     "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "start": "node dist/apps/server/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

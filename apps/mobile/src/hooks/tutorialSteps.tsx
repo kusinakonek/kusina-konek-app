@@ -106,20 +106,6 @@ export const RECIPIENT_POST_CLAIM_STEPS: TutorialStepWithTarget[] = [
         description: 'Coordinate pickup details or say thank you! Tap the message icon on the food card below to start chatting with the donor.',
         targetRefKey: 'chatButton',
     },
-    {
-        id: 'track-status',
-        title: 'Track Your Food',
-        icon: <Truck size={24} color="#1a1a1a" />,
-        description: 'Keep an eye on the status of your claim. You can mark when you\'re "On the Way" so the donor knows to prepare.',
-        targetRefKey: 'statusBadge',
-    },
-    {
-        id: 'navigate',
-        title: 'Easy Navigation',
-        icon: <Navigation size={24} color="#1a1a1a" />,
-        description: 'Need directions? Use the navigation button to open your preferred map app and find the pickup spot easily.',
-        targetRefKey: 'navigateButton',
-    },
 ];
 
 export const DONOR_POST_CLAIM_STEPS: TutorialStepWithTarget[] = [

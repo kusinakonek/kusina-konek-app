@@ -3,6 +3,8 @@ import { View } from 'react-native';
 import { TutorialStep, isTutorialCompleted } from '../components/TutorialOverlay';
 import React from 'react';
 
+const sessionTutorialShownKeys = new Set<string>();
+
 export interface TutorialStepWithTarget extends TutorialStep {
     targetRefKey?: string; // Key to identify which ref to use
 }
@@ -49,7 +51,7 @@ export function useTutorial({ steps = [], storageKey, enabled = true, delayMs = 
 
     // Check if tutorial should be shown
     useEffect(() => {
-        if (!enabled || hasChecked.current || showTutorial) {
+        if (!enabled || hasChecked.current || showTutorial || sessionTutorialShownKeys.has(storageKey)) {
             return;
         }
 
@@ -62,6 +64,7 @@ export function useTutorial({ steps = [], storageKey, enabled = true, delayMs = 
                 // Delay to allow layout to complete
                 showTimerRef.current = setTimeout(() => {
                     if (cancelled) return;
+                    sessionTutorialShownKeys.add(storageKey);
                     setShowTutorial(prev => (prev ? prev : true));
                 }, delayMs);
             }
@@ -80,13 +83,15 @@ export function useTutorial({ steps = [], storageKey, enabled = true, delayMs = 
 
     // Handle tutorial completion
     const handleComplete = useCallback(() => {
+        sessionTutorialShownKeys.add(storageKey);
         setShowTutorial(false);
-    }, []);
+    }, [storageKey]);
 
     // Handle tutorial skip
     const handleSkip = useCallback(() => {
+        sessionTutorialShownKeys.add(storageKey);
         setShowTutorial(false);
-    }, []);
+    }, [storageKey]);
     
     // Get ref for current step
     const getCurrentTargetRef = useCallback(() => {

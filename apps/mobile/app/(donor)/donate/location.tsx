@@ -10,6 +10,7 @@ import {
   Linking,
   Platform,
   KeyboardAvoidingView,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -38,6 +39,7 @@ import SuccessModal from "../../../src/components/SuccessModal";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAlert } from "../../../context/AlertContext";
 import LoadingScreen from "../../../src/components/LoadingScreen";
+import { cacheData, CACHE_KEYS } from "../../../src/utils/dataCache";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../../../src/components/TutorialOverlay";
 import { DONATE_LOCATION_STEPS, useTutorial } from "../../../src/hooks/useTutorial";
 
@@ -49,6 +51,7 @@ export default function LocationScreen() {
   const { showAlert } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [navigatingToDashboard, setNavigatingToDashboard] = useState(false);
 
   const tutorial = useTutorial({
     steps: DONATE_LOCATION_STEPS,
@@ -160,13 +163,15 @@ export default function LocationScreen() {
       // Invalidate food cache so browse food list updates
       invalidateCache();
       
-      // Force dashboard to refresh when user returns
-      DeviceEventEmitter.emit('dashboard:force-refresh');
+      // Force dashboard to refresh when user returns (non-blocking)
+      try {
+        DeviceEventEmitter.emit('dashboard:force-refresh');
+      } catch (eventError) {
+        console.warn("Failed to emit dashboard refresh event:", eventError);
+      }
 
       setShowSuccessModal(true);
-      // NOTE: We don't set submitting(false) here on success, 
-      // to prevent users from pressing the button again while the modal is up
-      // and accidentally doing a duplicate submission.
+      setSubmitting(false);
     } catch (error: any) {
       console.error("Donation submission error:", {
         message: error?.message,
@@ -174,13 +179,39 @@ export default function LocationScreen() {
         status: error?.response?.status,
         data: error?.response?.data,
       });
-      const isNetworkError = !error?.response;
+      const isNetworkError = !!error?.isAxiosError && !error?.response;
       const errorMessage = isNetworkError
         ? "Network error while uploading. Please ensure server is running and try again."
-        : (error.response?.data?.message || "Failed to submit donation. Please try again.");
+        : (error.response?.data?.message || error?.message || "Failed to submit donation. Please try again.");
       showAlert("Error", errorMessage, undefined, { type: 'error' });
       // Restore the button if it failed so they can try again once they fix the error
       setSubmitting(false);
+    }
+  };
+
+  const handleGoToDashboard = async () => {
+    setShowSuccessModal(false);
+    setNavigatingToDashboard(true);
+
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
+      await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
+    } catch (error: any) {
+      console.error("Failed to prefetch donor dashboard after donation:", {
+        message: error?.message,
+        code: error?.code,
+        status: error?.response?.status,
+      });
+    } finally {
+      try {
+        DeviceEventEmitter.emit('dashboard:force-refresh');
+      } catch (eventError) {
+        console.warn("Failed to emit dashboard refresh event:", eventError);
+      }
+
+      resetForm();
+      setNavigatingToDashboard(false);
+      router.replace("/(tabs)");
     }
   };
 
@@ -448,9 +479,11 @@ export default function LocationScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {submitting && (
+      {(submitting || navigatingToDashboard) && (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
-          <LoadingScreen message="Confirming donation..." />
+          <LoadingScreen
+            message={navigatingToDashboard ? "Updating dashboard..." : "Confirming donation..."}
+          />
         </View>
       )}
 
@@ -458,12 +491,8 @@ export default function LocationScreen() {
         visible={showSuccessModal}
         title="Donation Submitted! 🎉"
         message="Thank you for your generosity! Please drop off your donation within 2 hours."
-        buttonText="Back to Dashboard"
-        onClose={() => {
-          setShowSuccessModal(false);
-          resetForm();
-          router.replace("/(tabs)");
-        }}
+        buttonText="Go to Dashboard"
+        onClose={handleGoToDashboard}
       />
 
       <TutorialOverlay

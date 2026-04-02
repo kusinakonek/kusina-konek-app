@@ -27,6 +27,8 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
 import { useFoodCache } from "../../context/FoodCacheContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import CancelDonationModal from "../components/CancelDonationModal";
+import SuccessModal from "../components/SuccessModal";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS, isTutorialCompleted } from "../components/TutorialOverlay";
 import { useTutorial } from "../hooks/useTutorial";
 import { DONOR_HOME_STEPS, DONOR_POST_CLAIM_STEPS } from "../hooks/tutorialSteps";
@@ -40,6 +42,11 @@ export default function DonorHome() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState("You have successfully cancelled your food donation.");
+  const [updatingDashboardAfterCancel, setUpdatingDashboardAfterCancel] = useState(false);
   const channelsRef = useRef<any[]>([]);
   const { isOnline, justReconnected } = useNetwork();
   const { invalidateCache } = useFoodCache();
@@ -219,19 +226,52 @@ export default function DonorHome() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleCancelDonation = async (foodID: string) => {
+  const handleCancelDonation = (foodID: string) => {
+    if (!foodID) {
+      console.error("Cannot cancel donation: missing foodID");
+      return;
+    }
+
+    setDonationToCancel(foodID);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelDonation = async () => {
+    if (!donationToCancel) return;
+
     setLoading(true);
     try {
       // Invalidate food cache so browse food list updates
       invalidateCache();
-      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(foodID));
-      lastFetchTimeRef.current = 0; // Force fresh fetch
-      DeviceEventEmitter.emit('dashboard:force-refresh');
-      fetchDashboardData();
-    } catch (error) {
+      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+      setCancelSuccessMessage("You have successfully cancelled your food donation.");
+      setShowCancelSuccessModal(true);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        // If the item is already removed, treat it as success and sync UI.
+        setCancelSuccessMessage("This donation was already removed. Updating your dashboard now.");
+        setShowCancelSuccessModal(true);
+      } else {
       console.error("Failed to cancel donation", error);
+      }
     } finally {
+      setDonationToCancel(null);
+      setShowCancelModal(false);
       setLoading(false);
+    }
+  };
+
+  const handleCancelSuccessClose = async () => {
+    setShowCancelSuccessModal(false);
+    setUpdatingDashboardAfterCancel(true);
+
+    try {
+      invalidateCache();
+      lastFetchTimeRef.current = 0;
+      DeviceEventEmitter.emit('dashboard:force-refresh');
+      await fetchDashboardData();
+    } finally {
+      setUpdatingDashboardAfterCancel(false);
     }
   };
 
@@ -270,7 +310,7 @@ export default function DonorHome() {
       const disID = d.disID || d.id;
       return {
         id: disID,
-        foodID: d.foodID, // Add foodID for cancellation
+        foodID: d.foodID || d.food?.foodID || d.foodId || d.food?.id,
         title: d.foodName || "Food Donation",
         quantity: `${d.quantity} servings`,
         location: d.location || "Location",
@@ -430,6 +470,29 @@ export default function DonorHome() {
           console.log('[Post-Claim Tutorial] Step changed to:', step);
         }}
       />
+
+      <CancelDonationModal
+        visible={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setDonationToCancel(null);
+        }}
+        onConfirm={confirmCancelDonation}
+      />
+
+      <SuccessModal
+        visible={showCancelSuccessModal}
+        title="Donation Cancelled"
+        message={cancelSuccessMessage}
+        buttonText="Update Dashboard"
+        onClose={handleCancelSuccessClose}
+      />
+
+      {updatingDashboardAfterCancel && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+          <LoadingScreen message="Updating dashboard..." />
+        </View>
+      )}
     </SafeAreaView>
   );
 }

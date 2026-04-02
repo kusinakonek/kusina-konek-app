@@ -26,6 +26,7 @@ import React from 'react';
 
 type IconComponent = React.ComponentType<{ size?: number; color?: string }>;
 const icon = (Comp: IconComponent) => React.createElement(Comp, { size: 24, color: '#1a1a1a' });
+const sessionTutorialShownKeys = new Set<string>();
 
 export interface TutorialStepWithTarget extends TutorialStep {
     targetRefKey?: string; // Key to identify which ref to use
@@ -44,8 +45,8 @@ interface UseTutorialReturn {
     storageKey: string;
     handleComplete: () => void;
     handleSkip: () => void;
-    refs: Record<string, React.RefObject<View>>;
-    getCurrentTargetRef: () => React.RefObject<View> | undefined;
+    refs: Record<string, React.RefObject<View | null>>;
+    getCurrentTargetRef: () => React.RefObject<View | null> | undefined;
     currentStep: number;
 }
 
@@ -56,11 +57,11 @@ export function useTutorial({ steps, storageKey, enabled = true, delayMs = 800 }
     const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     
     // Create refs for all possible targets
-    const refs = useRef<Record<string, React.RefObject<View>>>({});
+    const refs = useRef<Record<string, React.RefObject<View | null>>>({});
     
     // Initialize refs for each step's target
     useEffect(() => {
-        const newRefs: Record<string, React.RefObject<View>> = {};
+        const newRefs: Record<string, React.RefObject<View | null>> = {};
         steps.forEach(step => {
             if (step.targetRefKey && !refs.current[step.targetRefKey]) {
                 newRefs[step.targetRefKey] = createRef<View>();
@@ -71,7 +72,7 @@ export function useTutorial({ steps, storageKey, enabled = true, delayMs = 800 }
 
     // Check if tutorial should be shown
     useEffect(() => {
-        if (!enabled || hasChecked.current || showTutorial) {
+        if (!enabled || hasChecked.current || showTutorial || sessionTutorialShownKeys.has(storageKey)) {
             console.log('[Tutorial]', storageKey, 'check skipped:', { enabled, hasChecked: hasChecked.current });
             return;
         }
@@ -87,6 +88,7 @@ export function useTutorial({ steps, storageKey, enabled = true, delayMs = 800 }
                 showTimerRef.current = setTimeout(() => {
                     if (cancelled) return;
                     console.log('[Tutorial]', storageKey, 'showing tutorial');
+                    sessionTutorialShownKeys.add(storageKey);
                     setShowTutorial(prev => (prev ? prev : true));
                 }, delayMs);
             }
@@ -105,13 +107,15 @@ export function useTutorial({ steps, storageKey, enabled = true, delayMs = 800 }
 
     // Handle tutorial completion
     const handleComplete = useCallback(() => {
+        sessionTutorialShownKeys.add(storageKey);
         setShowTutorial(false);
-    }, []);
+    }, [storageKey]);
 
     // Handle tutorial skip
     const handleSkip = useCallback(() => {
+        sessionTutorialShownKeys.add(storageKey);
         setShowTutorial(false);
-    }, []);
+    }, [storageKey]);
     
     // Get ref for current step
     const getCurrentTargetRef = useCallback(() => {

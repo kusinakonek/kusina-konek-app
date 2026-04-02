@@ -11,6 +11,7 @@ import {
   distributionRepository,
   foodRepository,
   locationRepository,
+  messageRepository,
   userRepository,
 } from "../repositories";
 import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
@@ -529,6 +530,39 @@ export const distributionService = {
     });
 
     const decryptedDistribution = decryptDistribution(updated);
+
+    // Auto-start chat for both sides with KusinaKonek Bot prompts.
+    try {
+      const foodName = safeDecrypt(existing.food?.foodName) || "this food donation";
+      const recipientName =
+        [
+          decryptedDistribution?.recipient?.firstName,
+          decryptedDistribution?.recipient?.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "A recipient";
+
+      const donorStarter = `[KusinaKonek Bot] ${recipientName}, has claimed your food ${foodName}. Start a conversation to coordinate pickup details.`;
+      const recipientStarter = `[KusinaKonek Bot] Congrats on the fresh food! You got ${foodName}. Start a conversation with the donor for pickup coordination.`;
+
+      // Order matters for chat timeline: donor-facing message first, recipient-facing second.
+      await messageRepository.create({
+        disID: params.disID,
+        senderID: params.userID,
+        messageType: "TEXT",
+        content: donorStarter,
+      });
+
+      await messageRepository.create({
+        disID: params.disID,
+        senderID: existing.donorID,
+        messageType: "TEXT",
+        content: recipientStarter,
+      });
+    } catch (error) {
+      console.error("Failed to create KusinaKonek bot starter messages:", error);
+    }
 
     // Notify donor that their food was claimed
     notificationService

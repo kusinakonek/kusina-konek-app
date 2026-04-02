@@ -22,6 +22,8 @@ import { RecentFoodSkeleton } from "../../src/components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import { wp, hp, fp } from "../../src/utils/responsive";
 import CancelDonationModal from "../../src/components/CancelDonationModal";
+import SuccessModal from "../../src/components/SuccessModal";
+import LoadingScreen from "../../src/components/LoadingScreen";
 import { useNetwork } from "../../context/NetworkContext";
 import { getCachedDataAnyAge, CACHE_KEYS, cacheData } from "../../src/utils/dataCache";
 import { Alert } from "react-native";
@@ -37,11 +39,14 @@ export default function AllRecentDonations() {
     // Cancel logic state
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+    const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+    const [cancelSuccessMessage, setCancelSuccessMessage] = useState("You have successfully cancelled your food donation.");
+    const [updatingDashboardAfterCancel, setUpdatingDashboardAfterCancel] = useState(false);
 
     const mapDonations = (data: any[]) => {
         return data.map((d: any) => ({
             id: d.disID || d.id,
-            foodID: d.foodID,
+            foodID: d.foodID || d.food?.foodID || d.foodId || d.food?.id,
             title: d.foodName || "Food Donation",
             quantity: `${d.quantity} servings`,
             location: d.location || "Location",
@@ -112,6 +117,10 @@ export default function AllRecentDonations() {
     };
 
     const handleCancelDonation = (foodID: string) => {
+        if (!foodID) {
+            Alert.alert("Error", "This donation is missing its food ID. Please refresh and try again.");
+            return;
+        }
         setDonationToCancel(foodID);
         setShowCancelModal(true);
     };
@@ -121,16 +130,34 @@ export default function AllRecentDonations() {
         setLoading(true);
         try {
             await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
-            DeviceEventEmitter.emit('dashboard:force-refresh');
-            await fetchRecentDonations();
+            setCancelSuccessMessage("You have successfully cancelled your food donation.");
+            setShowCancelSuccessModal(true);
         } catch (error: any) {
-            console.error("Failed to cancel donation:", error);
-            const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
-            Alert.alert("Error", msg);
-            setLoading(false);
+            if (error?.response?.status === 404) {
+                setCancelSuccessMessage("This donation was already removed. Updating your dashboard now.");
+                setShowCancelSuccessModal(true);
+            } else {
+                console.error("Failed to cancel donation:", error);
+                const msg = error.response?.data?.message || "Failed to cancel donation. Please try again.";
+                Alert.alert("Error", msg);
+                setLoading(false);
+            }
         } finally {
             setDonationToCancel(null);
             setShowCancelModal(false);
+        }
+    };
+
+    const handleCancelSuccessClose = async () => {
+        setShowCancelSuccessModal(false);
+        setUpdatingDashboardAfterCancel(true);
+
+        try {
+            DeviceEventEmitter.emit('dashboard:force-refresh');
+            await fetchRecentDonations();
+        } finally {
+            setUpdatingDashboardAfterCancel(false);
+            setLoading(false);
         }
     };
 
@@ -216,6 +243,20 @@ export default function AllRecentDonations() {
                 onClose={() => setShowCancelModal(false)}
                 onConfirm={confirmCancelDonation}
             />
+
+            <SuccessModal
+                visible={showCancelSuccessModal}
+                title="Donation Cancelled"
+                message={cancelSuccessMessage}
+                buttonText="Update Dashboard"
+                onClose={handleCancelSuccessClose}
+            />
+
+            {updatingDashboardAfterCancel && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+                    <LoadingScreen message="Updating dashboard..." />
+                </View>
+            )}
         </SafeAreaView>
     );
 }

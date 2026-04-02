@@ -39,6 +39,8 @@ export default function RecentFoodCard({
     }
   };
 
+  const cancelTargetFoodID = item.foodID;
+
   return (
     <TouchableOpacity
       style={[
@@ -157,10 +159,10 @@ export default function RecentFoodCard({
         </TouchableOpacity>
       )}
 
-      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && (
+      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && cancelTargetFoodID && (
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => onCancel(item.foodID || item.id)}>
+          onPress={() => onCancel(cancelTargetFoodID)}>
           <Text style={styles.cancelButtonText}>Cancel Donation</Text>
         </TouchableOpacity>
       )}
