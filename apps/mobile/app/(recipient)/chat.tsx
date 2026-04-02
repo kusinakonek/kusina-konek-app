@@ -266,7 +266,7 @@ export default function Chat() {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Start a conversation with the donor about this food
+                  Start a conversation with the donor about this food. Coordinate pickup times and locations here!
                 </Text>
               </View>
             }

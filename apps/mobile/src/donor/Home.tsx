@@ -18,16 +18,18 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
-import { Heart, Package, Star, Plus, Utensils, Bell } from "lucide-react-native";
+import { Heart, Package, Star, Plus, Utensils, Bell, MessageCircle } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
+import { useFoodCache } from "../../context/FoodCacheContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS, isTutorialCompleted } from "../components/TutorialOverlay";
-import { DONOR_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
+import { useTutorial } from "../hooks/useTutorial";
+import { DONOR_HOME_STEPS, DONOR_POST_CLAIM_STEPS } from "../hooks/tutorialSteps";
 
 export default function DonorHome() {
   const { user } = useAuth();
@@ -40,6 +42,7 @@ export default function DonorHome() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const channelsRef = useRef<any[]>([]);
   const { isOnline, justReconnected } = useNetwork();
+  const { invalidateCache } = useFoodCache();
   const dashboardDataRef = useRef<any>(null);
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
@@ -50,6 +53,13 @@ export default function DonorHome() {
     steps: DONOR_HOME_STEPS,
     storageKey: TUTORIAL_STORAGE_KEYS.DONOR_HOME,
     enabled: !loading && dashboardData !== null,
+  });
+
+  // Post-Claim Tutorial: Messaging guidance
+  const postClaimTutorial = useTutorial({
+    steps: DONOR_POST_CLAIM_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.DONOR_POST_CLAIM,
+    enabled: !loading && dashboardData?.recentDonations?.some((d: any) => d.status?.toUpperCase() === "CLAIMED"),
   });
 
   // Load from cache on mount for instant UI
@@ -159,8 +169,8 @@ export default function DonorHome() {
     if (!dashboardData?.recentDonations || !user) return;
 
     // Clean up old channels
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel);
+    (channelsRef.current || []).forEach(channel => {
+      if (channel) supabase.removeChannel(channel);
     });
     channelsRef.current = [];
 
@@ -196,17 +206,34 @@ export default function DonorHome() {
     });
 
     return () => {
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
+      (channelsRef.current || []).forEach(channel => {
+        if (channel) supabase.removeChannel(channel);
       });
       channelsRef.current = [];
     };
   }, [dashboardData?.recentDonations, user]);
 
   const onRefresh = useCallback(() => {
+    lastFetchTimeRef.current = 0; // Force fresh fetch on pull
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const handleCancelDonation = async (foodID: string) => {
+    setLoading(true);
+    try {
+      // Invalidate food cache so browse food list updates
+      invalidateCache();
+      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(foodID));
+      lastFetchTimeRef.current = 0; // Force fresh fetch
+      DeviceEventEmitter.emit('dashboard:force-refresh');
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Failed to cancel donation", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
@@ -260,6 +287,8 @@ export default function DonorHome() {
 
 
 
+  const totalUnreadMessages = Object.values(unreadCounts || {}).reduce((sum, count) => sum + count, 0);
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
@@ -274,36 +303,38 @@ export default function DonorHome() {
             <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
         </View>
-        <View collapsable={false} ref={tutorial.refs.notificationBell}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/notifications')}
-            style={{ padding: 8, position: "relative" }}
-          >
-            <View>
-              <Bell size={wp(24)} color="#00C853" />
-              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -2,
-                  right: -2,
-                  backgroundColor: "#FF3B30",
-                  width: wp(16),
-                  height: wp(16),
-                  borderRadius: wp(8),
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: colors.headerBg,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-                </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: wp(8) }}>
+          <View collapsable={false} ref={tutorial.refs.notificationBell}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/notifications')}
+              style={{ padding: 8, position: "relative" }}
+            >
+              <View>
+                <Bell size={wp(24)} color="#00C853" />
+                {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -2,
+                      backgroundColor: "#FF3B30",
+                      width: wp(16),
+                      height: wp(16),
+                      borderRadius: wp(8),
+                      justifyContent: "center",
+                      alignItems: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.headerBg,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                      {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </TouchableOpacity>
           </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -372,6 +403,9 @@ export default function DonorHome() {
                   params: { disID: id }
                 });
               }}
+              onCancel={handleCancelDonation}
+              chatRef={postClaimTutorial.refs.chatButton}
+              statusRef={postClaimTutorial.refs.activeDonation}
             />
           </View>
 
@@ -384,16 +418,16 @@ export default function DonorHome() {
         )}
       </View>
 
-      {/* Tutorial Overlay */}
+      {/* Post-Claim Tutorial Overlay */}
       <TutorialOverlay
-        steps={tutorial.steps}
-        storageKey={tutorial.storageKey}
-        visible={tutorial.showTutorial}
-        onComplete={tutorial.handleComplete}
-        onSkip={tutorial.handleSkip}
-        targetRefs={tutorial.refs}
+        steps={postClaimTutorial.steps}
+        storageKey={postClaimTutorial.storageKey}
+        visible={postClaimTutorial.showTutorial}
+        onComplete={postClaimTutorial.handleComplete}
+        onSkip={postClaimTutorial.handleSkip}
+        targetRefs={postClaimTutorial.refs}
         onStepChange={(step) => {
-          console.log('[Donor Home Tutorial] Step changed to:', step);
+          console.log('[Post-Claim Tutorial] Step changed to:', step);
         }}
       />
     </SafeAreaView>

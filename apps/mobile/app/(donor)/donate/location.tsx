@@ -159,6 +159,9 @@ export default function LocationScreen() {
 
       // Invalidate food cache so browse food list updates
       invalidateCache();
+      
+      // Force dashboard to refresh when user returns
+      DeviceEventEmitter.emit('dashboard:force-refresh');
 
       setShowSuccessModal(true);
       // NOTE: We don't set submitting(false) here on success, 

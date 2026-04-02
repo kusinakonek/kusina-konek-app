@@ -166,8 +166,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         });
 
         return () => {
-            if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
-            if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+            notificationListener.current && notificationListener.current.remove();
+            responseListener.current && responseListener.current.remove();
         };
     }, [registerToken]);
 

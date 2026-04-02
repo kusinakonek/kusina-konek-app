@@ -386,6 +386,8 @@ export const TUTORIAL_STORAGE_KEYS = {
     DONATE_DETAILS: 'kk_tutorial_donate_details',
     DONATE_LOCATION: 'kk_tutorial_donate_location',
     BROWSE_FOOD: 'kk_tutorial_browse_food',
+    RECIPIENT_POST_CLAIM: 'kk_tutorial_recipient_post_claim',
+    DONOR_POST_CLAIM: 'kk_tutorial_donor_post_claim',
 };
 
 const styles = StyleSheet.create({

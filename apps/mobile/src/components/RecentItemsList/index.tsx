@@ -37,6 +37,10 @@ interface RecentItemsListProps {
   onFeedback?: (id: string) => void;
   onCancel?: (id: string) => void;
   onPressCard?: (item: RecentItem) => void;
+  // Tutorial refs for the FIRST item
+  chatRef?: React.RefObject<View>;
+  statusRef?: React.RefObject<View>;
+  navigateRef?: React.RefObject<View>;
 }
 
 export const RecentItemsList = ({
@@ -48,10 +52,13 @@ export const RecentItemsList = ({
   onFeedback,
   onCancel,
   onPressCard,
+  chatRef,
+  statusRef,
+  navigateRef,
 }: RecentItemsListProps) => {
   const { colors, isDark } = useTheme();
 
-  const renderItem = ({ item }: { item: RecentItem }) => (
+  const renderItem = ({ item, index }: { item: RecentItem; index: number }) => (
     <RecentFoodCard
       item={item}
       role={role}
@@ -60,6 +67,9 @@ export const RecentItemsList = ({
       onFeedback={onFeedback}
       onCancel={onCancel}
       onPressCard={onPressCard}
+      chatRef={index === 0 ? chatRef : undefined}
+      statusRef={index === 0 ? statusRef : undefined}
+      navigateRef={index === 0 ? navigateRef : undefined}
     />
   );
 
