@@ -47,9 +47,15 @@ function getNotificationIcon(type: string): string {
     switch (type) {
         case 'CLAIM_ALERT': return '🎉';
         case 'CLAIM': return '🎉';
+        case 'CLAIM_BAN': return '⛔';
+        case 'CLAIM_TIMEOUT_WARNING': return '⏱️';
+        case 'CLAIM_TIMEOUT': return '⌛';
         case 'ON_THE_WAY': return '🚶';
+        case 'RECEIVE_REQUIRED': return '📩';
         case 'DELIVERY_CONFIRMED': return '✅';
         case 'CONFIRM': return '✅';
+        case 'AUTO_RECEIVED': return '🤖';
+        case 'FEEDBACK_REMINDER': return '⭐';
         case 'NEW_FOOD': return '🍱';
         case 'NEW_MESSAGE': return '💬';
         case 'DONATION_CANCELLED': return '❌';
@@ -62,9 +68,15 @@ async function navigateForNotificationType(type: string, entityID?: string) {
     switch (type) {
         case 'CLAIM_ALERT':
         case 'CLAIM':
+        case 'CLAIM_BAN':
+        case 'CLAIM_TIMEOUT_WARNING':
+        case 'CLAIM_TIMEOUT':
         case 'ON_THE_WAY':
+        case 'RECEIVE_REQUIRED':
         case 'DELIVERY_CONFIRMED':
         case 'CONFIRM':
+        case 'AUTO_RECEIVED':
+        case 'FEEDBACK_REMINDER':
         case 'DONATION_CANCELLED':
         case 'FOOD_EXPIRED':
             router.push('/(tabs)');

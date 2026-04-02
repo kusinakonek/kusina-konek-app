@@ -580,7 +580,7 @@ export default function Profile() {
                 }}>
                 <RefreshCw size={wp(20)} color="#00C853" />
                 <Text style={[styles.settingsRowText, { color: colors.text }]}>
-                  Reset Tutorials (Dev)
+                  Reset Tutorials
                 </Text>
               </TouchableOpacity>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />

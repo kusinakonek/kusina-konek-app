@@ -48,6 +48,10 @@ export default function DonorChat() {
   const canSend = (inputText.trim().length > 0 || selectedImage !== null) && !sending;
   const visibleMessages = messages.filter((message) => {
     const content = message.content || '';
+    if (content.startsWith('[KusinaKonek Internal]')) {
+      return false;
+    }
+
     const isBotSeed = content.startsWith('[KusinaKonek Bot]');
     if (!isBotSeed) return true;
 

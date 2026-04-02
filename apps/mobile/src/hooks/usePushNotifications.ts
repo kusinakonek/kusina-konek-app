@@ -14,9 +14,15 @@ async function handleNotificationNavigation(data: any) {
     switch (type) {
         case 'CLAIM_ALERT':
         case 'CLAIM':
+        case 'CLAIM_BAN':
+        case 'CLAIM_TIMEOUT_WARNING':
+        case 'CLAIM_TIMEOUT':
         case 'ON_THE_WAY':
+        case 'RECEIVE_REQUIRED':
         case 'DELIVERY_CONFIRMED':
         case 'CONFIRM':
+        case 'AUTO_RECEIVED':
+        case 'FEEDBACK_REMINDER':
         case 'DONATION_CANCELLED':
         case 'FOOD_EXPIRED':
             // Donor notifications → go to home (donor dashboard)

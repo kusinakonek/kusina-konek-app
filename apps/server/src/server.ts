@@ -2,6 +2,7 @@ import { app } from "./app";
 import { env } from "./config/env";
 import { prisma } from "@kusinakonek/database";
 import { notificationService } from "./services/notificationService";
+import { startClaimAutomationScheduler } from "./services/claimAutomationService";
 
 import dns from "node:dns";
 
@@ -269,9 +270,11 @@ const start = async () => {
     console.error("Database connection failed (Prisma)", error);
   }
 
-  startAutoRevertScheduler();
+  // Replaced by claim automation scheduler with ban, auto-receive, and feedback reminders.
+  // startAutoRevertScheduler();
   startInactivityScheduler();
   startFoodExpiryScheduler();
+  startClaimAutomationScheduler();
 
   app.listen(env.PORT, "0.0.0.0", () => {
     // eslint-disable-next-line no-console

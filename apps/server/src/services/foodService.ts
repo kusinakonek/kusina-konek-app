@@ -12,11 +12,32 @@ import {
 } from "../repositories";
 import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 import { locationService } from "./locationService";
+import { getActiveClaimBan } from "./claimAutomationService";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
   if (!profile) throw new HttpError(400, "Please complete your profile before creating donations. Go to Profile > Edit Profile.");
   return profile;
+};
+
+const formatPHDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    hour12: true,
+    timeZone: "Asia/Manila",
+  }).format(date);
+};
+
+const assertRecipientNotBanned = async (userID: string) => {
+  const activeBan = await getActiveClaimBan(userID);
+  if (!activeBan) return;
+
+  const untilText = formatPHDateTime(activeBan.bannedUntil);
+  throw new HttpError(
+    403,
+    `You are temporarily banned from claiming food until ${untilText} (PH time).`,
+  );
 };
 
 // Helper to decrypt user data
@@ -504,6 +525,7 @@ export const foodService = {
     input: RequestDonationInput;
   }) {
     await ensureProfile(params.recipientID);
+    await assertRecipientNotBanned(params.recipientID);
 
     const existing = await distributionRepository.getByFoodId(
       params.input.foodID,

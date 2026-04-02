@@ -29,6 +29,8 @@ interface ClaimLimitsResponse {
   maxWeekly: number;
   maxMonthly: number;
   canClaim: boolean;
+  isBanned?: boolean;
+  bannedUntil?: string | null;
 }
 
 export default function CartTab() {
@@ -67,8 +69,23 @@ export default function CartTab() {
       setClaimLimits(limits);
 
       if (!limits.canClaim) {
-        // Show limit exceeded modal
-        setShowLimitModal(true);
+        if (limits.isBanned) {
+          const bannedUntilText = limits.bannedUntil
+            ? new Date(limits.bannedUntil).toLocaleString("en-PH", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                hour12: true,
+              })
+            : "the ban is lifted";
+
+          Alert.alert(
+            "Claim temporarily restricted",
+            `You cannot claim food until ${bannedUntilText}.`,
+          );
+        } else {
+          // Show claim frequency limit modal
+          setShowLimitModal(true);
+        }
       } else {
         pickUpAll();
       }
