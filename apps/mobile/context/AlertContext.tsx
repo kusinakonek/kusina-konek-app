@@ -16,10 +16,11 @@ export interface AlertOptions {
     message?: string;
     buttons?: CustomAlertButton[];
     type?: 'error' | 'success' | 'warning' | 'info';
+    stackButtons?: boolean;
 }
 
 interface AlertContextType {
-    showAlert: (title: string, message?: string, buttons?: CustomAlertButton[], options?: { type?: 'error' | 'success' | 'warning' | 'info' }) => void;
+    showAlert: (title: string, message?: string, buttons?: CustomAlertButton[], options?: { type?: 'error' | 'success' | 'warning' | 'info'; stackButtons?: boolean }) => void;
     hideAlert: () => void;
 }
 
@@ -30,7 +31,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     const [alertConfig, setAlertConfig] = useState<AlertOptions | null>(null);
     const { colors, isDark } = useTheme();
 
-    const showAlert = useCallback((title: string, message?: string, buttons?: CustomAlertButton[], options?: { type?: 'error' | 'success' | 'warning' | 'info' }) => {
+    const showAlert = useCallback((title: string, message?: string, buttons?: CustomAlertButton[], options?: { type?: 'error' | 'success' | 'warning' | 'info'; stackButtons?: boolean }) => {
 
         // Auto-detect type based on title keywords if explicit type isn't provided
         let detectedType = options?.type || 'info';
@@ -49,6 +50,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
             message,
             buttons: buttons && buttons.length > 0 ? buttons : defaultButtons,
             type: detectedType as any,
+            stackButtons: options?.stackButtons === true,
         });
         setVisible(true);
     }, []);
@@ -104,8 +106,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                             <View style={[
                                 styles.buttonContainer,
                                 (() => {
-                                    const isTablet = Dimensions.get('window').width > 768;
-                                    const shouldStack = !isTablet && (alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12));
+                                    const shouldStack = alertConfig.stackButtons === true || alertConfig.buttons!.length >= 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12);
                                     return shouldStack ? { flexDirection: 'column' } : { flexDirection: 'row', flexWrap: 'wrap' };
                                 })()
                             ]}>
@@ -118,8 +119,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                                     if (btn.style === 'destructive') {
                                         btnColor = '#EF4444'; // Red for Delete/Logout confirm
                                         textColor = '#fff';
-                                    } else if (btn.style === 'default' && alertConfig.buttons!.length <= 2 && index === alertConfig.buttons!.length - 1) {
-                                        // The primary "OK" / "Confirm" button (rightmost if 2 buttons)
+                                    } else if (btn.style === 'default') {
+                                        // Primary button styling stays consistent even when buttons are stacked vertically
                                         btnColor = '#10B981'; // App Primary Green
                                         textColor = '#fff';
                                     } else if (btn.style === 'cancel') {
@@ -128,7 +129,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                                     }
 
                                     const isTablet = Dimensions.get('window').width > 768;
-                                    const shouldStack = !isTablet && (alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12));
+                                    const shouldStack = alertConfig.stackButtons === true || alertConfig.buttons!.length >= 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12);
 
                                     return (
                                         <TouchableOpacity

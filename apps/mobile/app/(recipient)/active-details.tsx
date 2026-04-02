@@ -78,7 +78,6 @@ export default function ActiveDetailsScreen() {
 
     const handleMarkOnTheWay = async () => {
         showAlert("On the Way", "Are you heading to pick up this food now?", [
-            { text: "Cancel", style: "cancel" },
             {
                 text: "Yes, I'm On My Way",
                 style: "default",
@@ -97,6 +96,7 @@ export default function ActiveDetailsScreen() {
                     }
                 },
             },
+            { text: "Cancel", style: "cancel" },
         ]);
     };
 
@@ -105,7 +105,6 @@ export default function ActiveDetailsScreen() {
             "Confirm Receipt",
             "Have you successfully received this food?",
             [
-                { text: "Cancel", style: "cancel" },
                 {
                     text: "Yes, Confirm",
                     style: "default",
@@ -124,7 +123,9 @@ export default function ActiveDetailsScreen() {
                         }
                     },
                 },
-            ]
+                { text: "Cancel", style: "cancel" },
+            ],
+            { type: 'info', stackButtons: true }
         );
     };
 

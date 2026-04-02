@@ -272,7 +272,6 @@ export default function RecipientHome() {
       "Confirm Receipt",
       "Have you successfully received this food?",
       [
-        { text: "Cancel", style: "cancel" },
         {
           text: "Yes, Confirm",
           style: "default",
@@ -295,8 +294,9 @@ export default function RecipientHome() {
             }
           },
         },
+        { text: "Cancel", style: "cancel" },
       ],
-      { type: 'warning' }
+      { type: 'warning', stackButtons: true }
     );
   };
 
@@ -376,7 +376,7 @@ export default function RecipientHome() {
                     },
                   },
                 ],
-                { type: 'info' }
+                { type: 'info', stackButtons: true }
               );
             } else {
               showAlert(
