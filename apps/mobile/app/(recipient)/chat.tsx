@@ -46,6 +46,18 @@ export default function Chat() {
   const flatListRef = useRef<FlatList>(null);
 
   const canSend = (inputText.trim().length > 0 || selectedImage !== null) && !sending;
+  const visibleMessages = messages.filter((message) => {
+    const content = message.content || '';
+    if (content.startsWith('[KusinaKonek Internal]')) {
+      return false;
+    }
+
+    const isBotSeed = content.startsWith('[KusinaKonek Bot]');
+    if (!isBotSeed) return true;
+
+    // Hide bot seed messages that were authored with the current user's ID.
+    return message.senderID !== user?.id;
+  });
   
   // Get other user's online status from global presence
   const otherUserOnline = donorId ? isUserOnline(donorId) : false;
@@ -74,12 +86,12 @@ export default function Chat() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0) {
+    if (visibleMessages.length > 0) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages]);
+  }, [visibleMessages.length]);
 
   const handleSend = async () => {
     if (sending) return;
@@ -258,7 +270,7 @@ export default function Chat() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={visibleMessages}
             keyExtractor={(item) => item.messageID}
             renderItem={renderMessage}
             contentContainerStyle={styles.messagesList}
@@ -266,7 +278,7 @@ export default function Chat() {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Start a conversation with the donor about this food
+                  Start a conversation with the donor about this food. Coordinate pickup times and locations here!
                 </Text>
               </View>
             }
@@ -462,10 +474,16 @@ interface MessageItemProps {
 function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoom }: MessageItemProps) {
   const swipeableRef = useRef<Swipeable>(null);
   const isOwnMessage = item.senderID === userID;
+  const botPrefix = '[KusinaKonek Bot]';
 
   // Parse reply if present
   let displayContent = item.content || '';
   let replyPart = null;
+
+  const isBotMessage = displayContent.startsWith(botPrefix);
+  if (isBotMessage) {
+    displayContent = displayContent.replace(botPrefix, '').trim();
+  }
 
   if (displayContent.startsWith('>> ')) {
     const parts = displayContent.split('\n');
@@ -515,7 +533,9 @@ function MessageItem({ item, userID, colors, isDark, onReply, onLongPress, onZoo
         ]}>
         {!isOwnMessage && item.sender && (
           <Text style={[styles.senderName, { color: colors.primary }]}>
-            {item.sender.orgName || `${item.sender.firstName} ${item.sender.lastName}`}
+            {isBotMessage
+              ? 'KusinaKonek Bot'
+              : (item.sender.orgName || `${item.sender.firstName} ${item.sender.lastName}`)}
           </Text>
         )}
 

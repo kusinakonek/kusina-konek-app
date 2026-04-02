@@ -134,6 +134,17 @@ export default function LoadingScreen({
         return (
             <View style={[styles.container, { backgroundColor: colors.background }]}>
                 <View style={[styles.content, { justifyContent: 'center' }]}>
+                    <View style={[styles.logoShadow, { marginBottom: 16 }]}>
+                        <Image
+                            source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
+                            style={{
+                                width: logoSize,
+                                height: logoSize,
+                                borderRadius: logoSize / 2,
+                            }}
+                            resizeMode="contain"
+                        />
+                    </View>
                     <View style={styles.dotsContainer}>
                         {[dotAnim1, dotAnim2, dotAnim3].map((anim, i) => (
                             <Animated.View
@@ -167,7 +178,7 @@ export default function LoadingScreen({
                     styles.logoShadow
                 ]}>
                     <Image
-                        source={require('../../assets/loading-opening.png')}
+                        source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
                         style={{
                             width: logoSize, 
                             height: logoSize,

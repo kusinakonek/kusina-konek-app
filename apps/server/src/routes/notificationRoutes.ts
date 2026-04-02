@@ -29,11 +29,11 @@ notificationRouter.put("/:id/read", authMiddleware, async (req: Request, res: Re
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        const notification = await notificationService.markAsRead(req.params.id);
+        const notification = await notificationService.markAsRead(req.params.id, userID);
         res.json({ notification });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Mark notification read error:", error);
-        res.status(500).json({ error: "Failed to mark notification as read" });
+        res.status(error?.statusCode || 500).json({ error: error?.message || "Failed to mark notification as read" });
     }
 });
 
@@ -45,11 +45,11 @@ notificationRouter.delete("/:id", authMiddleware, async (req: Request, res: Resp
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        await notificationService.deleteNotification(req.params.id);
+        await notificationService.deleteNotification(req.params.id, userID);
         res.json({ message: "Notification deleted" });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Delete notification error:", error);
-        res.status(500).json({ error: "Failed to delete notification" });
+        res.status(error?.statusCode || 500).json({ error: error?.message || "Failed to delete notification" });
     }
 });
 

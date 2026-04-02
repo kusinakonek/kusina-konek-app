@@ -103,10 +103,10 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                             {/* Buttons Container */}
                             <View style={[
                                 styles.buttonContainer,
-                                // Stack vertically if there are more than 2 buttons or text is too long
                                 (() => {
-                                    const shouldStack = alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 14);
-                                    return shouldStack ? { flexDirection: 'column' } : { flexDirection: 'row' };
+                                    const isTablet = Dimensions.get('window').width > 768;
+                                    const shouldStack = !isTablet && (alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12));
+                                    return shouldStack ? { flexDirection: 'column' } : { flexDirection: 'row', flexWrap: 'wrap' };
                                 })()
                             ]}>
                                 {alertConfig.buttons!.map((btn, index) => {
@@ -127,7 +127,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                                         textColor = colors.textTertiary;
                                     }
 
-                                    const shouldStack = alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 14);
+                                    const isTablet = Dimensions.get('window').width > 768;
+                                    const shouldStack = !isTablet && (alertConfig.buttons!.length > 2 || alertConfig.buttons!.some(b => (b.text?.length || 0) > 12));
 
                                     return (
                                         <TouchableOpacity
@@ -136,7 +137,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                                                 styles.button,
                                                 { backgroundColor: btnColor },
                                                 shouldStack && { width: '100%', marginBottom: hp(8) },
-                                                !shouldStack && { flex: 1, marginHorizontal: wp(4) }
+                                                !shouldStack && { flex: 1, minWidth: isTablet ? 120 : 80, marginHorizontal: wp(4) }
                                             ]}
                                             onPress={() => {
                                                 hideAlert();
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     },
     alertBox: {
         width: '100%',
-        maxWidth: 360,
+        maxWidth: 480,
         borderRadius: wp(20),
         padding: wp(24),
         alignItems: 'center',

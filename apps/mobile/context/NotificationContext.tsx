@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import axiosClient from '../src/api/axiosClient';
+import { API_ENDPOINTS } from '../src/api/endpoints';
+import { cacheData, CACHE_KEYS } from '../src/utils/dataCache';
 
 interface NotificationContextType {
     expoPushToken: string | undefined;
@@ -31,7 +33,7 @@ Notifications.setNotificationHandler({
 });
 
 export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAuth();
+    const { user, role } = useAuth();
     const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
     const [notification, setNotification] = useState<Notifications.Notification | null>(null);
     const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
@@ -39,6 +41,57 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     const notificationListener = useRef<Notifications.EventSubscription>(null);
     const responseListener = useRef<Notifications.EventSubscription>(null);
     const lastSentRef = useRef<string | null>(null);
+    const lastSilentRefreshRef = useRef<number>(0);
+
+    const refreshDashboardSilently = useCallback(async (data: any = {}) => {
+        if (!user) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastSilentRefreshRef.current < 3000) {
+            return;
+        }
+        lastSilentRefreshRef.current = now;
+
+        const type = String(data?.type || '').toUpperCase();
+        const refreshableTypes = new Set([
+            'NEW_FOOD',
+            'CLAIM_ALERT',
+            'CLAIM',
+            'CLAIM_BAN',
+            'CLAIM_TIMEOUT_WARNING',
+            'CLAIM_TIMEOUT',
+            'ON_THE_WAY',
+            'RECEIVE_REQUIRED',
+            'DELIVERY_CONFIRMED',
+            'CONFIRM',
+            'AUTO_RECEIVED',
+            'FEEDBACK_REMINDER',
+            'NEW_MESSAGE',
+            'DONATION_CANCELLED',
+            'FOOD_EXPIRED',
+        ]);
+
+        try {
+            if (refreshableTypes.has(type)) {
+                const activeRole = role || await AsyncStorage.getItem('userRole');
+
+                if (activeRole === 'DONOR') {
+                    const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
+                    await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
+                } else if (activeRole === 'RECIPIENT') {
+                    const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+                    await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
+                }
+            }
+        } catch (error) {
+            console.warn('[NotificationContext] Silent dashboard refresh failed:', error);
+        } finally {
+            // Home screens listen to this and refresh quietly without full-screen loaders.
+            DeviceEventEmitter.emit('dashboard:force-refresh');
+        }
+    }, [user, role]);
 
     // Get the native FCM token directly
     const registerToken = useCallback(async () => {
@@ -159,17 +212,24 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
 
         notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
             setNotification(notification);
+            const data = notification.request?.content?.data || {};
+            refreshDashboardSilently(data).catch(() => {
+                // No-op: failure already handled in refreshDashboardSilently
+            });
         });
 
-        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            // Navigation handled in custom hook or elsewhere
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+            const data = response.notification.request?.content?.data || {};
+            refreshDashboardSilently(data).catch(() => {
+                // No-op: failure already handled in refreshDashboardSilently
+            });
         });
 
         return () => {
-            if (notificationListener.current) Notifications.removeNotificationSubscription(notificationListener.current);
-            if (responseListener.current) Notifications.removeNotificationSubscription(responseListener.current);
+            notificationListener.current && notificationListener.current.remove();
+            responseListener.current && responseListener.current.remove();
         };
-    }, [registerToken]);
+    }, [registerToken, refreshDashboardSilently]);
 
     // Perform sync when user or token becomes available
     useEffect(() => {

@@ -18,28 +18,36 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
-import { Heart, Package, Star, Plus, Utensils, Bell } from "lucide-react-native";
+import { Heart, Package, Star, Plus, Utensils, Bell, MessageCircle } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
-import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
+import { useFoodCache } from "../../context/FoodCacheContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
+import CancelDonationModal from "../components/CancelDonationModal";
+import SuccessModal from "../components/SuccessModal";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS, isTutorialCompleted } from "../components/TutorialOverlay";
-import { DONOR_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
+import { useTutorial } from "../hooks/useTutorial";
+import { DONOR_HOME_STEPS, DONOR_POST_CLAIM_STEPS } from "../hooks/tutorialSteps";
 
 export default function DonorHome() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors } = useTheme();
-  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [donationToCancel, setDonationToCancel] = useState<string | null>(null);
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState("You have successfully cancelled your food donation.");
+  const [updatingDashboardAfterCancel, setUpdatingDashboardAfterCancel] = useState(false);
   const channelsRef = useRef<any[]>([]);
   const { isOnline, justReconnected } = useNetwork();
+  const { invalidateCache } = useFoodCache();
   const dashboardDataRef = useRef<any>(null);
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
@@ -50,6 +58,13 @@ export default function DonorHome() {
     steps: DONOR_HOME_STEPS,
     storageKey: TUTORIAL_STORAGE_KEYS.DONOR_HOME,
     enabled: !loading && dashboardData !== null,
+  });
+
+  // Post-Claim Tutorial: Messaging guidance
+  const postClaimTutorial = useTutorial({
+    steps: DONOR_POST_CLAIM_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.DONOR_POST_CLAIM,
+    enabled: !loading && dashboardData?.recentDonations?.some((d: any) => d.status?.toUpperCase() === "CLAIMED"),
   });
 
   // Load from cache on mount for instant UI
@@ -66,6 +81,9 @@ export default function DonorHome() {
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return; // Prevent fetching if logged out
+
+    // Prevent concurrent fetches from overlapping refresh triggers.
+    if (isFetchingRef.current) return;
 
     // Prevent fetching if we just fetched within exactly 30 seconds
     const now = Date.now();
@@ -115,15 +133,6 @@ export default function DonorHome() {
   }, [fetchDashboardData]);
 
 
-  // Handle auto-refresh when a notification is received
-  useEffect(() => {
-    if (notification) {
-      console.log("[DonorHome] Notification received, auto-refreshing stats...");
-      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
-      fetchDashboardData();
-    }
-  }, [notification, fetchDashboardData]);
-
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
@@ -159,8 +168,8 @@ export default function DonorHome() {
     if (!dashboardData?.recentDonations || !user) return;
 
     // Clean up old channels
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel);
+    (channelsRef.current || []).forEach(channel => {
+      if (channel) supabase.removeChannel(channel);
     });
     channelsRef.current = [];
 
@@ -196,17 +205,67 @@ export default function DonorHome() {
     });
 
     return () => {
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
+      (channelsRef.current || []).forEach(channel => {
+        if (channel) supabase.removeChannel(channel);
       });
       channelsRef.current = [];
     };
   }, [dashboardData?.recentDonations, user]);
 
   const onRefresh = useCallback(() => {
+    lastFetchTimeRef.current = 0; // Force fresh fetch on pull
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const handleCancelDonation = (foodID: string) => {
+    if (!foodID) {
+      console.error("Cannot cancel donation: missing foodID");
+      return;
+    }
+
+    setDonationToCancel(foodID);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelDonation = async () => {
+    if (!donationToCancel) return;
+
+    setLoading(true);
+    try {
+      // Invalidate food cache so browse food list updates
+      invalidateCache();
+      await axiosClient.post(API_ENDPOINTS.FOOD.CANCEL_DONATION(donationToCancel));
+      setCancelSuccessMessage("You have successfully cancelled your food donation.");
+      setShowCancelSuccessModal(true);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        // If the item is already removed, treat it as success and sync UI.
+        setCancelSuccessMessage("This donation was already removed. Updating your dashboard now.");
+        setShowCancelSuccessModal(true);
+      } else {
+      console.error("Failed to cancel donation", error);
+      }
+    } finally {
+      setDonationToCancel(null);
+      setShowCancelModal(false);
+      setLoading(false);
+    }
+  };
+
+  const handleCancelSuccessClose = async () => {
+    setShowCancelSuccessModal(false);
+    setUpdatingDashboardAfterCancel(true);
+
+    try {
+      invalidateCache();
+      lastFetchTimeRef.current = 0;
+      DeviceEventEmitter.emit('dashboard:force-refresh');
+      await fetchDashboardData();
+    } finally {
+      setUpdatingDashboardAfterCancel(false);
+    }
+  };
 
 
 
@@ -243,7 +302,7 @@ export default function DonorHome() {
       const disID = d.disID || d.id;
       return {
         id: disID,
-        foodID: d.foodID, // Add foodID for cancellation
+        foodID: d.foodID || d.food?.foodID || d.foodId || d.food?.id,
         title: d.foodName || "Food Donation",
         quantity: `${d.quantity} servings`,
         location: d.location || "Location",
@@ -260,6 +319,8 @@ export default function DonorHome() {
 
 
 
+  const totalUnreadMessages = Object.values(unreadCounts || {}).reduce((sum, count) => sum + count, 0);
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={["top"]}>
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
@@ -274,36 +335,38 @@ export default function DonorHome() {
             <Text style={[styles.dashboardTitle, { color: colors.textSecondary }]}>Donor Dashboard</Text>
           </View>
         </View>
-        <View collapsable={false} ref={tutorial.refs.notificationBell}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/notifications')}
-            style={{ padding: 8, position: "relative" }}
-          >
-            <View>
-              <Bell size={wp(24)} color="#00C853" />
-              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -2,
-                  right: -2,
-                  backgroundColor: "#FF3B30",
-                  width: wp(16),
-                  height: wp(16),
-                  borderRadius: wp(8),
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: colors.headerBg,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-                </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: wp(8) }}>
+          <View collapsable={false} ref={tutorial.refs.notificationBell}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/notifications')}
+              style={{ padding: 8, position: "relative" }}
+            >
+              <View>
+                <Bell size={wp(24)} color="#00C853" />
+                {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -2,
+                      backgroundColor: "#FF3B30",
+                      width: wp(16),
+                      height: wp(16),
+                      borderRadius: wp(8),
+                      justifyContent: "center",
+                      alignItems: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.headerBg,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                      {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </TouchableOpacity>
           </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -372,6 +435,9 @@ export default function DonorHome() {
                   params: { disID: id }
                 });
               }}
+              onCancel={handleCancelDonation}
+              chatRef={postClaimTutorial.refs.chatButton}
+              statusRef={postClaimTutorial.refs.activeDonation}
             />
           </View>
 
@@ -384,18 +450,41 @@ export default function DonorHome() {
         )}
       </View>
 
-      {/* Tutorial Overlay */}
+      {/* Post-Claim Tutorial Overlay */}
       <TutorialOverlay
-        steps={tutorial.steps}
-        storageKey={tutorial.storageKey}
-        visible={tutorial.showTutorial}
-        onComplete={tutorial.handleComplete}
-        onSkip={tutorial.handleSkip}
-        targetRefs={tutorial.refs}
+        steps={postClaimTutorial.steps}
+        storageKey={postClaimTutorial.storageKey}
+        visible={postClaimTutorial.showTutorial}
+        onComplete={postClaimTutorial.handleComplete}
+        onSkip={postClaimTutorial.handleSkip}
+        targetRefs={postClaimTutorial.refs}
         onStepChange={(step) => {
-          console.log('[Donor Home Tutorial] Step changed to:', step);
+          console.log('[Post-Claim Tutorial] Step changed to:', step);
         }}
       />
+
+      <CancelDonationModal
+        visible={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setDonationToCancel(null);
+        }}
+        onConfirm={confirmCancelDonation}
+      />
+
+      <SuccessModal
+        visible={showCancelSuccessModal}
+        title="Donation Cancelled"
+        message={cancelSuccessMessage}
+        buttonText="Update Dashboard"
+        onClose={handleCancelSuccessClose}
+      />
+
+      {updatingDashboardAfterCancel && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
+          <LoadingScreen message="Updating dashboard..." />
+        </View>
+      )}
     </SafeAreaView>
   );
 }

@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { prisma } from "@kusinakonek/database";
+import { HttpError } from "../middlewares/errorHandler";
 
 // Initialize Firebase Admin SDK
 // Uses environment variables for credentials (set in Render)
@@ -212,14 +213,40 @@ export const notificationService = {
     }
   },
 
-  async markAsRead(notificationID: string) {
-    return await prisma.notification.update({
-      where: { notificationID },
+  async markAsRead(notificationID: string, userID: string) {
+    const result = await prisma.notification.updateMany({
+      where: { notificationID, userID },
       data: { isRead: true },
     });
+
+    if (result.count === 0) {
+      throw new HttpError(404, "Notification not found");
+    }
+
+    return { success: true };
   },
 
-  async deleteNotification(notificationID: string) {
+  async deleteNotification(notificationID: string, userID: string) {
+    const existing = await prisma.notification.findFirst({
+      where: { notificationID, userID },
+    });
+
+    if (!existing) {
+      throw new HttpError(404, "Notification not found");
+    }
+
+    if (existing.type === "CLAIM_BAN") {
+      const BAN_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+      const bannedUntil = new Date(existing.createdAt.getTime() + BAN_DURATION_MS);
+
+      if (bannedUntil.getTime() > Date.now()) {
+        throw new HttpError(
+          403,
+          "You cannot delete this claim-ban notice until the restriction period ends.",
+        );
+      }
+    }
+
     return await prisma.notification.delete({
       where: { notificationID },
     });

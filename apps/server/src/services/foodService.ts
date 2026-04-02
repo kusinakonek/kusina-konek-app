@@ -8,14 +8,36 @@ import {
   foodRepository,
   userRepository,
   distributionRepository,
+  messageRepository,
 } from "../repositories";
 import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 import { locationService } from "./locationService";
+import { getActiveClaimBan } from "./claimAutomationService";
 
 const ensureProfile = async (userID: string) => {
   const profile = await userRepository.getByUserId(userID);
   if (!profile) throw new HttpError(400, "Please complete your profile before creating donations. Go to Profile > Edit Profile.");
   return profile;
+};
+
+const formatPHDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    hour12: true,
+    timeZone: "Asia/Manila",
+  }).format(date);
+};
+
+const assertRecipientNotBanned = async (userID: string) => {
+  const activeBan = await getActiveClaimBan(userID);
+  if (!activeBan) return;
+
+  const untilText = formatPHDateTime(activeBan.bannedUntil);
+  throw new HttpError(
+    403,
+    `You are temporarily banned from claiming food until ${untilText} (PH time).`,
+  );
 };
 
 // Helper to decrypt user data
@@ -432,14 +454,24 @@ export const foodService = {
 
   async cancelDonation(params: { userID: string; foodID: string }) {
     await ensureProfile(params.userID);
-    const existing = await foodRepository.getById(params.foodID);
+    let resolvedFoodID = params.foodID;
+    let existing = await foodRepository.getById(resolvedFoodID);
+
+    // Backward compatibility: some clients may send a distribution ID instead of foodID.
+    if (!existing) {
+      const distributionById = await distributionRepository.getById(params.foodID);
+      if (distributionById?.foodID) {
+        resolvedFoodID = distributionById.foodID;
+        existing = await foodRepository.getById(resolvedFoodID);
+      }
+    }
 
     if (!existing) throw new HttpError(404, "Donation not found");
     if (existing.userID !== params.userID)
       throw new HttpError(403, "Forbidden");
 
     // Check if distribution exists for this food and its status
-    const distribution = await distributionRepository.getByFoodId(params.foodID);
+    const distribution = await distributionRepository.getByFoodId(resolvedFoodID);
 
     // Only allow cancellation if nobody has claimed it (PENDING status) or if no distribution exists
     if (distribution && distribution.status !== "PENDING") {
@@ -454,7 +486,7 @@ export const foodService = {
     // 2) Delete associated locations (now safe since distribution FK is gone)
     const locations = await locationService.listLocationsForFood({
       userID: params.userID,
-      foodID: params.foodID,
+      foodID: resolvedFoodID,
     });
 
     for (const loc of locations.locations) {
@@ -465,7 +497,23 @@ export const foodService = {
     }
 
     // 3) Finally delete the food/donation itself
-    await foodRepository.delete(params.foodID);
+    await foodRepository.delete(resolvedFoodID);
+
+    try {
+      const foodName = safeDecrypt(existing.foodName) || "your food donation";
+      await import("./notificationService").then((ns) =>
+        ns.notificationService.notifyUser(
+          params.userID,
+          "Donation Cancelled",
+          `Your donation "${foodName}" has been cancelled successfully.`,
+          "DONATION_CANCELLED",
+          { screen: "DonorHome", foodID: resolvedFoodID },
+          distribution?.disID ?? resolvedFoodID,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to send cancellation notification", error);
+    }
 
     return {
       message: "Donation has been successfully cancelled and removed",
@@ -477,6 +525,7 @@ export const foodService = {
     input: RequestDonationInput;
   }) {
     await ensureProfile(params.recipientID);
+    await assertRecipientNotBanned(params.recipientID);
 
     const existing = await distributionRepository.getByFoodId(
       params.input.foodID,
@@ -497,6 +546,63 @@ export const foodService = {
     });
 
     const decryptedDistribution = decryptDistribution(distribution);
+
+    // Auto-start chat for both sides with KusinaKonek Bot prompts.
+    try {
+      const foodName = safeDecrypt(existing.food?.foodName) || "this food donation";
+      const recipientName =
+        [
+          decryptedDistribution?.recipient?.firstName,
+          decryptedDistribution?.recipient?.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "A recipient";
+
+      const donorStarter = `[KusinaKonek Bot] ${recipientName}, has claimed your food ${foodName}. Start a conversation to coordinate pickup details.`;
+      const recipientStarter = `[KusinaKonek Bot] Congrats on the fresh food! You got ${foodName}. Start a conversation with the donor for pickup coordination.`;
+
+      // Order matters for chat timeline: donor-facing message first, recipient-facing second.
+      await messageRepository.create({
+        disID: distribution.disID,
+        senderID: params.recipientID,
+        messageType: "TEXT",
+        content: donorStarter,
+      });
+
+      await messageRepository.create({
+        disID: distribution.disID,
+        senderID: existing.donorID,
+        messageType: "TEXT",
+        content: recipientStarter,
+      });
+
+      await import("./notificationService").then((ns) => {
+        ns.notificationService
+          .notifyUser(
+            existing.donorID,
+            "💬 New Message",
+            `KusinaKonek Bot: ${recipientName} has claimed your food ${foodName}.`,
+            "NEW_MESSAGE",
+            { screen: "Chat", disID: distribution.disID },
+            distribution.disID,
+          )
+          .catch((err) => console.error("Bot donor notify error:", err));
+
+        ns.notificationService
+          .notifyUser(
+            params.recipientID,
+            "💬 New Message",
+            `KusinaKonek Bot: Congrats on the fresh food! You got ${foodName}.`,
+            "NEW_MESSAGE",
+            { screen: "Chat", disID: distribution.disID },
+            distribution.disID,
+          )
+          .catch((err) => console.error("Bot recipient notify error:", err));
+      });
+    } catch (error) {
+      console.error("Failed to create KusinaKonek bot starter messages:", error);
+    }
 
     // Notify Donor
     try {

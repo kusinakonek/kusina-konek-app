@@ -7,12 +7,14 @@ import React, {
   useState,
 } from "react";
 import { router } from "expo-router";
-import { DeviceEventEmitter } from "react-native";
+import { DeviceEventEmitter, StyleSheet, View } from "react-native";
 import axiosClient from "../src/api/axiosClient";
 import { API_ENDPOINTS } from "../src/api/endpoints";
 import ClaimsConfirmedModal from "../src/components/ClaimsConfirmedModal";
+import LoadingScreen from "../src/components/LoadingScreen";
 import { useFoodCache } from "./FoodCacheContext";
 import { useAlert } from "./AlertContext";
+import { cacheData, CACHE_KEYS } from "../src/utils/dataCache";
 
 const RESERVATION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -38,7 +40,6 @@ export type CartItem = {
   } | null;
   location: {
     locID: string;
-    streetAddress: string;
     barangay: string;
     latitude: number;
     longitude: number;
@@ -71,6 +72,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [claimedItems, setClaimedItems] = useState<
     { disID: string; foodName: string; location: string }[]
   >([]);
+  const [updatingDashboardAfterClaim, setUpdatingDashboardAfterClaim] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Access food cache context to invalidate when items are picked up
@@ -240,10 +242,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, invalidateCache, showAlert]);
 
-  const handleCloseSuccessModal = () => {
+  const handleCloseSuccessModal = async () => {
     setShowSuccessModal(false);
-    DeviceEventEmitter.emit('dashboard:force-refresh');
-    router.push("/(tabs)");
+    setUpdatingDashboardAfterClaim(true);
+
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+      await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
+    } catch (error) {
+      console.error("Failed to prefetch recipient dashboard after claim:", error);
+    } finally {
+      DeviceEventEmitter.emit('dashboard:force-refresh');
+      setUpdatingDashboardAfterClaim(false);
+      router.push("/(tabs)");
+    }
   };
 
   return (
@@ -263,9 +275,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         claimedItems={claimedItems}
         onClose={handleCloseSuccessModal}
       />
+
+      {updatingDashboardAfterClaim && (
+        <View style={styles.updatingOverlay}>
+          <LoadingScreen message="Updating dashboard..." />
+        </View>
+      )}
     </CartContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  updatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  },
+});
 
 export function useCart() {
   const ctx = useContext(CartContext);

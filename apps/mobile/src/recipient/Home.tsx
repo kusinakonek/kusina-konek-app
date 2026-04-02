@@ -19,7 +19,7 @@ import axiosClient from "../api/axiosClient";
 import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import EmptyRecentFood from "../components/EmptyRecentFood";
-import { Package, MapPin, Utensils, Search, Bell } from "lucide-react-native";
+import { Package, MapPin, Utensils, Search, Bell, MessageCircle } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
@@ -27,18 +27,17 @@ import { RecentFoodSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 import { useAlert } from "../../context/AlertContext";
-import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../components/TutorialOverlay";
-import { RECIPIENT_HOME_STEPS, useTutorial } from "../hooks/useTutorial";
+import { useTutorial } from "../hooks/useTutorial";
+import { RECIPIENT_HOME_STEPS, RECIPIENT_POST_CLAIM_STEPS } from "../hooks/tutorialSteps";
 
 export default function RecipientHome() {
   const { user } = useAuth();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showAlert } = useAlert();
-  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -61,6 +60,13 @@ export default function RecipientHome() {
     steps: RECIPIENT_HOME_STEPS,
     storageKey: TUTORIAL_STORAGE_KEYS.RECIPIENT_HOME,
     enabled: !loading && dashboardData !== null,
+  });
+
+  // New Feature Tutorial: Post-Claim Messaging
+  const postClaimTutorial = useTutorial({
+    steps: RECIPIENT_POST_CLAIM_STEPS,
+    storageKey: TUTORIAL_STORAGE_KEYS.RECIPIENT_POST_CLAIM,
+    enabled: !loading && dashboardData?.recentFoods?.some((f: any) => f.status?.toUpperCase() === "CLAIMED" || f.status?.toUpperCase() === "ON_THE_WAY"),
   });
 
   // Keep refs in sync with latest state
@@ -130,17 +136,6 @@ export default function RecipientHome() {
     fetchDashboardData();
   }, [fetchDashboardData]);
   
-
-
-  // Handle auto-refresh when a notification is received
-  useEffect(() => {
-    if (notification) {
-      console.log("[RecipientHome] Notification received, auto-refreshing stats...");
-      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
-      fetchDashboardData();
-    }
-  }, [notification, fetchDashboardData]);
-
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
@@ -176,8 +171,8 @@ export default function RecipientHome() {
     if (!dashboardData?.recentFoods || !user) return;
 
     // Clean up old channels
-    channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel);
+    (channelsRef.current || []).forEach(channel => {
+      if (channel) supabase.removeChannel(channel);
     });
     channelsRef.current = [];
 
@@ -213,8 +208,8 @@ export default function RecipientHome() {
     });
 
     return () => {
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
+      (channelsRef.current || []).forEach(channel => {
+        if (channel) supabase.removeChannel(channel);
       });
       channelsRef.current = [];
     };
@@ -265,6 +260,8 @@ export default function RecipientHome() {
     user?.user_metadata?.full_name?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
     "there";
+
+  const totalUnreadMessages = Object.values(unreadCounts || {}).reduce((sum, count) => sum + count, 0);
 
   if (loading && !refreshing) {
     return <LoadingScreen message="Loading dashboard..." />;
@@ -321,6 +318,8 @@ export default function RecipientHome() {
 
       setFeedbackVisible(false);
       showAlert("Thank You!", "Your feedback has been submitted.", undefined, { type: 'success' });
+      lastFetchTimeRef.current = 0; // Force fresh fetch
+      DeviceEventEmitter.emit('dashboard:force-refresh');
       fetchDashboardData();
       setSelectedDisID(null);
     } catch (error) {
@@ -341,6 +340,8 @@ export default function RecipientHome() {
           setLoading(true);
           try {
             await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.ON_THE_WAY(id));
+            lastFetchTimeRef.current = 0; // Force immediate refresh
+            DeviceEventEmitter.emit('dashboard:force-refresh');
             fetchDashboardData();
 
             // Find the item's lat/lng and open navigation
@@ -422,35 +423,37 @@ export default function RecipientHome() {
             </Text>
           </View>
         </View>
-        <View collapsable={false} ref={tutorial.refs.notificationBell}>
-          <TouchableOpacity
-            onPress={() => router.push("/(tabs)/notifications")}
-            style={{ padding: 8, position: "relative" }}>
-            <View>
-              <Bell size={wp(24)} color="#00C853" />
-              {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -2,
-                  right: -2,
-                  backgroundColor: "#FF3B30",
-                  width: wp(16),
-                  height: wp(16),
-                  borderRadius: wp(8),
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: colors.headerBg,
-                }}
-              >
-                <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
-                  {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
-                </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: wp(8) }}>
+          <View collapsable={false} ref={tutorial.refs.notificationBell}>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/notifications")}
+              style={{ padding: 8, position: "relative" }}>
+              <View>
+                <Bell size={wp(24)} color="#00C853" />
+                {(dashboardData?.stats?.unreadNotifications || 0) > 0 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -2,
+                      backgroundColor: "#FF3B30",
+                      width: wp(16),
+                      height: wp(16),
+                      borderRadius: wp(8),
+                      justifyContent: "center",
+                      alignItems: "center",
+                      borderWidth: 1.5,
+                      borderColor: colors.headerBg,
+                    }}
+                  >
+                    <Text style={{ color: "white", fontSize: fp(9), fontWeight: "bold" }}>
+                      {dashboardData.stats.unreadNotifications > 9 ? "9+" : dashboardData.stats.unreadNotifications}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
+            </TouchableOpacity>
           </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -582,6 +585,9 @@ export default function RecipientHome() {
               pathname: '/(recipient)/active-details',
               params: { disID: item.id }
             })}
+            chatRef={postClaimTutorial.refs.chatButton}
+            statusRef={postClaimTutorial.refs.statusBadge}
+            navigateRef={postClaimTutorial.refs.navigateButton}
           />
           </View>
         ) : (
@@ -614,16 +620,16 @@ export default function RecipientHome() {
         isSubmitting={submittingFeedback}
       />
 
-      {/* Tutorial Overlay */}
+      {/* Post-Claim Tutorial Overlay */}
       <TutorialOverlay
-        steps={tutorial.steps}
-        storageKey={tutorial.storageKey}
-        visible={tutorial.showTutorial}
-        onComplete={tutorial.handleComplete}
-        onSkip={tutorial.handleSkip}
-        targetRefs={tutorial.refs}
+        steps={postClaimTutorial.steps}
+        storageKey={postClaimTutorial.storageKey}
+        visible={postClaimTutorial.showTutorial}
+        onComplete={postClaimTutorial.handleComplete}
+        onSkip={postClaimTutorial.handleSkip}
+        targetRefs={postClaimTutorial.refs}
         onStepChange={(step) => {
-          console.log('[Recipient Home Tutorial] Step changed to:', step);
+          console.log('[Post-Claim Tutorial] Step changed to:', step);
         }}
       />
     </SafeAreaView>

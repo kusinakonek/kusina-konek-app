@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Bell, ChevronLeft, Trash2, Check } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { useTheme } from '../../context/ThemeContext';
@@ -45,23 +46,60 @@ function getTimeAgo(dateStr: string): string {
 function getNotificationIcon(type: string): string {
     switch (type) {
         case 'CLAIM_ALERT': return '🎉';
+        case 'CLAIM': return '🎉';
+        case 'CLAIM_BAN': return '⛔';
+        case 'CLAIM_TIMEOUT_WARNING': return '⏱️';
+        case 'CLAIM_TIMEOUT': return '⌛';
         case 'ON_THE_WAY': return '🚶';
+        case 'RECEIVE_REQUIRED': return '📩';
         case 'DELIVERY_CONFIRMED': return '✅';
+        case 'CONFIRM': return '✅';
+        case 'AUTO_RECEIVED': return '🤖';
+        case 'FEEDBACK_REMINDER': return '⭐';
         case 'NEW_FOOD': return '🍱';
+        case 'NEW_MESSAGE': return '💬';
+        case 'DONATION_CANCELLED': return '❌';
+        case 'FOOD_EXPIRED': return '⏰';
         default: return '🔔';
     }
 }
 
-function navigateForNotificationType(type: string) {
+async function navigateForNotificationType(type: string, entityID?: string) {
     switch (type) {
         case 'CLAIM_ALERT':
+        case 'CLAIM':
+        case 'CLAIM_BAN':
+        case 'CLAIM_TIMEOUT_WARNING':
+        case 'CLAIM_TIMEOUT':
         case 'ON_THE_WAY':
+        case 'RECEIVE_REQUIRED':
         case 'DELIVERY_CONFIRMED':
+        case 'CONFIRM':
+        case 'AUTO_RECEIVED':
+        case 'FEEDBACK_REMINDER':
+        case 'DONATION_CANCELLED':
+        case 'FOOD_EXPIRED':
             router.push('/(tabs)');
             break;
         case 'NEW_FOOD':
             router.push('/(tabs)');
             break;
+        case 'NEW_MESSAGE': {
+            if (!entityID) {
+                router.push('/(tabs)');
+                break;
+            }
+
+            const role = await AsyncStorage.getItem('userRole');
+            if (role === 'DONOR') {
+                router.push({ pathname: '/(donor)/chat', params: { disID: entityID } });
+            } else if (role === 'RECIPIENT') {
+                router.push({ pathname: '/(recipient)/chat', params: { disID: entityID } });
+            } else {
+                router.push('/(tabs)');
+            }
+            break;
+        }
         default:
             break;
     }
@@ -121,7 +159,7 @@ export default function NotificationsScreen() {
             // Remove from list
             setNotifications(prev => prev.filter(n => n.notificationID !== notification.notificationID));
             // Navigate to relevant screen
-            navigateForNotificationType(notification.type);
+            await navigateForNotificationType(notification.type, notification.entityID);
         } catch (error) {
             console.error('Failed to mark notification as read:', error);
         }

@@ -13,6 +13,9 @@ interface RecentFoodCardProps {
   onCancel?: (id: string) => void;
   onTrack?: (id: string) => void;
   onPressCard?: (item: RecentItem) => void;
+  chatRef?: React.RefObject<View>;
+  statusRef?: React.RefObject<View>;
+  navigateRef?: React.RefObject<View>;
 }
 
 export default function RecentFoodCard({
@@ -24,6 +27,9 @@ export default function RecentFoodCard({
   onCancel,
   onTrack,
   onPressCard,
+  chatRef,
+  statusRef,
+  navigateRef,
 }: RecentFoodCardProps) {
   const { colors } = useTheme();
 
@@ -32,6 +38,8 @@ export default function RecentFoodCard({
       onPressCard(item);
     }
   };
+
+  const cancelTargetFoodID = item.foodID;
 
   return (
     <TouchableOpacity
@@ -55,13 +63,15 @@ export default function RecentFoodCard({
           )}
           {/* Unread message badge on image */}
           {item.unreadMessages != null && item.unreadMessages > 0 ? (
-            <View style={styles.messageBadge}>
+            <View collapsable={false} ref={chatRef} style={styles.messageBadge}>
               <MessageCircle size={12} color="#fff" fill="#fff" />
               <Text style={styles.messageBadgeText}>
                 {item.unreadMessages > 9 ? '9+' : item.unreadMessages}
               </Text>
             </View>
-          ) : null}
+          ) : (
+            <View collapsable={false} ref={chatRef} style={{ position: 'absolute' }} />
+          )}
         </View>
 
         <View style={styles.headerTextInfo}>
@@ -74,6 +84,8 @@ export default function RecentFoodCard({
         </View>
         {item.status && (
           <View
+            collapsable={false}
+            ref={statusRef}
             style={[
               styles.statusBadge,
               item.status === "pending" && styles.status_pending,
@@ -140,16 +152,17 @@ export default function RecentFoodCard({
 
       {role === "RECIPIENT" && item.status === "on-the-way" && onConfirm && (
         <TouchableOpacity
+          ref={navigateRef}
           style={styles.confirmButton}
           onPress={() => onConfirm(item.id)}>
           <Text style={styles.confirmButtonText}>✅ Confirm Received</Text>
         </TouchableOpacity>
       )}
 
-      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && (
+      {role === "DONOR" && (item.status === "pending" || item.status === "available" || item.status === "donated" || !item.status) && onCancel && cancelTargetFoodID && (
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={() => onCancel(item.foodID || item.id)}>
+          onPress={() => onCancel(cancelTargetFoodID)}>
           <Text style={styles.cancelButtonText}>Cancel Donation</Text>
         </TouchableOpacity>
       )}

@@ -11,10 +11,15 @@ import {
   distributionRepository,
   foodRepository,
   locationRepository,
+  messageRepository,
   userRepository,
 } from "../repositories";
 import { encrypt, decrypt, safeDecrypt } from "../utils/encryption";
 import { notificationService } from "./notificationService";
+import {
+  getActiveClaimBan,
+  ON_THE_WAY_STARTED_INTERNAL_PREFIX,
+} from "./claimAutomationService";
 
 /**
  * Haversine formula: compute distance in km between two lat/lng points.
@@ -46,6 +51,28 @@ const ensureProfile = async (userID: string) => {
       "Please complete your profile first. Go to Profile > Edit Profile.",
     );
   return profile;
+};
+
+const CLAIM_BAN_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+
+const formatPHDateTime = (date: Date) => {
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    hour12: true,
+    timeZone: "Asia/Manila",
+  }).format(date);
+};
+
+const assertRecipientNotBanned = async (userID: string) => {
+  const activeBan = await getActiveClaimBan(userID);
+  if (!activeBan) return;
+
+  const untilText = formatPHDateTime(activeBan.bannedUntil);
+  throw new HttpError(
+    403,
+    `You are temporarily banned from claiming food until ${untilText} (PH time).`,
+  );
 };
 
 // Helper to decrypt user data (only decrypt fields that exist)
@@ -364,17 +391,45 @@ export const distributionService = {
       throw new HttpError(409, "Distribution must be in CLAIMED status");
     }
 
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+    const claimedAtMs = existing.claimedAt
+      ? new Date(existing.claimedAt).getTime()
+      : null;
+
+    if (claimedAtMs !== null && Date.now() - claimedAtMs >= FOUR_HOURS_MS) {
+      throw new HttpError(
+        409,
+        "Claim window expired. You can no longer mark this as on the way.",
+      );
+    }
+
     const distribution = await distributionRepository.updateStatus(
       params.disID,
       "ON_THE_WAY",
     );
+
+    // Internal marker for scheduler timing: send confirm-receive reminder after 1 hour.
+    await messageRepository.create({
+      disID: params.disID,
+      senderID: existing.donorID,
+      messageType: "TEXT",
+      content: `${ON_THE_WAY_STARTED_INTERNAL_PREFIX} ${new Date().toISOString()}`,
+    });
+
+    const recipientName = [
+      safeDecrypt(existing.recipient?.firstName || ""),
+      safeDecrypt(existing.recipient?.lastName || ""),
+    ]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" ") || "The recipient";
 
     // Notify donor
     notificationService
       .notifyUser(
         existing.donorID,
         "🚶 Recipient is on the way!",
-        "Someone is heading to pick up your food donation.",
+        `${recipientName} is coming your way to claim the food.`,
         "ON_THE_WAY",
         { screen: "DonorHome" },
         params.disID,
@@ -452,11 +507,16 @@ export const distributionService = {
     // Start of current month
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [dailyClaims, weeklyClaims, monthlyClaims] = await Promise.all([
+    const [dailyClaims, weeklyClaims, monthlyClaims, activeBan] = await Promise.all([
       distributionRepository.countClaimsSince(userID, startOfDay),
       distributionRepository.countClaimsSince(userID, startOfWeek),
       distributionRepository.countClaimsSince(userID, startOfMonth),
+      getActiveClaimBan(userID),
     ]);
+
+    const banActive = !!activeBan;
+    const canClaimByQuota =
+      dailyClaims < 1 && weeklyClaims < 3 && monthlyClaims < 5;
 
     return {
       dailyClaims,
@@ -465,7 +525,10 @@ export const distributionService = {
       maxDaily: 1,
       maxWeekly: 3,
       maxMonthly: 5,
-      canClaim: dailyClaims < 1 && weeklyClaims < 3 && monthlyClaims < 5,
+      canClaim: !banActive && canClaimByQuota,
+      isBanned: banActive,
+      bannedUntil: activeBan?.bannedUntil ?? null,
+      banDays: CLAIM_BAN_DURATION_MS / (24 * 60 * 60 * 1000),
     };
   },
 
@@ -480,6 +543,8 @@ export const distributionService = {
     if ((params.userRole as Role | undefined) !== "RECIPIENT") {
       throw new HttpError(403, "Only recipients can request distributions");
     }
+
+    await assertRecipientNotBanned(params.userID);
 
     // --- Claim frequency limits: 1/day, 3/week, 5/month ---
     const limits = await this.getClaimLimits(params.userID);
@@ -529,6 +594,61 @@ export const distributionService = {
     });
 
     const decryptedDistribution = decryptDistribution(updated);
+
+    // Auto-start chat for both sides with KusinaKonek Bot prompts.
+    try {
+      const foodName = safeDecrypt(existing.food?.foodName) || "this food donation";
+      const recipientName =
+        [
+          decryptedDistribution?.recipient?.firstName,
+          decryptedDistribution?.recipient?.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "A recipient";
+
+      const donorStarter = `[KusinaKonek Bot] ${recipientName}, has claimed your food ${foodName}. Start a conversation to coordinate pickup details.`;
+      const recipientStarter = `[KusinaKonek Bot] Congrats on the fresh food! You got ${foodName}. Start a conversation with the donor for pickup coordination.`;
+
+      // Order matters for chat timeline: donor-facing message first, recipient-facing second.
+      await messageRepository.create({
+        disID: params.disID,
+        senderID: params.userID,
+        messageType: "TEXT",
+        content: donorStarter,
+      });
+
+      await messageRepository.create({
+        disID: params.disID,
+        senderID: existing.donorID,
+        messageType: "TEXT",
+        content: recipientStarter,
+      });
+
+      notificationService
+        .notifyUser(
+          existing.donorID,
+          "💬 New Message",
+          `KusinaKonek Bot: ${recipientName} has claimed your food ${foodName}.`,
+          "NEW_MESSAGE",
+          { screen: "Chat", disID: params.disID },
+          params.disID,
+        )
+        .catch((e) => console.error("Bot donor notify error:", e));
+
+      notificationService
+        .notifyUser(
+          params.userID,
+          "💬 New Message",
+          `KusinaKonek Bot: Congrats on the fresh food! You got ${foodName}.`,
+          "NEW_MESSAGE",
+          { screen: "Chat", disID: params.disID },
+          params.disID,
+        )
+        .catch((e) => console.error("Bot recipient notify error:", e));
+    } catch (error) {
+      console.error("Failed to create KusinaKonek bot starter messages:", error);
+    }
 
     // Notify donor that their food was claimed
     notificationService
