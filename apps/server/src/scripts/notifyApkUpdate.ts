@@ -79,10 +79,10 @@ function buildEmailHtml(): string {
               <p style="color:#333; font-size:16px; line-height:1.6; margin-top:0;">Hi there!</p>
               
               <p style="color:#333; font-size:16px; line-height:1.6;">
-                We're excited to let you know that a <strong>new version of KusinaKonek (v2.0.0)</strong> is now available for download!
+                We're excited to let you know that a <strong>new version of KusinaKonek (v2.0.1)</strong> is now available for download!
               </p>
 
-              <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New in v2.0.0:</h3>
+              <h3 style="color:#2E7D32; margin-bottom:8px;">📱 What's New in v2.0.1:</h3>
               <ul style="color:#555; font-size:14px; line-height:1.8;">
                 <li><strong>Unread Message Badges:</strong> See at a glance which food donations have new messages with count badges on food cards and chat buttons.</li>
                 <li><strong>Real-Time Badge Updates:</strong> Message counts update instantly without refreshing - badges disappear the moment you read messages.</li>

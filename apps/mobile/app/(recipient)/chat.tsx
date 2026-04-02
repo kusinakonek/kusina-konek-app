@@ -26,6 +26,7 @@ import { useRealtimeMessages, Message } from '../../src/hooks/useRealtimeMessage
 import { wp, hp, fp } from '../../src/utils/responsive';
 import axiosClient from '../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../src/api/endpoints';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 export default function Chat() {
   const { disID } = useLocalSearchParams<{ disID: string }>();
@@ -260,9 +261,7 @@ export default function Chat() {
         keyboardVerticalOffset={0}>
         {/* Messages List */}
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <LoadingScreen message="Loading chat..." />
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={[styles.errorText, { color: (colors as any).error || 'red' }]}>{error}</Text>

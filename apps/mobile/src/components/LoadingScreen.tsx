@@ -35,6 +35,8 @@ export default function LoadingScreen({
     const isLandscape = width > height;
 
     const { colors } = useTheme();
+    const loadingLogo = require('../../assets/loading screen.png');
+    const premiumLoadingLogo = require('../../assets/loading-opening.png');
 
     const dotAnim1 = useRef(new Animated.Value(0)).current;
     const dotAnim2 = useRef(new Animated.Value(0)).current;
@@ -136,11 +138,10 @@ export default function LoadingScreen({
                 <View style={[styles.content, { justifyContent: 'center' }]}>
                     <View style={[styles.logoShadow, { marginBottom: 16 }]}>
                         <Image
-                            source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
+                            source={loadingLogo}
                             style={{
                                 width: logoSize,
                                 height: logoSize,
-                                borderRadius: logoSize / 2,
                             }}
                             resizeMode="contain"
                         />
@@ -178,11 +179,10 @@ export default function LoadingScreen({
                     styles.logoShadow
                 ]}>
                     <Image
-                        source={require('../../assets/KUSINAKONEK-NEW-LOGO.png')}
+                        source={premiumLoadingLogo}
                         style={{
                             width: logoSize, 
                             height: logoSize,
-                            borderRadius: logoSize / 2,
                         }}
                         resizeMode="contain"
                     />
