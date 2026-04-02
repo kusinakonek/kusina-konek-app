@@ -478,6 +478,22 @@ export const foodService = {
     // 3) Finally delete the food/donation itself
     await foodRepository.delete(resolvedFoodID);
 
+    try {
+      const foodName = safeDecrypt(existing.foodName) || "your food donation";
+      await import("./notificationService").then((ns) =>
+        ns.notificationService.notifyUser(
+          params.userID,
+          "Donation Cancelled",
+          `Your donation "${foodName}" has been cancelled successfully.`,
+          "DONATION_CANCELLED",
+          { screen: "DonorHome", foodID: resolvedFoodID },
+          distribution?.disID ?? resolvedFoodID,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to send cancellation notification", error);
+    }
+
     return {
       message: "Donation has been successfully cancelled and removed",
     };
@@ -537,6 +553,30 @@ export const foodService = {
         senderID: existing.donorID,
         messageType: "TEXT",
         content: recipientStarter,
+      });
+
+      await import("./notificationService").then((ns) => {
+        ns.notificationService
+          .notifyUser(
+            existing.donorID,
+            "💬 New Message",
+            `KusinaKonek Bot: ${recipientName} has claimed your food ${foodName}.`,
+            "NEW_MESSAGE",
+            { screen: "Chat", disID: distribution.disID },
+            distribution.disID,
+          )
+          .catch((err) => console.error("Bot donor notify error:", err));
+
+        ns.notificationService
+          .notifyUser(
+            params.recipientID,
+            "💬 New Message",
+            `KusinaKonek Bot: Congrats on the fresh food! You got ${foodName}.`,
+            "NEW_MESSAGE",
+            { screen: "Chat", disID: distribution.disID },
+            distribution.disID,
+          )
+          .catch((err) => console.error("Bot recipient notify error:", err));
       });
     } catch (error) {
       console.error("Failed to create KusinaKonek bot starter messages:", error);

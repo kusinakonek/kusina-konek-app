@@ -370,12 +370,20 @@ export const distributionService = {
       "ON_THE_WAY",
     );
 
+    const recipientName = [
+      safeDecrypt(existing.recipient?.firstName || ""),
+      safeDecrypt(existing.recipient?.lastName || ""),
+    ]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" ") || "The recipient";
+
     // Notify donor
     notificationService
       .notifyUser(
         existing.donorID,
         "🚶 Recipient is on the way!",
-        "Someone is heading to pick up your food donation.",
+        `${recipientName} is coming your way to claim the food.`,
         "ON_THE_WAY",
         { screen: "DonorHome" },
         params.disID,
@@ -560,6 +568,28 @@ export const distributionService = {
         messageType: "TEXT",
         content: recipientStarter,
       });
+
+      notificationService
+        .notifyUser(
+          existing.donorID,
+          "💬 New Message",
+          `KusinaKonek Bot: ${recipientName} has claimed your food ${foodName}.`,
+          "NEW_MESSAGE",
+          { screen: "Chat", disID: params.disID },
+          params.disID,
+        )
+        .catch((e) => console.error("Bot donor notify error:", e));
+
+      notificationService
+        .notifyUser(
+          params.userID,
+          "💬 New Message",
+          `KusinaKonek Bot: Congrats on the fresh food! You got ${foodName}.`,
+          "NEW_MESSAGE",
+          { screen: "Chat", disID: params.disID },
+          params.disID,
+        )
+        .catch((e) => console.error("Bot recipient notify error:", e));
     } catch (error) {
       console.error("Failed to create KusinaKonek bot starter messages:", error);
     }

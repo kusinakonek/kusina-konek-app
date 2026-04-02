@@ -27,7 +27,6 @@ import { RecentFoodSkeleton } from "../components/SkeletonLoader";
 import { useTheme } from "../../context/ThemeContext";
 import FeedbackModal from "../components/FeedbackModal";
 import { useAlert } from "../../context/AlertContext";
-import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useNetwork } from "../../context/NetworkContext";
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from "../utils/dataCache";
 import TutorialOverlay, { TUTORIAL_STORAGE_KEYS } from "../components/TutorialOverlay";
@@ -39,7 +38,6 @@ export default function RecipientHome() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showAlert } = useAlert();
-  const { notification } = usePushNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -138,17 +136,6 @@ export default function RecipientHome() {
     fetchDashboardData();
   }, [fetchDashboardData]);
   
-
-
-  // Handle auto-refresh when a notification is received
-  useEffect(() => {
-    if (notification) {
-      console.log("[RecipientHome] Notification received, auto-refreshing stats...");
-      lastFetchTimeRef.current = 0; // Bypass throttle to immediately load new changes
-      fetchDashboardData();
-    }
-  }, [notification, fetchDashboardData]);
-
   // Handle reconnect auto-refresh
   useEffect(() => {
     if (justReconnected) {
