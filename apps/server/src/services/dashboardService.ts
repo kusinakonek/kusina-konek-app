@@ -5,12 +5,80 @@ import { sha256Hex } from "../utils/hash";
 // Helper Functions
 // ============================================================
 
+type CacheEntry<T> = {
+    value: T;
+    expiresAt: number;
+};
+
+const PROFILE_CACHE_TTL_MS = 15_000;
+const DASHBOARD_CACHE_TTL_MS = 8_000;
+const MAX_CACHE_ENTRIES = 500;
+
+const profileCache = new Map<string, CacheEntry<any>>();
+const donorDashboardCache = new Map<string, CacheEntry<any>>();
+const recipientDashboardCache = new Map<string, CacheEntry<any>>();
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const getCachedValue = <T>(cache: Map<string, CacheEntry<T>>, key: string): T | undefined => {
+    const cached = cache.get(key);
+    if (!cached) return undefined;
+    if (cached.expiresAt < Date.now()) {
+        cache.delete(key);
+        return undefined;
+    }
+    return cached.value;
+};
+
+const cleanupCache = <T>(cache: Map<string, CacheEntry<T>>) => {
+    const now = Date.now();
+    for (const [key, value] of cache.entries()) {
+        if (value.expiresAt < now) {
+            cache.delete(key);
+        }
+    }
+
+    if (cache.size <= MAX_CACHE_ENTRIES) {
+        return;
+    }
+
+    const keys = Array.from(cache.keys());
+    const keysToDelete = keys.slice(0, Math.floor(keys.length / 2));
+    for (const key of keysToDelete) {
+        cache.delete(key);
+    }
+};
+
+const setCachedValue = <T>(
+    cache: Map<string, CacheEntry<T>>,
+    key: string,
+    value: T,
+    ttlMs: number,
+) => {
+    if (cache.size >= MAX_CACHE_ENTRIES) {
+        cleanupCache(cache);
+    }
+
+    cache.set(key, {
+        value,
+        expiresAt: Date.now() + ttlMs,
+    });
+};
+
 /**
  * Find a user's profile by email. Returns null if not found (no error thrown).
  */
 const findProfile = async (email: string) => {
-    const emailHash = sha256Hex(email.toLowerCase());
-    return await userRepository.getByEmailHash(emailHash);
+    const emailKey = normalizeEmail(email);
+    const cachedProfile = getCachedValue(profileCache, emailKey);
+    if (cachedProfile !== undefined) {
+        return cachedProfile;
+    }
+
+    const emailHash = sha256Hex(emailKey);
+    const profile = await userRepository.getByEmailHash(emailHash);
+    setCachedValue(profileCache, emailKey, profile ?? null, PROFILE_CACHE_TTL_MS);
+    return profile;
 };
 
 /** Empty stats returned when user has no profile yet */
@@ -46,10 +114,18 @@ export const dashboardService = {
      * If the user has no profile yet, returns zeroed-out stats and empty lists.
      */
     async getDonorDashboard(email: string) {
+        const emailKey = normalizeEmail(email);
+        const cachedDashboard = getCachedValue(donorDashboardCache, emailKey);
+        if (cachedDashboard !== undefined) {
+            return cachedDashboard;
+        }
+
         const profile = await findProfile(email);
 
         if (!profile) {
-            return { stats: EMPTY_DONOR_STATS, recentDonations: [], profileCompleted: false };
+            const emptyResult = { stats: EMPTY_DONOR_STATS, recentDonations: [], profileCompleted: false };
+            setCachedValue(donorDashboardCache, emailKey, emptyResult, DASHBOARD_CACHE_TTL_MS);
+            return emptyResult;
         }
 
         const userID = profile.userID;
@@ -59,7 +135,7 @@ export const dashboardService = {
             dashboardRepository.getDonorRecentDonations(userID, 10)
         ]);
 
-        return {
+        const result = {
             stats: {
                 totalDonated: stats.totalDonated,
                 availableItems: stats.availableItems,
@@ -73,6 +149,9 @@ export const dashboardService = {
             })),
             profileCompleted: true
         };
+
+        setCachedValue(donorDashboardCache, emailKey, result, DASHBOARD_CACHE_TTL_MS);
+        return result;
     },
 
     /**
@@ -81,10 +160,18 @@ export const dashboardService = {
      * If the user has no profile yet, returns zeroed-out stats and empty lists.
      */
     async getRecipientDashboard(email: string) {
+        const emailKey = normalizeEmail(email);
+        const cachedDashboard = getCachedValue(recipientDashboardCache, emailKey);
+        if (cachedDashboard !== undefined) {
+            return cachedDashboard;
+        }
+
         const profile = await findProfile(email);
 
         if (!profile) {
-            return { stats: EMPTY_RECIPIENT_STATS, recentFoods: [], profileCompleted: false };
+            const emptyResult = { stats: EMPTY_RECIPIENT_STATS, recentFoods: [], profileCompleted: false };
+            setCachedValue(recipientDashboardCache, emailKey, emptyResult, DASHBOARD_CACHE_TTL_MS);
+            return emptyResult;
         }
 
         const userID = profile.userID;
@@ -94,7 +181,7 @@ export const dashboardService = {
             dashboardRepository.getRecipientRecentFoods(userID, 10)
         ]);
 
-        return {
+        const result = {
             stats: {
                 availableFoods: stats.availableFoods,
                 locations: stats.locations,
@@ -109,6 +196,9 @@ export const dashboardService = {
             })),
             profileCompleted: true
         };
+
+        setCachedValue(recipientDashboardCache, emailKey, result, DASHBOARD_CACHE_TTL_MS);
+        return result;
     },
 
     /**

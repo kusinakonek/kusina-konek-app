@@ -6,6 +6,7 @@ import { Session, User } from '@supabase/supabase-js';
 
 // Define the shape of the AuthContext
 import { clearAllCache } from '../src/utils/dataCache';
+import { clearRuntimeAuth, setRuntimeAccessToken, setRuntimeRole } from '../src/state/authRuntime';
 
 interface AuthContextType {
     userToken: string | null;
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const prefetchUserData = async () => {
         try {
-            setLoadingSteps(['Server Connection', 'Authentication', 'Profile Data', 'Dashboard Setup', 'Finalizing']);
+            setLoadingSteps(['Server Connection', 'Profile Data', 'Dashboard Setup', 'Finalizing']);
             setCurrentLoadingStep(0);
             setLoadingProgress(0.1);
 
@@ -60,61 +61,89 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const axiosClient = (await import('../src/api/axiosClient')).default;
             const { API_ENDPOINTS } = await import('../src/api/endpoints');
             const { cacheData, CACHE_KEYS } = await import('../src/utils/dataCache');
+            const activeRole = role || await AsyncStorage.getItem('userRole');
 
-            // Simulate Server Connection
-            setCurrentLoadingStep(0);
-            setLoadingProgress(0.2);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Simulate Authentication
             setCurrentLoadingStep(1);
-            setLoadingProgress(0.4);
-            await new Promise(resolve => setTimeout(resolve, 300));
+            setLoadingProgress(0.45);
 
-            // Fetch Profile Data
-            setCurrentLoadingStep(2);
-            setLoadingProgress(0.6);
-            const [profileRes, donorRes, recipientRes] = await Promise.all([
-                axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE).catch(() => null),
-                axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR).catch(() => null),
-                axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT).catch(() => null)
+            const profilePromise = axiosClient.get(API_ENDPOINTS.USER.GET_PROFILE);
+            const activeDashboardPromise =
+                activeRole === 'DONOR'
+                    ? axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR)
+                    : activeRole === 'RECIPIENT'
+                        ? axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT)
+                        : Promise.resolve(null);
+
+            const [profileResult, dashboardResult] = await Promise.allSettled([
+                profilePromise,
+                activeDashboardPromise,
             ]);
 
-            const pData = profileRes?.data;
-            const donorData = donorRes?.data;
-            const recipientData = recipientRes?.data;
+            const pData = profileResult.status === 'fulfilled' ? profileResult.value?.data : null;
+            const activeDashboardData =
+                dashboardResult.status === 'fulfilled' ? dashboardResult.value?.data || null : null;
 
-            // Setup Dashboard
-            setCurrentLoadingStep(3);
-            setLoadingProgress(0.8);
-            await new Promise(resolve => setTimeout(resolve, 300));
+            setCurrentLoadingStep(2);
+            setLoadingProgress(0.75);
 
             if (pData) {
                 await cacheData(CACHE_KEYS.USER_PROFILE, pData);
             }
 
-            if (donorData) {
-                await cacheData(CACHE_KEYS.DONOR_DASHBOARD, donorData);
+            if (activeRole === 'DONOR' && activeDashboardData) {
+                await cacheData(CACHE_KEYS.DONOR_DASHBOARD, activeDashboardData);
                 await cacheData(`${CACHE_KEYS.PROFILE_DATA}_DONOR`, { 
                     profileData: pData, 
-                    statsData: donorData.stats, 
-                    donorHistoryStats: donorData.stats 
+                    statsData: activeDashboardData.stats,
+                    donorHistoryStats: activeDashboardData.stats,
                 });
             }
 
-            if (recipientData) {
-                await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, recipientData);
+            if (activeRole === 'RECIPIENT' && activeDashboardData) {
+                await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, activeDashboardData);
                 await cacheData(`${CACHE_KEYS.PROFILE_DATA}_RECIPIENT`, { 
                     profileData: pData, 
-                    statsData: recipientData.stats, 
-                    donorHistoryStats: donorData?.stats || null 
+                    statsData: activeDashboardData.stats,
+                    donorHistoryStats: null,
                 });
             }
 
-            // Finalizing
-            setCurrentLoadingStep(4);
+            const secondaryDashboardEndpoint =
+                activeRole === 'DONOR'
+                    ? API_ENDPOINTS.DASHBOARD.RECIPIENT
+                    : activeRole === 'RECIPIENT'
+                        ? API_ENDPOINTS.DASHBOARD.DONOR
+                        : null;
+
+            if (secondaryDashboardEndpoint) {
+                void axiosClient
+                    .get(secondaryDashboardEndpoint)
+                    .then(async (response) => {
+                        if (!response?.data) return;
+
+                        if (activeRole === 'DONOR') {
+                            await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
+                            await cacheData(`${CACHE_KEYS.PROFILE_DATA}_RECIPIENT`, {
+                                profileData: pData,
+                                statsData: response.data.stats,
+                                donorHistoryStats: activeDashboardData?.stats || null,
+                            });
+                        } else if (activeRole === 'RECIPIENT') {
+                            await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
+                            await cacheData(`${CACHE_KEYS.PROFILE_DATA}_DONOR`, {
+                                profileData: pData,
+                                statsData: response.data.stats,
+                                donorHistoryStats: response.data.stats,
+                            });
+                        }
+                    })
+                    .catch((error) => {
+                        console.warn('[Auth] Secondary dashboard prefetch failed:', error);
+                    });
+            }
+
+            setCurrentLoadingStep(3);
             setLoadingProgress(1.0);
-            await new Promise(resolve => setTimeout(resolve, 400));
             console.log('[Auth] Prefetching complete.');
         } catch (e) {
             console.warn('[Auth] Failed to prefetch data:', e);
@@ -125,24 +154,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Get initial session
         const initAuth = async () => {
             try {
+                const storedRole = await AsyncStorage.getItem('userRole');
+                if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
+                    setRoleState(storedRole);
+                    setRuntimeRole(storedRole);
+                } else {
+                    setRuntimeRole(null);
+                }
+
                 const { data: { session: currentSession }, error } = await supabase.auth.getSession();
                 if (error || !currentSession) {
                     // Session is invalid/expired — clear stale state silently
                     setSession(null);
                     setUser(null);
                     setUserToken(null);
+                    setRuntimeAccessToken(null);
                 } else {
                     setSession(currentSession);
                     setUser(currentSession.user);
                     setUserToken(currentSession.access_token);
+                    setRuntimeAccessToken(currentSession.access_token);
                     
-                    // Pre-fetch fresh data during app startup
-                    await prefetchUserData();
-                }
-
-                const storedRole = await AsyncStorage.getItem('userRole');
-                if (storedRole === 'DONOR' || storedRole === 'RECIPIENT') {
-                    setRoleState(storedRole);
+                    // Pre-fetch fresh data during app startup without blocking UI.
+                    void prefetchUserData();
                 }
             } catch (e: any) {
                 // Refresh token errors (e.g. "Refresh Token Not Found") end up here
@@ -158,6 +192,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUser(null);
                 setUserToken(null);
                 setRoleState(null);
+                clearRuntimeAuth();
             } finally {
                 setIsLoading(false);
             }
@@ -176,12 +211,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setSession(newSession);
             setUser(newSession?.user ?? null);
             setUserToken(newSession?.access_token ?? null);
+            setRuntimeAccessToken(newSession?.access_token ?? null);
 
             if (event === 'SIGNED_OUT') {
                 // Clear state
                 setRoleState(null);
+                setRuntimeRole(null);
                 setPendingSignup(null);
                 await AsyncStorage.removeItem('userRole');
+                clearRuntimeAuth();
                 // Redirect to welcome screen
                 router.replace('/(auth)/welcome');
             }
@@ -192,6 +230,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const setRole = async (newRole: 'DONOR' | 'RECIPIENT') => {
         setRoleState(newRole);
+        setRuntimeRole(newRole);
         await AsyncStorage.setItem('userRole', newRole);
     };
 
@@ -211,21 +250,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(data.session);
         setUser(data.user);
         setUserToken(data.session?.access_token ?? null);
-
-        // Add small delay to ensure state updates are processed before navigation
-        await new Promise(resolve => setTimeout(resolve, 50));
+        setRuntimeAccessToken(data.session?.access_token ?? null);
 
         // Navigate to tabs - LoadingScreen will render because isPostLoginLoading is true
         router.replace('/(tabs)');
 
-        // Fetch data while loading screen is visible
-        await Promise.all([
-            prefetchUserData(),
-            new Promise(resolve => setTimeout(resolve, 800)) // Minimum visible time
-        ]);
-
-        // Only set to false after all data is fetched
-        setIsPostLoginLoading(false);
+        try {
+            await prefetchUserData();
+        } finally {
+            // Only set to false after data prefetch attempt finishes
+            setIsPostLoginLoading(false);
+        }
     };
 
     // Step 1: Sign up — creates unconfirmed user, sends OTP email
@@ -278,6 +313,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(data.session);
         setUser(data.user);
         setUserToken(data.session.access_token);
+        setRuntimeAccessToken(data.session.access_token);
 
         // Now create the user profile in the User table
         if (pendingSignup) {
@@ -296,20 +332,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Set post-login loading state FIRST
         setIsPostLoginLoading(true);
 
-        // Add small delay to ensure state updates are processed before navigation
-        await new Promise(resolve => setTimeout(resolve, 50));
-
         // Transition to tabs layer. The LoadingScreen.tsx component will show.
         router.replace('/(tabs)');
 
-        // Fetch data while loading screen is visible
-        await Promise.all([
-            prefetchUserData(),
-            new Promise(resolve => setTimeout(resolve, 800)) // Minimum visible time
-        ]);
-
-        // Only set to false after all data is fetched
-        setIsPostLoginLoading(false);
+        try {
+            await prefetchUserData();
+        } finally {
+            // Only set to false after data prefetch attempt finishes
+            setIsPostLoginLoading(false);
+        }
     };
 
     // Helper: Create user profile in database via the Node.js API
@@ -457,6 +488,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserToken(null);
         setRoleState(null);
         setPendingSignup(null);
+        clearRuntimeAuth();
         await AsyncStorage.removeItem('userRole');
         await clearAllCache(); // Clear everything from cache for the logged-out user
         

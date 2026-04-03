@@ -19,7 +19,7 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import { DashboardStats } from "../components/DashboardStats";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import { Heart, Package, Star, Plus, Utensils, Bell, MessageCircle } from "lucide-react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter } from "expo-router";
 import { wp, hp, fp, isTablet } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { useTheme } from "../../context/ThemeContext";
@@ -52,6 +52,7 @@ export default function DonorHome() {
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
+  const lastForceRefreshRef = useRef<number>(0);
 
   // Tutorial - only show when dashboard data is loaded
   const tutorial = useTutorial({
@@ -144,6 +145,10 @@ export default function DonorHome() {
   // Listen for force-refresh events strictly from user actions (Claim, Add, Cancel, Feedback)
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('dashboard:force-refresh', () => {
+      const now = Date.now();
+      if (now - lastForceRefreshRef.current < 1500) return;
+      lastForceRefreshRef.current = now;
+
       console.log("[DonorHome] Force refresh event received after user action!");
       // Reset throttle so fetch is allowed
       lastFetchTimeRef.current = 0;
@@ -154,14 +159,6 @@ export default function DonorHome() {
     
     return () => subscription.remove();
   }, [fetchDashboardData]);
-
-  // Refetch full dashboard data whenever the screen comes into focus
-  // This ensures cancelled donations disappear immediately when navigating back
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboardData();
-    }, [fetchDashboardData]),
-  );
 
   // Listen for real-time message read events
   useEffect(() => {

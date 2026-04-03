@@ -20,7 +20,7 @@ import { API_ENDPOINTS } from "../api/endpoints";
 import { RecentItemsList, RecentItem } from "../components/RecentItemsList";
 import EmptyRecentFood from "../components/EmptyRecentFood";
 import { Package, MapPin, Utensils, Search, Bell, MessageCircle } from "lucide-react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter } from "expo-router";
 import { wp, hp, fp } from "../utils/responsive";
 import LoadingScreen from "../components/LoadingScreen";
 import { RecentFoodSkeleton } from "../components/SkeletonLoader";
@@ -47,6 +47,7 @@ export default function RecipientHome() {
   const isOnlineRef = useRef(isOnline);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
+  const lastForceRefreshRef = useRef<number>(0);
 
   // Feedback Modal State
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -147,6 +148,10 @@ export default function RecipientHome() {
   // Listen for force-refresh events strictly from user actions (Claim, Add, Cancel, Feedback)
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('dashboard:force-refresh', () => {
+      const now = Date.now();
+      if (now - lastForceRefreshRef.current < 1500) return;
+      lastForceRefreshRef.current = now;
+
       console.log("[RecipientHome] Force refresh event received after user action!");
       // Reset throttle so fetch is allowed
       lastFetchTimeRef.current = 0;
@@ -157,14 +162,6 @@ export default function RecipientHome() {
     
     return () => subscription.remove();
   }, [fetchDashboardData]);
-
-  // Refetch full dashboard data whenever the screen comes into focus
-  // This ensures cancelled/updated donations reflect immediately
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboardData();
-    }, [fetchDashboardData]),
-  );
 
   // Listen for real-time message read events
   useEffect(() => {

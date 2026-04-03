@@ -49,11 +49,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         }
 
         const now = Date.now();
-        if (now - lastSilentRefreshRef.current < 3000) {
-            return;
-        }
-        lastSilentRefreshRef.current = now;
-
         const type = String(data?.type || '').toUpperCase();
         const refreshableTypes = new Set([
             'NEW_FOOD',
@@ -73,23 +68,33 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
             'FOOD_EXPIRED',
         ]);
 
-        try {
-            if (refreshableTypes.has(type)) {
-                const activeRole = role || await AsyncStorage.getItem('userRole');
+        if (!refreshableTypes.has(type)) {
+            return;
+        }
 
-                if (activeRole === 'DONOR') {
-                    const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
-                    await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
-                } else if (activeRole === 'RECIPIENT') {
-                    const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
-                    await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
-                }
+        if (now - lastSilentRefreshRef.current < 8000) {
+            return;
+        }
+        lastSilentRefreshRef.current = now;
+
+        try {
+            const activeRole = role;
+            if (!activeRole) {
+                return;
             }
-        } catch (error) {
-            console.warn('[NotificationContext] Silent dashboard refresh failed:', error);
-        } finally {
+
+            if (activeRole === 'DONOR') {
+                const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.DONOR);
+                await cacheData(CACHE_KEYS.DONOR_DASHBOARD, response.data);
+            } else if (activeRole === 'RECIPIENT') {
+                const response = await axiosClient.get(API_ENDPOINTS.DASHBOARD.RECIPIENT);
+                await cacheData(CACHE_KEYS.RECIPIENT_DASHBOARD, response.data);
+            }
+
             // Home screens listen to this and refresh quietly without full-screen loaders.
             DeviceEventEmitter.emit('dashboard:force-refresh');
+        } catch (error) {
+            console.warn('[NotificationContext] Silent dashboard refresh failed:', error);
         }
     }, [user, role]);
 
@@ -156,9 +161,14 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status === 'granted') {
-                const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                latitude = location.coords.latitude;
-                longitude = location.coords.longitude;
+                const location = await Promise.race([
+                    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+                ]);
+                if (location) {
+                    latitude = location.coords.latitude;
+                    longitude = location.coords.longitude;
+                }
             }
         } catch (err) {
             console.warn("[NotificationContext] Location sync skipped:", err);
@@ -208,8 +218,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
             if (val === 'false') setNotificationsEnabledState(false);
         });
 
-        registerToken();
-
         notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
             setNotification(notification);
             const data = notification.request?.content?.data || {};
@@ -234,7 +242,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     // Perform sync when user or token becomes available
     useEffect(() => {
         if (user && notificationsEnabled) {
-            syncTokenAndLocation();
+            const timeout = setTimeout(() => {
+                syncTokenAndLocation();
+            }, 3000);
+
+            return () => clearTimeout(timeout);
         }
     }, [user, notificationsEnabled, syncTokenAndLocation]);
 
