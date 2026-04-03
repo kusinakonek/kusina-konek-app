@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
@@ -10,6 +10,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { useAlert } from '../../../context/AlertContext';
 import axiosClient from '../../../src/api/axiosClient';
 import { API_ENDPOINTS } from '../../../src/api/endpoints';
+import LoadingScreen from '../../../src/components/LoadingScreen';
 
 export default function TrackFoodScreen() {
     const { disID } = useLocalSearchParams<{ disID: string }>();
@@ -92,12 +93,7 @@ export default function TrackFoodScreen() {
     };
 
     if (loading || !destination) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={{ marginTop: 16, color: colors.text }}>Starting tracker...</Text>
-            </View>
-        );
+      return <LoadingScreen message="Starting tracker..." />;
     }
 
     // Google Maps Default Dark Theme JSON to replicate premium dark maps

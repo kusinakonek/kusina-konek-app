@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -65,6 +65,15 @@
   },
   "eslintConfig": {
     "extends": "universe/native"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-maps-directions"
+        ]
+      }
+    }
   },
   "browserslist": [
     "last 3 versions",

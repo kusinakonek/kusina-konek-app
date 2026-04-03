@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
+    StyleSheet,
     View,
     Text,
-    StyleSheet,
     TouchableOpacity,
     Animated,
     Modal,
@@ -172,7 +172,6 @@ export default function TutorialOverlay({
     const previewIcon = extractPreviewIcon(rawTitle);
     const previewTitle = rawTitle.replace(previewIcon, '').replace(/\s+/g, ' ').trim() || rawTitle;
     const isButtonLikeStep = (currentTargetRefKey || '').toLowerCase().includes('button');
-    const isWelcomeStep = (currentStepData?.id || '').toLowerCase().includes('welcome');
     const isSmallPhone = screenWidth < 360 || screenHeight < 700;
     const isLargePhone = screenWidth >= 430 || screenHeight >= 900;
     const isShortPhone = screenHeight < 700;
@@ -268,7 +267,7 @@ export default function TutorialOverlay({
                                         {currentStepData.icon || <Text style={[styles.previewIcon, isSmallPhone && styles.previewIconCompact]}>{previewIcon}</Text>}
                                     </View>
                                     <Text
-                                        numberOfLines={isWelcomeStep ? 1 : 2}
+                                        numberOfLines={1}
                                         ellipsizeMode="tail"
                                         style={[
                                             styles.previewTitle,
@@ -456,27 +455,27 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D8F2E1',
         borderRadius: 14,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-    },
-    previewHeaderCompact: {
         paddingHorizontal: 12,
         paddingVertical: 10,
     },
+    previewHeaderCompact: {
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
     previewIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#E8F9EF',
         flexShrink: 0,
-        marginRight: 12,
+        marginRight: 10,
     },
     previewIconWrapCompact: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
     },
     previewIcon: {
         fontSize: 20,
@@ -487,15 +486,15 @@ const styles = StyleSheet.create({
     previewTitle: {
         flexGrow: 0,
         flexShrink: 1,
-        fontSize: 18,
-        lineHeight: 22,
+        fontSize: 16,
+        lineHeight: 20,
         fontWeight: '700',
         color: '#1a1a1a',
         textAlign: 'center',
     },
     previewTitleCompact: {
-        fontSize: 18,
-        lineHeight: 22,
+        fontSize: 14,
+        lineHeight: 18,
         textAlign: 'center',
     },
     previewButton: {

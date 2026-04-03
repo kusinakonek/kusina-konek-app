@@ -116,9 +116,9 @@ export default function AllRecentFoods() {
       "Confirm Receipt",
       "Have you successfully received this food?",
       [
-        { text: "Cancel", style: "cancel" },
         {
           text: "Yes, Confirm",
+          style: "default",
           onPress: async () => {
             try {
               await axiosClient.post(API_ENDPOINTS.DISTRIBUTION.COMPLETE(id));
@@ -130,8 +130,9 @@ export default function AllRecentFoods() {
             }
           },
         },
+        { text: "Cancel", style: "cancel" },
       ],
-      { type: 'info' }
+      { type: 'info', stackButtons: true }
     );
   };
 
