@@ -105,5 +105,5 @@ const getApiBaseUrl = (): string => {
 
 export const API_CONFIG = {
   baseURL: getApiBaseUrl(),
-  timeout: 120000,
+  timeout: 45000,
 };

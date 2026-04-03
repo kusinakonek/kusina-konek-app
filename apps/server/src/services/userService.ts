@@ -70,23 +70,37 @@ export const userService = {
       };
     }
 
-    // Decrypt PII fields using async decryption (handles both AES and PGP)
-    const firstName = await safeDecryptAsync(user.firstName);
-    const lastName = await safeDecryptAsync(user.lastName);
-    const middleName = user.middleName ? await safeDecryptAsync(user.middleName) : null;
-    const suffix = user.suffix ? await safeDecryptAsync(user.suffix) : null;
-    const phoneNo = user.phoneNo ? await safeDecryptAsync(user.phoneNo) : null;
-    const orgName = user.orgName ? await safeDecryptAsync(user.orgName) : null;
+    // Decrypt PII fields in parallel (handles both AES and PGP values).
+    const [firstName, lastName, middleName, suffix, phoneNo, orgName] = await Promise.all([
+      safeDecryptAsync(user.firstName),
+      safeDecryptAsync(user.lastName),
+      user.middleName ? safeDecryptAsync(user.middleName) : Promise.resolve(null),
+      user.suffix ? safeDecryptAsync(user.suffix) : Promise.resolve(null),
+      user.phoneNo ? safeDecryptAsync(user.phoneNo) : Promise.resolve(null),
+      user.orgName ? safeDecryptAsync(user.orgName) : Promise.resolve(null),
+    ]);
 
-    // Decrypt address fields if address exists
-    const address = user.userAddress
-      ? {
+    // Decrypt address fields in parallel when address exists.
+    let address: {
+      latitude: number;
+      longitude: number;
+      streetAddress: string;
+      barangay: string;
+    } | null = null;
+
+    if (user.userAddress) {
+      const [streetAddress, barangay] = await Promise.all([
+        safeDecryptAsync(user.userAddress.streetAddress),
+        safeDecryptAsync(user.userAddress.barangay),
+      ]);
+
+      address = {
         latitude: user.userAddress.latitude,
         longitude: user.userAddress.longitude,
-        streetAddress: await safeDecryptAsync(user.userAddress.streetAddress),
-        barangay: await safeDecryptAsync(user.userAddress.barangay)
-      }
-      : null;
+        streetAddress,
+        barangay,
+      };
+    }
 
     // Detect if essential fields are empty/missing after decryption
     // (happens when profile was created with old PGP encryption from Supabase RPC)

@@ -74,7 +74,7 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  const { isOnline } = useNetwork();
+  const { isOnline, justReconnected } = useNetwork();
   const profileCacheRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
   const lastFetchTimeRef = useRef<number>(0);
@@ -190,6 +190,14 @@ export default function Profile() {
       fetchProfileData();
     }
   }, [notification, fetchProfileData]); // Added fetchProfileData to dependencies
+
+  // Auto silent refresh after internet reconnects.
+  useEffect(() => {
+    if (justReconnected) {
+      lastFetchTimeRef.current = 0;
+      fetchProfileData();
+    }
+  }, [justReconnected, fetchProfileData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

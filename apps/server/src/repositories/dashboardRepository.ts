@@ -187,7 +187,7 @@ export const dashboardRepository = {
   async getRecipientStats(userID: string): Promise<RecipientStats> {
     // quantity is a String field, so we can't use _sum in aggregate.
     // Fetch counts using raw query for performance on large tables
-    const [availableCount, locationsRaw, quantitiesRaw, unreadNotifications] = await Promise.all([
+    const [availableCount, locationsRaw, quantitiesRaw, unreadNotifications, totalReceived, activeNow] = await Promise.all([
       prisma.distribution.count({
         where: {
           status: "PENDING",
@@ -210,26 +210,22 @@ export const dashboardRepository = {
           isRead: false,
         },
       }),
+      prisma.distribution.count({
+        where: {
+          recipientID: userID,
+          status: "COMPLETED",
+        },
+      }),
+      prisma.distribution.count({
+        where: {
+          recipientID: userID,
+          status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED"] },
+        },
+      }),
     ]);
 
     const locationCount = Number(locationsRaw[0]?.count || 0);
     const totalServings = Number(quantitiesRaw[0]?.sum || 0);
-
-    // Count completed distributions for this recipient (food received)
-    const totalReceived = await prisma.distribution.count({
-      where: {
-        recipientID: userID,
-        status: "COMPLETED",
-      },
-    });
-
-    // Count active distributions for this recipient (claimed / on the way / delivered)
-    const activeNow = await prisma.distribution.count({
-      where: {
-        recipientID: userID,
-        status: { in: ["CLAIMED", "ON_THE_WAY", "DELIVERED"] },
-      },
-    });
 
     return {
       availableFoods: availableCount,

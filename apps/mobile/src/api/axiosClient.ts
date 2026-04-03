@@ -1,7 +1,10 @@
 import axios from "axios";
 import { supabase } from "../../lib/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG } from "../config/apiConfig";
+import {
+  getRuntimeAccessToken,
+  getRuntimeRole,
+} from "../state/authRuntime";
 
 const axiosClient = axios.create({
   ...API_CONFIG,
@@ -29,28 +32,28 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 axiosClient.interceptors.request.use(async (config) => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
-  }
+  const runtimeToken = getRuntimeAccessToken();
 
-  // Disable HTTP caching for GET requests so profile/dashboard data is always fresh
-  if (!config.method || config.method.toLowerCase() === "get") {
-    config.headers["Cache-Control"] = "no-cache";
-    config.headers["Pragma"] = "no-cache";
-  }
+  if (runtimeToken) {
+    config.headers.Authorization = `Bearer ${runtimeToken}`;
+  } else {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  // Add current role from AsyncStorage to headers
-  // This allows the backend to use the current role instead of the JWT metadata role
-  try {
-    const currentRole = await AsyncStorage.getItem("userRole");
-    if (currentRole) {
-      config.headers["X-User-Role"] = currentRole;
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
-  } catch (error) {
-    console.log("Failed to get role from AsyncStorage:", error);
+  }
+
+  // Keep read requests responsive on unstable networks.
+  if (!config.method || config.method.toLowerCase() === "get") {
+    config.timeout = Math.min(config.timeout ?? 25000, 25000);
+  }
+
+  const currentRole = getRuntimeRole();
+  if (currentRole) {
+    config.headers["X-User-Role"] = currentRole;
   }
 
   return config;
@@ -60,6 +63,24 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    const method = originalRequest?.method?.toLowerCase?.() || "get";
+    const isTimeoutError =
+      error?.code === "ECONNABORTED" ||
+      String(error?.message || "").toLowerCase().includes("timeout");
+    const isNetworkError = !error?.response && !!error?.request;
+
+    // Retry idempotent reads once on network timeout/transport failures.
+    if (
+      originalRequest &&
+      method === "get" &&
+      !originalRequest._networkRetry &&
+      (isTimeoutError || isNetworkError)
+    ) {
+      originalRequest._networkRetry = true;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return axiosClient(originalRequest);
+    }
 
     // If 401 and we haven't already retried this request
     if (error.response?.status === 401 && !originalRequest._retry) {
