@@ -16,7 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 const nodemailer = require('nodemailer');
 
 // ─── CONFIG: Edit these values ───────────────────────────────
-const APK_LINK = 'https://expo.dev/artifacts/eas/axr8niDkRxGFpn4QNbsATU.apk';
+const APK_LINK = 'https://expo.dev/artifacts/eas/6kJyeFHjgXARDigzHJ8Jvx.apk';
 const EMAIL_SUBJECT = '🎉 KusinaKonek New Update Available — Download Now!';
 // ─────────────────────────────────────────────────────────────
 
