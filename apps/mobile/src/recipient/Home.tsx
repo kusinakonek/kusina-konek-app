@@ -141,6 +141,8 @@ export default function RecipientHome() {
   useEffect(() => {
     if (justReconnected) {
       console.log("[RecipientHome] Reconnected, refreshing dashboard...");
+      // Bypass stale-data throttle on reconnect so fresh data is fetched immediately.
+      lastFetchTimeRef.current = 0;
       fetchDashboardData();
     }
   }, [justReconnected, fetchDashboardData]);

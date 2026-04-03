@@ -107,7 +107,7 @@ async function navigateForNotificationType(type: string, entityID?: string) {
 
 export default function NotificationsScreen() {
     const { colors, isDark } = useTheme();
-    const { isOnline } = useNetwork();
+    const { isOnline, justReconnected } = useNetwork();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -146,6 +146,13 @@ export default function NotificationsScreen() {
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
+
+    // Auto silent refresh after internet reconnects.
+    useEffect(() => {
+        if (justReconnected) {
+            fetchNotifications();
+        }
+    }, [justReconnected, fetchNotifications]);
 
     const handleRefresh = () => {
         setRefreshing(true);

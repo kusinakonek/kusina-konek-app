@@ -138,6 +138,8 @@ export default function DonorHome() {
   useEffect(() => {
     if (justReconnected) {
       console.log("[DonorHome] Reconnected, fetching fresh data.");
+      // Bypass stale-data throttle on reconnect so fresh data is fetched immediately.
+      lastFetchTimeRef.current = 0;
       fetchDashboardData();
     }
   }, [justReconnected, fetchDashboardData]);
