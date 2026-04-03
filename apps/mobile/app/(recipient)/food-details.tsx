@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  ActivityIndicator,
   Pressable,
   Linking,
   Platform,
@@ -17,7 +16,6 @@ import {
   MessageCircle,
   MapPin,
   Users,
-  Calendar,
   Clock,
   Navigation,
   AlertCircle,
@@ -34,6 +32,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { Distribution } from '../../context/FoodCacheContext';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 export default function FoodDetails() {
   const { disID } = useLocalSearchParams<{ disID: string }>();
@@ -113,7 +112,7 @@ export default function FoodDetails() {
           <Text style={[styles.headerTitle, { color: colors.text }]}>Food Details</Text>
           <View style={{ width: 40 }} />
         </View>
-        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+        <LoadingScreen message="Loading food details..." />
       </SafeAreaView>
     );
   }
@@ -230,18 +229,6 @@ export default function FoodDetails() {
                 {distribution.quantity}
               </Text>
             </View>
-
-            {food?.dateCooked && (
-              <View style={[styles.detailCard, { backgroundColor: colors.card }]}>
-                <Calendar size={20} color={colors.primary} />
-                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
-                  Date Cooked
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {new Date(food.dateCooked).toLocaleDateString()}
-                </Text>
-              </View>
-            )}
 
             <View style={[styles.detailCard, { backgroundColor: colors.card }]}>
               <Clock size={20} color={colors.primary} />

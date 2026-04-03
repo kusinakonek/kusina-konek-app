@@ -679,7 +679,7 @@ export default function Profile() {
                 <RNImage source={require('../../../assets/KusinaKonek-Logo.png')} style={{ width: wp(40), height: wp(40) }} resizeMode="contain" />
               </View>
               <Text style={{ fontSize: fp(16), fontWeight: 'bold', color: colors.text }}>KusinaKonek</Text>
-              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 2.0.0</Text>
+              <Text style={{ fontSize: fp(14), color: colors.textSecondary, marginTop: hp(4) }}>Version 2.0.1</Text>
             </View>
 
             <Text style={[styles.modalSubtitle, { color: colors.text, textAlign: 'center', lineHeight: 22 }]}>

@@ -1,6 +1,7 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StatusBar } from "react-native";
+import { LogBox, StatusBar } from "react-native";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
@@ -49,6 +50,12 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    LogBox.ignoreLogs([
+      'Warning: useInsertionEffect must not schedule updates.',
+    ]);
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

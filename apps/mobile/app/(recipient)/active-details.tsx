@@ -78,9 +78,9 @@ export default function ActiveDetailsScreen() {
 
     const handleMarkOnTheWay = async () => {
         showAlert("On the Way", "Are you heading to pick up this food now?", [
-            { text: "Cancel", style: "cancel" },
             {
                 text: "Yes, I'm On My Way",
+                style: "default",
                 onPress: async () => {
                     setActionLoading(true);
                     try {
@@ -96,6 +96,7 @@ export default function ActiveDetailsScreen() {
                     }
                 },
             },
+            { text: "Cancel", style: "cancel" },
         ]);
     };
 
@@ -104,9 +105,9 @@ export default function ActiveDetailsScreen() {
             "Confirm Receipt",
             "Have you successfully received this food?",
             [
-                { text: "Cancel", style: "cancel" },
                 {
                     text: "Yes, Confirm",
+                    style: "default",
                     onPress: async () => {
                         setActionLoading(true);
                         try {
@@ -122,7 +123,9 @@ export default function ActiveDetailsScreen() {
                         }
                     },
                 },
-            ]
+                { text: "Cancel", style: "cancel" },
+            ],
+            { type: 'info', stackButtons: true }
         );
     };
 
@@ -171,11 +174,7 @@ export default function ActiveDetailsScreen() {
     };
 
     if (loading) {
-        return (
-            <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </SafeAreaView>
-        );
+        return <LoadingScreen message="Loading active order..." />;
     }
 
     if (!distribution) return null;

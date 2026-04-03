@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Star, MapPin, Calendar, User, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { wp, hp, fp } from '../../src/utils/responsive';
 import axiosClient from '../../src/api/axiosClient';
+import LoadingScreen from '../../src/components/LoadingScreen';
 // We might need an endpoint to get specific feedback by ID if we don't pass all data
 // For now, let's assume we might need to fetch if only ID is passed.
 // But the endpoints.ts only has LIST_RECEIVED. 
@@ -95,7 +96,7 @@ export default function ReviewDetailsScreen() {
                     <View style={{ width: 24 }} />
                 </View>
                 <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#00C853" />
+                    <LoadingScreen message="Loading review details..." />
                 </View>
             </SafeAreaView>
         );

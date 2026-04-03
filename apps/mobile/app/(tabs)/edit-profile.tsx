@@ -184,10 +184,7 @@ export default function EditProfile() {
     if (loading) {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#00C853" />
-                    <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading profile...</Text>
-                </View>
+                <LoadingScreen message="Loading profile..." />
             </SafeAreaView>
         );
     }

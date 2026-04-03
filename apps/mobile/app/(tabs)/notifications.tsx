@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     RefreshControl,
-    ActivityIndicator,
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { API_ENDPOINTS } from '../../src/api/endpoints';
 import { useTheme } from '../../context/ThemeContext';
 import { useNetwork } from '../../context/NetworkContext';
 import { cacheData, getCachedDataAnyAge, CACHE_KEYS } from '../../src/utils/dataCache';
+import LoadingScreen from '../../src/components/LoadingScreen';
 
 interface Notification {
     notificationID: string;
@@ -214,9 +214,7 @@ export default function NotificationsScreen() {
             </View>
 
             {loading ? (
-                <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#00C853" />
-                </View>
+                <LoadingScreen message="Loading notifications..." />
             ) : notifications.length === 0 ? (
                 <View style={styles.centerContent}>
                     <Bell size={48} color={colors.textTertiary} />
